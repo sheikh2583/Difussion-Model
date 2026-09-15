@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow Models</title>
+  <style>
+    :root {
+      --background: #f8f9ff;
+      --surface: #ffffff;
+      --text: #1a1a2e;
+      --muted: #6c6f82;
+      --teal: #00bfc2;
+      --indigo: #5c6bc0;
+      --line: #e2e5f0;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      color: var(--text);
+      background-color: var(--background);
+      background-image: radial-gradient(rgba(92,107,192,.14) 1px, transparent 1px);
+      background-size: 24px 24px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0 0 auto;
+      height: 3px;
+      background: linear-gradient(90deg, var(--teal), var(--indigo));
+    }
+
+    main {
+      width: min(760px, calc(100% - 32px));
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 9px;
+      text-align: center;
+      font-size: clamp(2rem, 6vw, 3.7rem);
+      letter-spacing: -.055em;
+    }
+
+    .intro {
+      margin: 0 0 32px;
+      color: var(--muted);
+      text-align: center;
+      font-size: .9rem;
+    }
+
+    .choices {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .choice {
+      min-height: 210px;
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      color: inherit;
+      background: var(--surface);
+      box-shadow: 0 16px 42px rgba(48,59,112,.1);
+      text-decoration: none;
+      transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+    }
+
+    .choice:hover,
+    .choice:focus-visible {
+      transform: translateY(-4px);
+      border-color: var(--teal);
+      box-shadow: 0 18px 46px rgba(48,59,112,.13), 0 0 18px rgba(0,191,194,.2);
+      outline: none;
+    }
+
+    .number {
+      color: var(--teal);
+      font-size: .7rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+    }
+
+    .choice h2 {
+      margin: 13px 0 7px;
+      font-size: 1.75rem;
+      letter-spacing: -.035em;
+    }
+
+    .choice p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .8rem;
+      line-height: 1.5;
+    }
+
+    .arrow {
+      align-self: flex-end;
+      color: var(--indigo);
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+
+    @media (max-width: 600px) {
+      main { padding: 14px; }
+      .choices { grid-template-columns: 1fr; }
+      .choice { min-height: 160px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Flow Models</h1>
+    <p class="intro">Choose a workspace.</p>
+    <nav class="choices" aria-label="Choose workspace">
+      <a class="choice" href="thesis_dashboard.html">
+        <div>
+          <span class="number">01</span>
+          <h2>Train</h2>
+          <p>View checkpoint progression and training loss.</p>
+        </div>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+      <a class="choice" href="inference_ui.html">
+        <div>
+          <span class="number">02</span>
+          <h2>Infer</h2>
+          <p>Generate samples from trained checkpoints.</p>
+        </div>
+        <span class="arrow" aria-hidden="true">→</span>
+      </a>
+    </nav>
+  </main>
+</body>
+</html>

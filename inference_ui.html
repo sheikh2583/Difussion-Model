@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Live inference interface for CIFAR-10 Flow Matching and Mean Flow models.">
+  <title>Inference</title>
+  <style>
+    :root {
+      --bg: #f7f9ff;
+      --surface: rgba(255,255,255,.94);
+      --ink: #17182d;
+      --muted: #6d7084;
+      --teal: #00bfc2;
+      --teal-deep: #008e94;
+      --indigo: #5c6bc0;
+      --line: #e3e6f1;
+      --shadow: 0 18px 50px rgba(50,61,116,.1);
+      --glow: 0 0 18px rgba(0,191,194,.28);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body { height: 100vh; overflow: hidden; color: var(--ink); background: var(--bg); font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    body::before { content: ""; position: fixed; inset: 0 0 auto; z-index: 20; height: 3px; background: linear-gradient(90deg,var(--teal),var(--indigo)); }
+    button, select, input { font: inherit; }
+    button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid rgba(0,191,194,.25); outline-offset: 2px; }
+
+    .app { height: 100vh; display: grid; grid-template-rows: auto auto minmax(0,1fr); background-image: radial-gradient(rgba(92,107,192,.12) 1px, transparent 1px); background-size: 23px 23px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px max(22px,calc((100vw - 1480px)/2)); border-bottom: 1px solid rgba(92,107,192,.11); background: rgba(248,249,255,.92); backdrop-filter: blur(12px); }
+    h1 { margin: 0; font-size: clamp(1.35rem,2.2vw,2.05rem); letter-spacing: -.045em; line-height: 1.08; }
+    .top-actions { display: flex; align-items: center; gap: 9px; }
+    .home-link { padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; color: var(--indigo); background: #fff; font-size: .66rem; font-weight: 800; text-decoration: none; transition: border-color 180ms ease, transform 180ms ease; }
+    .home-link:hover { border-color: var(--teal); transform: translateY(-1px); }
+
+    .algorithm-bar { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 9px 18px; background: rgba(248,249,255,.84); }
+    .algorithm-bar > span { margin-right: 5px; color: var(--muted); font-size: .63rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+    .algorithm { position: relative; min-width: 90px; padding: 8px 16px; border: 1px solid #cfd3df; border-radius: 999px; color: var(--ink); background: #fff; font-size: .74rem; font-weight: 800; cursor: pointer; transition: all 200ms ease; }
+    .algorithm:hover { border-color: var(--teal); transform: translateY(-1px); }
+    .algorithm.active { color: #fff; border-color: var(--teal); background: var(--teal); box-shadow: var(--glow); }
+    .algorithm.unavailable { color: #9698a7; border-style: dashed; }
+    .algorithm.unavailable::after { content: "pending"; position: absolute; top: -7px; right: -4px; padding: 2px 5px; border-radius: 99px; color: #717486; background: #eceef5; font-size: .43rem; letter-spacing: .04em; }
+
+    .workspace { width: min(1480px,calc(100% - 30px)); min-height: 0; margin: 0 auto; padding-bottom: 12px; display: grid; grid-template-columns: minmax(0,1.12fr) minmax(390px,.88fr); gap: 15px; }
+    .card { position: relative; min-height: 0; overflow: hidden; border: 1px solid rgba(92,107,192,.13); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
+    .card::before { content: ""; position: absolute; inset: 0 0 auto; height: 2px; background: linear-gradient(90deg,var(--teal),transparent 65%); }
+    .card-title { margin: 0; font-size: .9rem; font-weight: 800; letter-spacing: -.02em; }
+
+    .output-panel { padding: 15px; display: grid; grid-template-rows: auto minmax(0,1fr) auto; gap: 10px; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .status { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: .61rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #adb0c0; }
+    .status.running { color: var(--teal-deep); }
+    .status.running .status-dot { background: var(--teal); box-shadow: 0 0 0 5px rgba(0,191,194,.12); animation: pulse 1s ease infinite; }
+
+    .image-stage { position: relative; min-height: 0; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: linear-gradient(145deg,#fbfcff,#eff2fa); }
+    .image-stage::before { content: ""; position: absolute; width: 56%; aspect-ratio: 1; border-radius: 50%; background: rgba(0,191,194,.09); filter: blur(60px); }
+    #noiseCanvas, #resultImage { position: relative; display: block; height: min(100%,680px); max-width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 10px; image-rendering: auto; transition: opacity 250ms ease, transform 250ms ease; }
+    #resultImage { display: none; box-shadow: 0 16px 38px rgba(30,37,78,.18); }
+    #resultImage.reveal { animation: reveal 420ms ease both; }
+    .stage-message { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 2; padding: 7px 12px; border: 1px solid rgba(255,255,255,.7); border-radius: 999px; color: #4e5268; background: rgba(255,255,255,.86); box-shadow: 0 6px 18px rgba(42,49,88,.08); font-size: .63rem; font-weight: 800; white-space: nowrap; backdrop-filter: blur(8px); }
+
+    .metadata { min-height: 31px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .metadata span { padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; color: #55586d; background: #fbfbfe; font-size: .59rem; font-weight: 700; }
+
+    .side { min-height: 0; display: grid; grid-template-rows: auto minmax(230px,1fr); gap: 15px; }
+    .controls { padding: 15px; }
+    .control-grid { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { display: grid; gap: 5px; }
+    .field.full { grid-column: 1/-1; }
+    label, .field-label { color: #5e6175; font-size: .6rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    select, input[type="number"] { width: 100%; padding: 9px 10px; border: 1px solid #d7dae5; border-radius: 9px; color: var(--ink); background: #fff; font-size: .7rem; font-weight: 600; }
+    .seed-row { display: flex; gap: 7px; }
+    .seed-row input { flex: 1; min-width: 0; }
+    .random-button { padding: 8px 10px; border: 1px solid #d7dae5; border-radius: 9px; color: var(--indigo); background: #f7f8ff; font-size: .65rem; font-weight: 800; cursor: pointer; }
+    .nfe-options { display: flex; gap: 6px; }
+    .nfe { flex: 1; padding: 8px 7px; border: 1px solid #d5d8e3; border-radius: 9px; color: #4e5165; background: #fff; font-size: .66rem; font-weight: 800; cursor: pointer; }
+    .nfe.active { color: #fff; border-color: var(--teal); background: var(--teal); box-shadow: var(--glow); }
+    .generate { grid-column: 1/-1; padding: 11px 16px; border: 0; border-radius: 10px; color: #fff; background: linear-gradient(100deg,var(--teal),var(--indigo)); font-size: .74rem; font-weight: 800; cursor: pointer; box-shadow: 0 9px 22px rgba(0,191,194,.2); transition: transform 180ms ease, opacity 180ms ease; }
+    .generate:hover:not(:disabled) { transform: translateY(-1px); }
+    .generate:disabled { opacity: .45; cursor: not-allowed; }
+    .notice { display: none; grid-column: 1/-1; padding: 9px 10px; border: 1px dashed #c5c8d5; border-radius: 9px; color: #6f7180; background: #f2f3f7; font-size: .64rem; line-height: 1.45; }
+    .notice.visible { display: block; }
+
+    .chart-card { padding: 15px; display: grid; grid-template-rows: auto minmax(0,1fr) auto; gap: 8px; }
+    .chart-head { display: flex; align-items: end; justify-content: space-between; gap: 10px; }
+    .selected-loss { color: var(--teal-deep); text-align: right; }
+    .selected-loss strong { display: block; font-size: .95rem; }
+    .selected-loss small { font-size: .52rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .chart-wrap { min-height: 0; border: 1px solid var(--line); border-radius: 10px; background: #fcfcff; overflow: hidden; }
+    #lossChart { display: block; width: 100%; height: 100%; }
+    .chart-note { margin: 0; color: var(--muted); font-size: .58rem; line-height: 1.4; }
+
+    @keyframes pulse { 50% { transform: scale(.78); opacity: .72; } }
+    @keyframes reveal { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: scale(1); } }
+
+    @media (max-width: 900px) {
+      body { height: auto; min-height: 100vh; overflow: auto; }
+      .app { height: auto; min-height: 100vh; display: block; }
+      .topbar { padding: 16px; }
+      .workspace { grid-template-columns: 1fr; }
+      .output-panel { min-height: 690px; }
+      .chart-card { min-height: 390px; }
+    }
+    @media (max-width: 560px) {
+      .algorithm-bar > span { display: none; }
+      .algorithm { min-width: 72px; padding-inline: 11px; }
+      .workspace { width: calc(100% - 20px); }
+      .control-grid { grid-template-columns: 1fr; }
+      .field.full, .generate { grid-column: auto; }
+      .output-panel { min-height: 570px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>Inference</h1>
+      </div>
+      <div class="top-actions">
+        <a class="home-link" href="index.html">← Home</a>
+      </div>
+    </header>
+
+    <nav class="algorithm-bar" id="algorithmBar" aria-label="Choose inference algorithm">
+      <span>Select algorithm</span>
+    </nav>
+
+    <main class="workspace">
+      <section class="card output-panel">
+        <div class="panel-head">
+          <h2 class="card-title">Generated Samples</h2>
+          <div class="status" id="status"><span class="status-dot"></span><span id="statusText">Ready</span></div>
+        </div>
+        <div class="image-stage">
+          <canvas id="noiseCanvas" width="256" height="256" aria-label="Gaussian noise initialization"></canvas>
+          <img id="resultImage" alt="Generated CIFAR-10 sample grid">
+          <div class="stage-message" id="stageMessage">Input: Gaussian noise · choose Generate</div>
+        </div>
+        <div class="metadata" id="metadata"><span>No inference run yet</span></div>
+      </section>
+
+      <aside class="side">
+        <section class="card controls">
+          <h2 class="card-title">Inference Controls</h2>
+          <div class="control-grid">
+            <div class="field">
+              <label for="checkpoint">Checkpoint</label>
+              <select id="checkpoint"></select>
+            </div>
+            <div class="field">
+              <label for="imageCount">Images</label>
+              <select id="imageCount"><option value="1">1 image</option><option value="4">4 images</option><option value="16" selected>16 images</option><option value="64">64 images</option></select>
+            </div>
+            <div class="field full">
+              <span class="field-label">Function evaluations</span>
+              <div class="nfe-options" role="group" aria-label="Number of function evaluations">
+                <button class="nfe" type="button" data-nfe="1" aria-pressed="false">NFE 1</button>
+                <button class="nfe" type="button" data-nfe="5" aria-pressed="false">NFE 5</button>
+                <button class="nfe active" type="button" data-nfe="20" aria-pressed="true">NFE 20</button>
+              </div>
+            </div>
+            <div class="field full">
+              <label for="seed">Random seed</label>
+              <div class="seed-row"><input id="seed" type="number" min="0" max="4294967295" value="0"><button class="random-button" id="randomSeed" type="button">Randomize</button></div>
+            </div>
+            <div class="notice" id="notice"></div>
+            <button class="generate" id="generateButton" type="button">Generate new samples</button>
+          </div>
+        </section>
+
+        <section class="card chart-card">
+          <div class="chart-head">
+            <h2 class="card-title">Training History</h2>
+            <div class="selected-loss"><strong id="lossValue">—</strong><small id="chartEpoch">Epoch —</small></div>
+          </div>
+          <div class="chart-wrap"><canvas id="lossChart" aria-label="Training loss with selected checkpoint highlighted"></canvas></div>
+          <p class="chart-note">Historical training loss · marker follows the selected checkpoint</p>
+        </section>
+      </aside>
+    </main>
+
+  </div>
+
+  <script>
+    const state = { catalog: [], model: null, nfe: 20, busy: false, noiseFrame: null, chartFrame: null, chartEpoch: 0 };
+    const algorithmBar = document.getElementById("algorithmBar");
+    const checkpoint = document.getElementById("checkpoint");
+    const imageCount = document.getElementById("imageCount");
+    const seed = document.getElementById("seed");
+    const generateButton = document.getElementById("generateButton");
+    const notice = document.getElementById("notice");
+    const status = document.getElementById("status");
+    const statusText = document.getElementById("statusText");
+    const noiseCanvas = document.getElementById("noiseCanvas");
+    const resultImage = document.getElementById("resultImage");
+    const stageMessage = document.getElementById("stageMessage");
+    const metadata = document.getElementById("metadata");
+    const lossChart = document.getElementById("lossChart");
+    const lossValue = document.getElementById("lossValue");
+    const chartEpoch = document.getElementById("chartEpoch");
+    const nfeButtons = [...document.querySelectorAll(".nfe")];
+
+    function drawNoise(animated = false) {
+      const ctx = noiseCanvas.getContext("2d");
+      const image = ctx.createImageData(noiseCanvas.width, noiseCanvas.height);
+      const phase = animated ? Date.now() * .002 : 0;
+      for (let i = 0; i < image.data.length; i += 4) {
+        const value = Math.max(0, Math.min(255, 128 + 48 * (Math.random() + Math.random() - 1) + Math.sin(i * .001 + phase) * 6));
+        image.data[i] = value * .88; image.data[i + 1] = value * 1.02; image.data[i + 2] = value * 1.08; image.data[i + 3] = 255;
+      }
+      ctx.putImageData(image, 0, 0);
+      if (animated && state.busy) state.noiseFrame = requestAnimationFrame(() => drawNoise(true));
+    }
+
+    function selectedModel() { return state.catalog.find(model => model.key === state.model); }
+
+    function setBusy(busy) {
+      state.busy = busy;
+      generateButton.disabled = busy || !selectedModel()?.available;
+      checkpoint.disabled = busy || !selectedModel()?.available;
+      imageCount.disabled = busy;
+      seed.disabled = busy;
+      nfeButtons.forEach(button => button.disabled = busy);
+      status.classList.toggle("running", busy);
+      statusText.textContent = busy ? "Inferring" : "Ready";
+      generateButton.textContent = busy ? "Generating…" : "Generate new samples";
+    }
+
+    function renderCheckpoints(model) {
+      checkpoint.replaceChildren();
+      if (!model.available) {
+        checkpoint.add(new Option("No checkpoint available", ""));
+        return;
+      }
+      [...model.epochs].reverse().forEach(epoch => checkpoint.add(new Option(`Epoch ${epoch}`, String(epoch), false, epoch === model.default_epoch)));
+    }
+
+    function selectAlgorithm(key) {
+      state.model = key;
+      const model = selectedModel();
+      document.querySelectorAll(".algorithm").forEach(button => {
+        const active = button.dataset.model === key;
+        button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active));
+      });
+      renderCheckpoints(model);
+      notice.classList.toggle("visible", !model.available);
+      notice.textContent = model.available ? "" : `${model.label} checkpoints are not available yet. The interface will enable this model when its run is added.`;
+      resultImage.style.display = "none";
+      noiseCanvas.style.display = "block";
+      drawNoise();
+      stageMessage.textContent = model.available ? "Input: Gaussian noise · ready to generate" : `${model.label} · results pending`;
+      metadata.replaceChildren(makeMeta(model.available ? `Selected · ${model.label}` : "Model unavailable"));
+      setBusy(false);
+      resetLossChart();
+    }
+
+    function makeMeta(text) { const span = document.createElement("span"); span.textContent = text; return span; }
+
+    function renderAlgorithms() {
+      state.catalog.forEach(model => {
+        const button = document.createElement("button");
+        button.type = "button"; button.className = `algorithm${model.available ? "" : " unavailable"}`;
+        button.dataset.model = model.key; button.textContent = model.key === "fm_lognorm" ? "FM-LN" : model.key.toUpperCase();
+        button.setAttribute("aria-pressed", "false");
+        button.addEventListener("click", () => selectAlgorithm(model.key));
+        algorithmBar.appendChild(button);
+      });
+    }
+
+    function drawLossChart(revealEpoch = state.chartEpoch) {
+      const model = selectedModel();
+      const rows = model?.losses || [];
+      const rect = lossChart.getBoundingClientRect();
+      const ratio = Math.min(devicePixelRatio || 1, 2);
+      lossChart.width = Math.max(1, Math.round(rect.width * ratio)); lossChart.height = Math.max(1, Math.round(rect.height * ratio));
+      const ctx = lossChart.getContext("2d"); ctx.scale(ratio, ratio);
+      const width = rect.width, height = rect.height, pad = {l:42,r:15,t:15,b:27};
+      ctx.clearRect(0,0,width,height);
+      if (!rows.length) { ctx.fillStyle = "#858899"; ctx.font = "12px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText("Training history unavailable",width/2,height/2); lossValue.textContent = "—"; chartEpoch.textContent="Epoch —"; return; }
+      const values = rows.map(row => row[1]); const minY = Math.min(...values)*.92, maxY = Math.max(...values)*1.06;
+      const maxEpoch = rows.at(-1)[0]; const x = epoch => pad.l + (epoch-1)/(maxEpoch-1)*(width-pad.l-pad.r); const y = value => pad.t + (1-(value-minY)/(maxY-minY))*(height-pad.t-pad.b);
+      ctx.font = "9px Inter, sans-serif"; ctx.fillStyle = "#7b7e91"; ctx.strokeStyle = "#e5e7f0"; ctx.lineWidth = 1; ctx.textAlign = "left";
+      [0,.5,1].forEach(f => { const py=pad.t+(height-pad.t-pad.b)*f; ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(width-pad.r,py);ctx.stroke();ctx.fillText((maxY-(maxY-minY)*f).toFixed(3),5,py+3); });
+      const selectedEpoch = Number(checkpoint.value || model.default_epoch);
+      const visibleEpoch = revealEpoch == null ? selectedEpoch : Math.min(revealEpoch, selectedEpoch);
+      const visible = rows.filter(row => row[0] <= visibleEpoch);
+      if (visible.length) {
+        const gradient = ctx.createLinearGradient(0,pad.t,0,height-pad.b);
+        gradient.addColorStop(0,"rgba(0,191,194,.22)"); gradient.addColorStop(1,"rgba(92,107,192,0)");
+        ctx.beginPath(); visible.forEach(([epoch,value],i)=>i?ctx.lineTo(x(epoch),y(value)):ctx.moveTo(x(epoch),y(value)));
+        ctx.lineTo(x(visible.at(-1)[0]),height-pad.b); ctx.lineTo(x(visible[0][0]),height-pad.b); ctx.closePath(); ctx.fillStyle=gradient; ctx.fill();
+        ctx.beginPath(); visible.forEach(([epoch,value],i)=>i?ctx.lineTo(x(epoch),y(value)):ctx.moveTo(x(epoch),y(value))); ctx.strokeStyle="#00aeb3";ctx.lineWidth=2.2;ctx.lineJoin="round";ctx.stroke();
+        const current = visible.at(-1); ctx.beginPath();ctx.arc(x(current[0]),y(current[1]),5,0,Math.PI*2);ctx.fillStyle="#5c6bc0";ctx.fill(); lossValue.textContent=current[1].toFixed(4); chartEpoch.textContent=`Epoch ${current[0]}`;
+      } else {
+        lossValue.textContent="—"; chartEpoch.textContent="Epoch —";
+      }
+      ctx.fillStyle="#777a8d";ctx.textAlign="center";[1,Math.round(maxEpoch/2),maxEpoch].forEach(epoch=>ctx.fillText(String(epoch),x(epoch),height-8));
+    }
+
+    function animateLossChart() {
+      cancelAnimationFrame(state.chartFrame);
+      const model = selectedModel();
+      const rows = model?.losses || [];
+      if (!rows.length) { state.chartEpoch=null; drawLossChart(); return; }
+      const targetEpoch = Number(checkpoint.value || model.default_epoch);
+      const firstEpoch = rows[0][0];
+      const duration = Math.min(2200, 650 + targetEpoch * 14);
+      const started = performance.now();
+      state.chartEpoch = firstEpoch;
+
+      function reveal(now) {
+        const progress = Math.min(1, (now - started) / duration);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        state.chartEpoch = Math.floor(firstEpoch + (targetEpoch - firstEpoch) * eased);
+        drawLossChart(state.chartEpoch);
+        if (progress < 1) state.chartFrame = requestAnimationFrame(reveal);
+        else { state.chartEpoch=targetEpoch; drawLossChart(targetEpoch); state.chartFrame=null; }
+      }
+      state.chartFrame = requestAnimationFrame(reveal);
+    }
+
+    function resetLossChart() {
+      cancelAnimationFrame(state.chartFrame);
+      state.chartFrame = null;
+      state.chartEpoch = 0;
+      drawLossChart(0);
+    }
+
+    async function generate() {
+      const model = selectedModel();
+      if (!model?.available || state.busy) return;
+      let outcome = "Ready";
+      setBusy(true);
+      animateLossChart();
+      resultImage.style.display = "none"; noiseCanvas.style.display = "block";
+      stageMessage.textContent = `Sampling from noise · ${model.label} · NFE ${state.nfe}`;
+      drawNoise(true);
+      try {
+        const response = await fetch("/api/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:state.model, checkpoint_epoch:Number(checkpoint.value), nfe:state.nfe, num_images:Number(imageCount.value), seed:Number(seed.value) }) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Generation failed");
+        resultImage.src = result.image; resultImage.style.display = "block"; noiseCanvas.style.display = "none";
+        resultImage.classList.remove("reveal"); void resultImage.offsetWidth; resultImage.classList.add("reveal");
+        stageMessage.textContent = `Output · ${result.num_images} generated image${result.num_images === 1 ? "" : "s"}`;
+        metadata.replaceChildren(makeMeta(result.model_label),makeMeta(`Epoch ${result.checkpoint_epoch}`),makeMeta(`NFE ${result.nfe}`),makeMeta(`Seed ${result.seed}`),makeMeta(`${result.generation_seconds}s`),makeMeta(`${result.images_per_second} img/s`));
+        outcome = "Complete";
+      } catch (error) {
+        drawNoise(); stageMessage.textContent = error.message; metadata.replaceChildren(makeMeta("Inference failed")); outcome = "Error";
+      } finally {
+        cancelAnimationFrame(state.noiseFrame); setBusy(false); statusText.textContent = outcome;
+      }
+    }
+
+    nfeButtons.forEach(button => button.addEventListener("click",()=>{ state.nfe=Number(button.dataset.nfe); nfeButtons.forEach(item=>{const active=Number(item.dataset.nfe)===state.nfe;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active));}); }));
+    checkpoint.addEventListener("change",resetLossChart);
+    document.getElementById("randomSeed").addEventListener("click",()=>{ seed.value=crypto.getRandomValues(new Uint32Array(1))[0]; });
+    generateButton.addEventListener("click",generate);
+    window.addEventListener("resize",()=>drawLossChart());
+
+    async function initialize() {
+      drawNoise();
+      try {
+        const response = await fetch("/api/models"); const data = await response.json();
+        state.catalog=data.models;
+        renderAlgorithms(); const preferred=state.catalog.find(model=>model.key==="fm_lognorm"&&model.available)||state.catalog.find(model=>model.available)||state.catalog[0];
+        selectAlgorithm(preferred.key);
+      } catch (error) {
+        stageMessage.textContent="Start inference_server.py to connect"; generateButton.disabled=true;
+      }
+    }
+    initialize();
+  </script>
+</body>
+</html>
