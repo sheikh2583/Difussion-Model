@@ -1,0 +1,21 @@
+# =============================================================================
+# DiffusionProject — Python dependencies
+# =============================================================================
+# Install into the project venv with:
+#   pip install -r requirements.txt
+#
+# For a fully pinned, reproducible install (as used in the thesis experiments)
+# see requirements_frozen.txt.
+# =============================================================================
+
+# --- Deep-learning core -------------------------------------------------------
+torch>=2.0          # PyTorch: autograd, nn, amp, torch.func.jvp (Mean Flow)
+torchvision>=0.15   # CIFAR-10 dataset loader + save_image utility
+
+# --- Evaluation metrics -------------------------------------------------------
+torchmetrics>=1.0   # FrechetInceptionDistance + InceptionScore (FID / IS)
+scipy               # Required internally by torchmetrics FID (matrix sqrt)
+
+# --- Visualisation / analysis -------------------------------------------------
+matplotlib          # Training and evaluation plots (utils/plots.py)
+numpy               # Array utilities used by metrics and plotting helpers

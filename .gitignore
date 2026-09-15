@@ -1,0 +1,31 @@
+# Environments
+venv/
+env/
+.env
+
+# Python Caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Build and Distribution
+dist/
+build/
+*.egg-info/
+
+# Large Files & Directories (Local Data/Outputs)
+data/
+models/
+results/
+*.pdf
+*.pptx
+*.zip
+*.gif
+thesis_dashboard.html
+ProjectForClaude.zip
