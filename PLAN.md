@@ -250,3 +250,17 @@ check each agent separately.
 - Track A checkpoint commit: `"Track A: CelebA verified, aggregation validated,
   Linux checklist added"`.
 - Both tracks complete. Remaining work is manual training by user.
+
+### [Codex] 2026-09-17 — Track B implementation complete
+
+- Fixed and hardened the owned Reflow generator: canonical CelebA paths,
+  atomic shared GPU locking, safe overwrite behavior, and atomic artifact
+  publication.
+- Re-ran a real-checkpoint two-pair generation and verified Reflow consumes it
+  with a finite loss; the temporary artifact was removed.
+- Verified all CIFAR-10/CelebA teacher path conventions and completed a
+  non-optimizing Consistency forward/sample check.
+- Added the four-variant Consistency sweep harness and tuning notes. Its dry run
+  passes. The empirical sweep itself was not run because the user excluded
+  model training; `config/consistency_full.json` therefore remains unchanged.
+- Track B is complete within the non-training scope and ready for checkpoint 2.

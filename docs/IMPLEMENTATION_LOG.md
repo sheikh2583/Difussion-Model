@@ -176,3 +176,37 @@ and results remain outside Git.
 
 ### A4 — Linux checklist
 - Created `docs/LINUX_VERIFICATION.md`
+
+---
+
+## [Codex] Track B — pipeline readiness (2026-09-17)
+
+- Corrected the CelebA Reflow generation command to use the derived
+  `fm_celeba` run directory and canonical `reflow_pairs_celeba.pt` output.
+- Added atomic `results/.lock` enforcement, safe existing-output refusal,
+  explicit `--overwrite`, and atomic output replacement to the Reflow pair
+  generator.
+- Generated two pairs from the real CIFAR-10 epoch-100 FM checkpoint in a
+  temporary file and consumed them through `ReflowAlgorithm.training_step()`;
+  tensor shapes were correct and the loss was finite. The temporary artifact
+  was removed and the GPU lock was released.
+- Validated MF-Distill and Consistency teacher paths for CIFAR-10 and CelebA.
+  A non-optimizing Consistency forward pass and NFE-1 sample pass both produced
+  finite outputs.
+- Added `scripts/tune_consistency.py` with four isolated variants, shared GPU
+  locking, dry-run validation, per-variant outputs, and JSON/Markdown result
+  summaries. Only `--dry-run` was executed; model training remains manual.
+
+Real pair-generation commands (run only after the matching teacher exists):
+
+```bash
+python scripts/generate_reflow_pairs.py \
+  --checkpoint results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt \
+  --config config/fm_full.json --n-pairs 50000 --nfe 50 \
+  --output data/reflow_pairs_cifar10.pt --overwrite
+
+python scripts/generate_reflow_pairs.py \
+  --checkpoint results/fm_celeba/checkpoints/FlowMatchingAlgorithm_epoch100.pt \
+  --config config/fm_celeba64.json --n-pairs 50000 --nfe 50 \
+  --output data/reflow_pairs_celeba.pt
+```

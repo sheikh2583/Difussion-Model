@@ -11,24 +11,18 @@ This script:
 
 Usage:
     python scripts/generate_reflow_pairs.py \\
-        --checkpoint results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt \\
-        --config config/fm_full.json \\
+        --checkpoint results/fm_<dataset>/checkpoints/FlowMatchingAlgorithm_epoch100.pt \\
+        --config config/<fm-preset>.json \\
         --n-pairs 50000 \\
         --nfe 50 \\
-        --output data/reflow_pairs_cifar10.pt
+        --output data/reflow_pairs_<dataset>.pt
 
-    python scripts/generate_reflow_pairs.py \\
-        --checkpoint results/fm_celeba64/checkpoints/FlowMatchingAlgorithm_epoch100.pt \\
-        --config config/fm_celeba64.json \\
-        --n-pairs 50000 \\
-        --nfe 50 \\
-        --output data/reflow_pairs_celeba64.pt
-
-Time estimate: ~30min for 50k pairs at NFE=50 on RTX 3060.
+Runtime depends on the selected device and model configuration.
 """
 import argparse
 import os
 import sys
+from contextlib import contextmanager
 
 # Make project packages importable when this file is launched directly as
 # `python scripts/generate_reflow_pairs.py` from any working directory.
@@ -39,7 +33,6 @@ os.chdir(PROJECT_ROOT)
 
 import torch
 
-from algorithms.flow_matching import FlowMatchingAlgorithm
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
 from utils.checkpoints import extract_model_state
@@ -55,11 +48,49 @@ def parse_args():
                    help="Euler steps for generating clean images. Higher=better quality.")
     p.add_argument("--batch-size", type=int, default=256)
     p.add_argument("--output",     required=True)
+    p.add_argument(
+        "--lock-file",
+        default="results/.lock",
+        help="Shared GPU lock path (default: results/.lock).",
+    )
+    p.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Replace an existing output file. Without this flag, fail safely.",
+    )
     return p.parse_args()
 
 
-def main():
-    args = parse_args()
+@contextmanager
+def gpu_lock(path: str):
+    """Acquire the project-wide GPU lock atomically and release our own lock."""
+    lock_path = os.path.abspath(path)
+    token = f"pid={os.getpid()}\ncommand=generate_reflow_pairs.py\n"
+    os.makedirs(os.path.dirname(lock_path) or ".", exist_ok=True)
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError as exc:
+        raise RuntimeError(
+            f"GPU lock already exists: {lock_path}\n"
+            "Another project job may be active. Wait for it to finish, or remove "
+            "the lock only after confirming it is stale."
+        ) from exc
+
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(token)
+        yield
+    finally:
+        try:
+            with open(lock_path, "r", encoding="utf-8") as handle:
+                still_ours = handle.read() == token
+            if still_ours:
+                os.remove(lock_path)
+        except FileNotFoundError:
+            pass
+
+
+def _generate(args):
     if args.n_pairs < 1:
         raise ValueError(f"--n-pairs must be >= 1, got {args.n_pairs}")
     if args.nfe < 1:
@@ -77,8 +108,6 @@ def main():
     model.load_state_dict(extract_model_state(state))
     model.to(device)
     model.eval()
-
-    algorithm = FlowMatchingAlgorithm(model)
 
     C = cfg.backbone.in_channels
     H = W = cfg.dataset.image_size
@@ -116,10 +145,32 @@ def main():
     z1_all = torch.cat(all_z1, dim=0)[:args.n_pairs]
     x0_all = torch.cat(all_x0, dim=0)[:args.n_pairs]
 
-    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
-    torch.save({"z1": z1_all, "x0": x0_all}, args.output)
-    print(f"Saved {args.n_pairs} pairs -> {args.output}")
+    output_path = os.path.abspath(args.output)
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+    temporary_path = f"{output_path}.tmp.{os.getpid()}"
+    try:
+        torch.save({"z1": z1_all, "x0": x0_all}, temporary_path)
+        os.replace(temporary_path, output_path)
+    finally:
+        if os.path.exists(temporary_path):
+            os.remove(temporary_path)
+    print(f"Saved {args.n_pairs} pairs -> {output_path}")
     print(f"Shapes: z1={z1_all.shape}, x0={x0_all.shape}")
+
+
+def main():
+    args = parse_args()
+    if not os.path.isfile(args.checkpoint):
+        raise FileNotFoundError(f"Checkpoint not found: {args.checkpoint}")
+    if not os.path.isfile(args.config):
+        raise FileNotFoundError(f"Config not found: {args.config}")
+    if os.path.exists(args.output) and not args.overwrite:
+        raise FileExistsError(
+            f"Output already exists: {args.output}\n"
+            "Pass --overwrite only if replacing it is intentional."
+        )
+    with gpu_lock(args.lock_file):
+        _generate(args)
 
 
 if __name__ == "__main__":
