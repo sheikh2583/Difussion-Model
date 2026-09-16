@@ -42,6 +42,7 @@ import torch.nn.functional as F
 from algorithms.base import BaseAlgorithm
 from algorithms.r_embed import REmbed
 from models.backbone import build_backbone
+from utils.checkpoints import extract_model_state
 
 
 class MeanFlowDistillAlgorithm(BaseAlgorithm):
@@ -65,9 +66,9 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
                 "pointing to a trained FlowMatchingAlgorithm checkpoint."
             )
         self.teacher = build_backbone(model.cfg, image_size=model._expected_image_size)
-        state = torch.load(ckpt_path, map_location="cpu")
+        state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
         # checkpoint may be a full trainer dict or a raw state dict
-        sd = state.get("model_state", state)
+        sd = extract_model_state(state)
         self.teacher.load_state_dict(sd)
         for p in self.teacher.parameters():
             p.requires_grad = False

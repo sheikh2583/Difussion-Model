@@ -45,8 +45,8 @@ Linux/macOS:
 
 Datasets live in `data/raw/` and are intentionally ignored by Git. CelebA is
 downloaded through torchvision; if its upstream Google Drive source is temporarily
-unavailable, download and extract `img_align_celeba/` into `data/raw/`, then use
-`--datasets none`.
+unavailable, place the extracted images and official annotation files under
+`data/raw/celeba/`, then use `--datasets none`.
 
 The bootstrap script requires Python 3.9+ (install it first if it is not already
 available). Pass `--gpu cpu`, `--gpu cuda118`, `--gpu cuda121`, `--gpu cuda128`,
@@ -97,6 +97,10 @@ bash scripts/train_all.sh                         # Linux/macOS
 
 bash scripts/train_all.sh --skip-reflow
 bash scripts/train_all.sh --only mf
+
+# Validate commands and prerequisites without starting training:
+bash scripts/train_all.sh --dry-run
+.\scripts\train_all.ps1 -DryRun
 ```
 
 `mf_distill` and `consistency` expect an FM teacher checkpoint. Reflow additionally
@@ -136,6 +140,21 @@ python web/inference_server.py
 
 Convenience launchers are provided in `scripts/run_train.*`,
 `scripts/run_evaluate.*`, and `scripts/run_inference.*`.
+
+Before a long run, verify imports, configs, one dataset batch, and artifact
+prerequisites with the same command on Windows or Linux:
+
+```bash
+python scripts/verify_workflow.py --dataset cifar10
+python scripts/verify_workflow.py --strict-prerequisites
+```
+
+Evaluate every available epoch-100 checkpoint with:
+
+```bash
+./scripts/evaluate_all.sh --dry-run              # Linux/macOS plan only
+.\scripts\evaluate_all.ps1 -DryRun               # Windows plan only
+```
 
 ## Repository map
 

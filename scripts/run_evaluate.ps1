@@ -41,7 +41,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [ValidateSet("mock", "fm", "fm_lognorm", "mf")]
+    [ValidateSet("mock", "fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow")]
     [string]$Algorithm,
 
     [Parameter(Mandatory)]

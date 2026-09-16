@@ -43,6 +43,7 @@ import torch.nn.functional as F
 
 from algorithms.base import BaseAlgorithm
 from models.backbone import build_backbone
+from utils.checkpoints import extract_model_state
 
 
 class ConsistencyAlgorithm(BaseAlgorithm):
@@ -71,8 +72,8 @@ class ConsistencyAlgorithm(BaseAlgorithm):
                 "pointing to a trained FlowMatchingAlgorithm checkpoint."
             )
         self.teacher = build_backbone(model.cfg, image_size=model._expected_image_size)
-        state = torch.load(ckpt_path, map_location="cpu")
-        sd = state.get("model_state", state)
+        state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+        sd = extract_model_state(state)
         self.teacher.load_state_dict(sd)
         for p in self.teacher.parameters():
             p.requires_grad = False

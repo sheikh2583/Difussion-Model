@@ -29,6 +29,7 @@ import sys
 
 # Allow running from scripts/ subdirectory
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch
 from torchvision.utils import save_image

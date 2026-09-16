@@ -68,7 +68,7 @@ class ReflowAlgorithm(BaseAlgorithm):
                 "Run scripts/generate_reflow_pairs.py first."
             )
 
-        data = torch.load(pairs_path, map_location="cpu")
+        data = torch.load(pairs_path, map_location="cpu", weights_only=True)
         self._z1 = data["z1"]    # (N, C, H, W) noise
         self._x0 = data["x0"]    # (N, C, H, W) generated clean images
         self._pair_idx = 0       # simple sequential cursor (shuffled per epoch externally)

@@ -28,12 +28,21 @@ Time estimate: ~30min for 50k pairs at NFE=50 on RTX 3060.
 """
 import argparse
 import os
+import sys
+
+# Make project packages importable when this file is launched directly as
+# `python scripts/generate_reflow_pairs.py` from any working directory.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+os.chdir(PROJECT_ROOT)
 
 import torch
 
 from algorithms.flow_matching import FlowMatchingAlgorithm
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
+from utils.checkpoints import extract_model_state
 from utils.device import resolve_device
 
 
@@ -56,8 +65,10 @@ def main():
 
     # Load FM model
     model = build_backbone(cfg.backbone, image_size=cfg.dataset.image_size)
-    state = torch.load(args.checkpoint, map_location="cpu")
-    model.load_state_dict(state.get("model_state", state))
+    # Project checkpoints are trusted local artifacts and may contain the
+    # serialized ExperimentConfig in addition to tensor state.
+    state = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
+    model.load_state_dict(extract_model_state(state))
     model.to(device)
     model.eval()
 

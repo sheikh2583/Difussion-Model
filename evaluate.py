@@ -23,6 +23,7 @@ from data.dataset_registry import get_dataloaders_for_config
 from evaluation.evaluator import Evaluator, ensure_fid_reference
 from models.backbone import build_backbone
 from sampling.sampler import Sampler
+from utils.checkpoints import load_algorithm_state
 from utils.device import resolve_device
 
 
@@ -56,14 +57,8 @@ def main():
     algorithm = algorithm_cls(model, algorithm_kwargs=cfg.algorithm_kwargs)
 
     # Load checkpoint — handles both raw state-dicts and trainer payloads
-    state = torch.load(args.checkpoint, map_location=device)
-    model.load_state_dict(state.get("model_state", state))
-    # Restore extra modules (e.g. r_embed) if present in checkpoint
-    extra_modules = algorithm.trainable_modules()[1:]
-    for i, m in enumerate(extra_modules):
-        key = f"extra_module_{i}_state"
-        if key in state:
-            m.load_state_dict(state[key])
+    state = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    load_algorithm_state(algorithm, state)
 
     for m in algorithm.trainable_modules():
         m.to(device)

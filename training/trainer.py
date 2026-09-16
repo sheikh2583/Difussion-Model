@@ -26,6 +26,7 @@ from utils.logging import setup_logger, JsonlLogger
 from utils.results import ResultRecord, ResultsWriter
 from utils.seed import set_seed, set_deterministic
 from utils.timing import timer, peak_gpu_memory_mb, reset_peak_gpu_memory
+from utils.checkpoints import load_algorithm_state
 
 
 def build_optimizer(modules: List[nn.Module], cfg: ExperimentConfig) -> torch.optim.Optimizer:
@@ -195,15 +196,11 @@ class Trainer:
 
 
     def load_checkpoint(self, path: str) -> int:
-        state = torch.load(path, map_location=self.device)
-        self.model.load_state_dict(state["model_state"])
-        if "optimizer_state" in state:
-            self.optimizer.load_state_dict(state["optimizer_state"])
-        extra_modules = self.trainable_modules[1:]
-        for i, m in enumerate(extra_modules):
-            key = f"extra_module_{i}_state"
-            if key in state:
-                m.load_state_dict(state[key])
+        state = torch.load(path, map_location=self.device, weights_only=False)
+        load_algorithm_state(self.algorithm, state)
+        optimizer_state = state.get("optimizer_state", state.get("optimizer_state_dict"))
+        if optimizer_state is not None:
+            self.optimizer.load_state_dict(optimizer_state)
         epoch = state.get("epoch", 0)
         self.logger.info(f"Resumed from {path} at epoch {epoch}")
         return epoch
