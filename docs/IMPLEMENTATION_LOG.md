@@ -267,7 +267,7 @@ All checkpoints follow: `results/<experiment_name>/checkpoints/<ClassName>_epoch
 
 Current checkpoints (pre-existing, do not delete):
 - `results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt`
-- `results/fm_lognorm_rtx3060/checkpoints/FlowMatchingLognormAlgorithm_epoch100.pt`
+- `results/fm_lognorm_cifar10/checkpoints/FlowMatchingLognormAlgorithm_epoch100.pt`
 - `results/mf_cifar10/checkpoints/MeanFlowAlgorithm_epoch30.pt`
 
 ---

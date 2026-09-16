@@ -15,9 +15,9 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 
 
-DEFAULT_INPUT = Path(
-    "results/fm_lognorm_rtx3060/metrics/fm_lognorm_rtx3060.jsonl"
-)
+# Default: first JSONL file found under results/ (auto-discovered at runtime)
+# Override by passing one or more paths as positional arguments.
+DEFAULT_INPUT: Path | None = None
 DEFAULT_OUTPUT = Path("results/training_loss_animated.gif")
 COLORS = ("#2196F3", "#FF5722", "#4CAF50", "#9C27B0", "#FFC107")
 
@@ -141,8 +141,11 @@ def parse_args() -> argparse.Namespace:
         "inputs",
         nargs="*",
         type=Path,
-        default=[DEFAULT_INPUT],
-        help="JSONL metric files. Defaults to the completed RTX 3060 run.",
+        default=None,
+        help=(
+            "JSONL metric files to animate. "
+            "If omitted, auto-discovers the first *.jsonl under results/."
+        ),
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--fps", type=int, default=10)
@@ -152,4 +155,15 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
-    create_animation(args.inputs, args.output, args.fps, args.interval_ms)
+    inputs = args.inputs
+    if not inputs:
+        # Auto-discover: find all *.jsonl under results/
+        results_root = Path("results")
+        inputs = sorted(results_root.rglob("*.jsonl")) if results_root.exists() else []
+        if not inputs:
+            print("No JSONL metric files found under results/. Train a model first.")
+            raise SystemExit(1)
+        print(f"Auto-discovered {len(inputs)} JSONL file(s):")
+        for p in inputs:
+            print(f"  {p}")
+    create_animation(inputs, args.output, args.fps, args.interval_ms)

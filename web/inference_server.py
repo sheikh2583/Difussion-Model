@@ -35,6 +35,9 @@ from algorithms.base import BaseAlgorithm
 from algorithms.flow_matching import FlowMatchingAlgorithm
 from algorithms.flow_matching_lognorm import FlowMatchingLognormAlgorithm
 from algorithms.mean_flow import MeanFlowAlgorithm
+from algorithms.mean_flow_distill import MeanFlowDistillAlgorithm
+from algorithms.consistency import ConsistencyAlgorithm
+from algorithms.reflow import ReflowAlgorithm
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
 
@@ -88,19 +91,18 @@ def build_model_specs(results_root: Path) -> dict[str, "ModelSpec"]:
     Expected layout inside results_root::
 
         results_root/
-        ├── fm_cifar10/                         # Flow Matching run
-        │   ├── config.json
-        │   ├── checkpoints/
-        │   │   └── FlowMatchingAlgorithm_epoch<N>.pt
-        │   └── metrics/
-        ├── fm_lognorm_rtx3060/                 # FM + logit-normal sampling
-        │   └── ...same layout...
-        └── mf_cifar10/                         # Mean Flow run
-            └── ...same layout...
+        ├── fm_cifar10/                         # Flow Matching (uniform-t)
+        ├── fm_lognorm_cifar10/                 # FM + logit-normal sampling
+        ├── mf_cifar10/                         # Mean Flow
+        ├── mf_distill_cifar10/                 # MF Distillation
+        ├── consistency_cifar10/                # Consistency Models
+        └── reflow_cifar10/                     # Rectified Flow Reflow
+
+        Each subdir must contain config.json and checkpoints/<ClassName>_epoch<N>.pt
     """
     return {
         # ---- Flow Matching (uniform-t) ----------------------------------------
-        # Trained with FlowMatchingAlgorithm; config preset: config/fm_full.json
+        # config: config/fm_full.json
         "fm": ModelSpec(
             "fm",
             "Flow Matching",
@@ -109,23 +111,49 @@ def build_model_specs(results_root: Path) -> dict[str, "ModelSpec"]:
             "FlowMatchingAlgorithm_epoch",
         ),
         # ---- Flow Matching + Logit-Normal time sampling -----------------------
-        # Trained with FlowMatchingLognormAlgorithm;
-        # config preset: config/fm_lognorm_rtx3060.json
+        # config: config/fm_lognorm_full.json
         "fm_lognorm": ModelSpec(
             "fm_lognorm",
             "Flow Matching + Logit-Normal",
             FlowMatchingLognormAlgorithm,
-            results_root / "fm_lognorm_rtx3060",
+            results_root / "fm_lognorm_cifar10",
             "FlowMatchingLognormAlgorithm_epoch",
         ),
-        # ---- Mean Flow (one-step capable via displacement identity) ----------
-        # Trained with MeanFlowAlgorithm; config preset: config/mf_full.json
+        # ---- Mean Flow (displacement identity, one-step capable) -------------
+        # config: config/mf_full.json
         "mf": ModelSpec(
             "mf",
             "Mean Flow",
             MeanFlowAlgorithm,
             results_root / "mf_cifar10",
             "MeanFlowAlgorithm_epoch",
+        ),
+        # ---- Mean Flow Distillation ------------------------------------------
+        # config: config/mf_distill_full.json  (needs FM teacher checkpoint)
+        "mf_distill": ModelSpec(
+            "mf_distill",
+            "Mean Flow Distillation",
+            MeanFlowDistillAlgorithm,
+            results_root / "mf_distill_cifar10",
+            "MeanFlowDistillAlgorithm_epoch",
+        ),
+        # ---- Consistency Models ----------------------------------------------
+        # config: config/consistency_full.json  (needs FM teacher checkpoint)
+        "consistency": ModelSpec(
+            "consistency",
+            "Consistency Models",
+            ConsistencyAlgorithm,
+            results_root / "consistency_cifar10",
+            "ConsistencyAlgorithm_epoch",
+        ),
+        # ---- Rectified Flow Reflow -------------------------------------------
+        # config: config/reflow_full.json  (needs reflow pairs)
+        "reflow": ModelSpec(
+            "reflow",
+            "Rectified Flow Reflow",
+            ReflowAlgorithm,
+            results_root / "reflow_cifar10",
+            "ReflowAlgorithm_epoch",
         ),
     }
 
