@@ -47,7 +47,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--strict-prerequisites",
         action="store_true",
-        help="Fail if teacher checkpoints or generated Reflow pairs are missing.",
+        help=("Fail if teacher checkpoints or Reflow pairs are missing for the "
+              "selected dataset; with --dataset none, check both datasets."),
     )
     return parser.parse_args()
 
@@ -88,14 +89,16 @@ def main() -> int:
             failures.append(f"invalid config {relative_path}: {error}")
 
     prerequisite_fields = (
-        ("config/mf_distill_full.json", "teacher_checkpoint", "MF-Distill teacher"),
-        ("config/consistency_full.json", "teacher_checkpoint", "Consistency teacher"),
-        ("config/reflow_full.json", "pairs_path", "Reflow pairs"),
-        ("config/mf_distill_celeba64.json", "teacher_checkpoint", "CelebA MF-Distill teacher"),
-        ("config/consistency_celeba64.json", "teacher_checkpoint", "CelebA Consistency teacher"),
-        ("config/reflow_celeba64.json", "pairs_path", "CelebA Reflow pairs"),
+        ("cifar10", "config/mf_distill_full.json", "teacher_checkpoint", "MF-Distill teacher"),
+        ("cifar10", "config/consistency_full.json", "teacher_checkpoint", "Consistency teacher"),
+        ("cifar10", "config/reflow_full.json", "pairs_path", "Reflow pairs"),
+        ("celeba", "config/mf_distill_celeba64.json", "teacher_checkpoint", "CelebA MF-Distill teacher"),
+        ("celeba", "config/consistency_celeba64.json", "teacher_checkpoint", "CelebA Consistency teacher"),
+        ("celeba", "config/reflow_celeba64.json", "pairs_path", "CelebA Reflow pairs"),
     )
-    for config_path, field, label in prerequisite_fields:
+    for dataset, config_path, field, label in prerequisite_fields:
+        if args.dataset != "none" and args.dataset != dataset:
+            continue
         cfg = loaded_configs.get(config_path)
         if cfg is None:
             continue

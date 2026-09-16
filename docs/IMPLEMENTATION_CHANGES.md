@@ -303,6 +303,10 @@ The following checks completed successfully on the Windows development machine:
 - clickable Windows training launcher dry run;
 - interactive numbered menu input;
 - CIFAR-10 and CelebA prerequisite planning;
+- successful 1.44 GB CelebA image download plus all official annotations;
+- real CelebA batch validation at `(64, 3, 64, 64)` in `[-1, 1]`;
+- full generation of 50,000 CIFAR-10 Reflow pairs at NFE 50;
+- structural, numeric, and Reflow-loss validation of the 1.144 GB pairs file;
 - training and evaluation workflow dry runs;
 - adaptive Mean Flow inference with an existing checkpoint;
 - multiscale Mean Flow pipeline shape/range validation;
@@ -311,10 +315,11 @@ The following checks completed successfully on the Windows development machine:
 - inference checkpoint auto-discovery;
 - creation and inspection of a portable smoke-run ZIP.
 
-Linux scripts were reviewed for portable paths and shell behavior, and executable
-bits are stored in Git. This Windows host does not have a usable general-purpose
-Linux distribution, so a true Linux runtime test remains necessary on a Linux
-machine or CI runner.
+The beginner Linux launchers and setup wrapper were converted to POSIX `sh` and
+parsed successfully by an actual Linux shell through WSL. Their mounted-path
+resolution and missing-environment diagnostic were also exercised. This host
+still lacks a general-purpose Linux distribution, so full Linux Python,
+dependency, and dataset installation remains necessary on Linux or in CI.
 
 ## Large artifacts not stored in Git
 
@@ -328,9 +333,10 @@ The following remain intentionally outside Git:
 - complete run export ZIP files;
 - evaluation caches and generated samples.
 
-At the last verification, CIFAR-10 and an FM teacher checkpoint were available on
-the development machine. The full CIFAR-10 Reflow pairs, CelebA dataset, CelebA
-teacher checkpoint, and CelebA Reflow pairs had not been generated locally.
+At the last verification, CIFAR-10, CelebA, the CIFAR-10 FM teacher checkpoint,
+and the full 50,000-pair CIFAR-10 Reflow artifact were available and validated on
+the development machine. CelebA teacher checkpoints and CelebA Reflow pairs
+remain unavailable because they inherently require CelebA model training.
 
 ## Main entry points
 

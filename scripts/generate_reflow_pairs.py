@@ -60,6 +60,12 @@ def parse_args():
 
 def main():
     args = parse_args()
+    if args.n_pairs < 1:
+        raise ValueError(f"--n-pairs must be >= 1, got {args.n_pairs}")
+    if args.nfe < 1:
+        raise ValueError(f"--nfe must be >= 1, got {args.nfe}")
+    if args.batch_size < 1:
+        raise ValueError(f"--batch-size must be >= 1, got {args.batch_size}")
     cfg    = ExperimentConfig.load(args.config)
     device = resolve_device(cfg)
 
@@ -81,7 +87,7 @@ def main():
     all_x0 = []
     n_generated = 0
 
-    print(f"Generating {args.n_pairs} pairs at NFE={args.nfe}...")
+    print(f"Generating {args.n_pairs} pairs at NFE={args.nfe}...", flush=True)
     with torch.no_grad():
         while n_generated < args.n_pairs:
             bs = min(args.batch_size, args.n_pairs - n_generated)
@@ -102,7 +108,10 @@ def main():
             n_generated += bs
 
             if n_generated % 5000 == 0 or n_generated >= args.n_pairs:
-                print(f"  {n_generated}/{args.n_pairs} pairs generated")
+                print(
+                    f"  {n_generated}/{args.n_pairs} pairs generated",
+                    flush=True,
+                )
 
     z1_all = torch.cat(all_z1, dim=0)[:args.n_pairs]
     x0_all = torch.cat(all_x0, dim=0)[:args.n_pairs]

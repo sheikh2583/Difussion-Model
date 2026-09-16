@@ -240,6 +240,8 @@ def prefetch_metric_assets() -> None:
     """Download the pretrained Inception weights used by FID and IS."""
     head("Step 6 - Evaluation assets")
     code = (
+        "import warnings; "
+        "warnings.filterwarnings('ignore', message='Metric `InceptionScore`.*'); "
         "from torchmetrics.image.fid import FrechetInceptionDistance; "
         "from torchmetrics.image.inception import InceptionScore; "
         "FrechetInceptionDistance(normalize=False); "

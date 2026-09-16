@@ -2,7 +2,7 @@
 
 ## "How Fast Can Generative Models Get, and What Does It Cost?"
 
-Last verified: 2026-09-16.
+Last verified: 2026-09-17.
 
 This describes the current repository, not an older zip bundle. Complete setup
 before running the commands below.
@@ -30,14 +30,14 @@ already exist. Preview long workflows without launching training:
 
 | Area | State | Evidence or blocker |
 |---|---|---|
-| Cross-platform bootstrap | Ready | Completed on Windows 11 with Python 3.12, CUDA 12.8, dependencies, and CIFAR-10. Linux still needs runtime validation on an actual Linux host or active container. |
+| Cross-platform bootstrap | Ready | Completed on Windows 11 with Python 3.12, CUDA 12.8, all dependencies, pretrained metric assets, CIFAR-10, and CelebA. POSIX launcher syntax/path handling was exercised through a Linux WSL environment; full Linux dependency installation still needs a general-purpose Linux host. |
 | Algorithm registry | Ready | Six research algorithms plus the `mock` smoke utility are registered. |
 | CIFAR-10 pipeline | Ready | Batch verified as `(32, 3, 32, 32)` with range `[-1, 1]`. |
-| CelebA pipeline | Code ready | Loader and 64x64 presets for all six methods load; the 1.4 GB dataset is not present locally. |
+| CelebA pipeline | Ready locally | The 1.44 GB image archive and official annotations downloaded successfully; a batch was verified as `(64, 3, 64, 64)` with range `[-1, 1]`. |
 | Smoke pipeline | Ready | Two epochs, FID/IS, checkpoints, and checkpoint archives completed. |
 | MF-Distill prerequisite | Ready locally | The expected FM epoch-100 teacher exists. |
 | Consistency prerequisite | Ready locally | The expected FM epoch-100 teacher exists; tuning remains. |
-| Reflow prerequisite | Blocked | `data/reflow_pairs_cifar10.pt` has not been generated. |
+| Reflow prerequisite | Ready locally | `data/reflow_pairs_cifar10.pt` contains 50,000 validated NFE-50 pairs and loads through `ReflowAlgorithm`. |
 | Full tournament | Partial | Only one expected epoch-100 evaluation path is currently populated. |
 
 ## Phase 0: datasets
@@ -56,7 +56,7 @@ annotations from the official CelebA source and place them there.
 
 ## Phase 1: FM and MF on CelebA
 
-Status: pending dataset verification and GPU time.
+Status: dataset verified; model training pending.
 
 ```bash
 python train.py --algorithm fm --config config/fm_celeba64.json
@@ -90,7 +90,7 @@ empirical run confirms them.
 
 ## Phase 4: Rectified Flow Reflow
 
-Status: implementation and generator ready; pair generation pending.
+Status: implementation, generator, and CIFAR-10 pair artifact verified; training pending.
 
 ```bash
 python scripts/generate_reflow_pairs.py \
@@ -102,10 +102,11 @@ python scripts/generate_reflow_pairs.py \
 python train.py --algorithm reflow --config config/reflow_full.json
 ```
 
-The direct generator invocation now resolves project imports correctly. A
-two-pair, one-step probe successfully loaded the existing legacy FM checkpoint,
-generated tensors of shape `(2, 3, 32, 32)`, and loaded them into Reflow. The
-full 50,000-pair artifact is still intentionally pending.
+The generator loaded the existing FM epoch-100 checkpoint and produced the full
+50,000-pair NFE-50 artifact. Both tensors have shape `(50000, 3, 32, 32)` and
+float32 dtype; generated endpoints are finite and within `[-1, 1]`. The saved
+1.144 GB file was loaded through `ReflowAlgorithm`, and a finite Reflow loss was
+computed successfully without performing a training update.
 
 ## Phase 5: evaluation
 
@@ -139,10 +140,12 @@ and results remain outside Git.
 ## Verification limits
 
 - No single host can prove operation on every Windows/Linux installation.
-- Windows runtime behavior is verified. Linux syntax and path handling were
-  reviewed, but this machine has no active Linux container or WSL distribution.
-- CelebA download and batch validation remain pending.
-- Full training and 50,000-pair generation are intentionally not part of a
-  setup/workflow smoke test.
+- Windows runtime behavior is verified. The beginner POSIX launchers were parsed
+  by an actual Linux `sh` through WSL and their missing-environment behavior was
+  exercised, but full Linux dependency installation still needs a normal Linux
+  machine or CI runner.
+- CelebA download and batch validation are complete locally.
+- Full model training remains intentionally excluded. CelebA teacher checkpoints
+  and CelebA Reflow pairs therefore remain training-dependent.
 - Model-quality and FID targets require real experiments; setup tests cannot
   guarantee them.

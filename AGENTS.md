@@ -75,14 +75,10 @@ docs/         IMPLEMENTATION_LOG.md, THEORY_NOTES.md, IMPLEMENTATION_CHANGES.md
 | `reflow` | ReflowAlgorithm | `config/reflow_full.json` |
 | `mock` | MockAlgorithm | `config/smoke_fast.json` |
 
-## Known missing items (create these before using)
+## CelebA configuration status
 
-- `config/fm_lognorm_celeba64.json`
-- `config/mf_distill_celeba64.json`
-- `config/consistency_celeba64.json`
-- `config/reflow_celeba64.json`
-
-These are referenced by `scripts/interactive_train.py` for the CelebA menu options.
+All six CelebA presets referenced by `scripts/interactive_train.py` are present,
+including FM-Lognorm, MF-Distill, Consistency, and Reflow.
 
 ## Workflow for dual-agent editing
 
