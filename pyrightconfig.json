@@ -1,0 +1,22 @@
+{
+  "pythonVersion": "3.10",
+  "pythonPlatform": "Windows",
+  "venvPath": ".",
+  "venv": "venv",
+  "include": [
+    "algorithms",
+    "config",
+    "data",
+    "evaluation",
+    "experiments",
+    "models",
+    "sampling",
+    "scripts",
+    "training",
+    "utils"
+  ],
+  "extraPaths": ["."],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "none"
+}

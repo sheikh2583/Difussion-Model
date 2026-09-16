@@ -1,72 +1,77 @@
 """
-CLI entry point: load a checkpoint and run sampling + evaluation only
-(no training). Useful for re-evaluating at different NFE values or
-regenerating plots without retraining.
+CLI entry point: evaluate a checkpoint without retraining.
 
-Usage:
-    python evaluate.py --algorithm mock --checkpoint results/.../checkpoints/MockAlgorithm_epoch10.pt --config results/.../config.json
+Usage
+-----
+    python evaluate.py --algorithm fm         --checkpoint results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt --config config/fm_full.json
+    python evaluate.py --algorithm fm_lognorm  --checkpoint results/fm_lognorm_cifar10/checkpoints/FlowMatchingLognormAlgorithm_epoch100.pt --config config/fm_lognorm_full.json
+    python evaluate.py --algorithm mf           --checkpoint results/mf_cifar10/checkpoints/MeanFlowAlgorithm_epoch100.pt --config config/mf_full.json
+    python evaluate.py --algorithm mf_distill   --checkpoint results/mf_distill_cifar10/checkpoints/MeanFlowDistillAlgorithm_epoch100.pt --config config/mf_distill_full.json
+    python evaluate.py --algorithm consistency  --checkpoint results/consistency_cifar10/checkpoints/ConsistencyAlgorithm_epoch100.pt --config config/consistency_full.json
+    python evaluate.py --algorithm reflow       --checkpoint results/reflow_cifar10/checkpoints/ReflowAlgorithm_epoch100.pt --config config/reflow_full.json
+
+Add --make-plots to regenerate FID/IS vs NFE curves into results/<experiment>/metrics/plots/.
 """
 import argparse
+import os
 
 import torch
 
-from algorithms.flow_matching import FlowMatchingAlgorithm
-from algorithms.flow_matching_lognorm import FlowMatchingLognormAlgorithm
-from algorithms.mean_flow import MeanFlowAlgorithm
-from algorithms.mock import MockAlgorithm
+from algorithms import ALGORITHM_REGISTRY
 from config.config import ExperimentConfig
-from experiments.runner import ExperimentRunner
-from utils.plots import (
-    plot_loss_vs_epoch, plot_training_time_comparison, plot_sampling_time_vs_nfe,
-    plot_fid_vs_nfe, plot_is_vs_nfe, plot_gpu_memory_comparison, plot_fid_vs_sampling_time,
-)
-
-ALGORITHM_REGISTRY = {
-    "mock": MockAlgorithm,
-    "fm": FlowMatchingAlgorithm,
-    "fm_lognorm": FlowMatchingLognormAlgorithm,
-    "mf": MeanFlowAlgorithm,
-}
+from data.dataset_registry import get_dataloaders_for_config
+from evaluation.evaluator import Evaluator, ensure_fid_reference
+from models.backbone import build_backbone
+from sampling.sampler import Sampler
+from utils.device import resolve_device
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Evaluate a trained checkpoint.")
+    parser = argparse.ArgumentParser(description="Evaluate a saved checkpoint.")
     parser.add_argument("--algorithm", choices=list(ALGORITHM_REGISTRY.keys()), required=True)
-    parser.add_argument("--config", type=str, required=True)
-    parser.add_argument("--checkpoint", type=str, required=True)
-    parser.add_argument("--make-plots", action="store_true")
+    parser.add_argument("--checkpoint", type=str, required=True,
+                        help="Path to .pt checkpoint file.")
+    parser.add_argument("--config", type=str, default=None)
+    parser.add_argument("--make-plots", action="store_true",
+                        help="Generate metric plots after evaluation.")
+    parser.add_argument("--experiment-name", type=str, default=None)
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    cfg = ExperimentConfig.load(args.config)
+    cfg  = ExperimentConfig.load(args.config) if args.config else ExperimentConfig()
+    if args.experiment_name:
+        cfg.experiment_name = args.experiment_name
 
+    device = resolve_device(cfg)
+    run_dir = os.path.join(cfg.output_dir, cfg.experiment_name)
+    os.makedirs(run_dir, exist_ok=True)
+
+    _, test_loader = get_dataloaders_for_config(cfg)
+    ensure_fid_reference(cfg, test_loader, device)
+
+    model = build_backbone(cfg.backbone, image_size=cfg.dataset.image_size)
     algorithm_cls = ALGORITHM_REGISTRY[args.algorithm]
-    runner = ExperimentRunner(cfg, algorithm_cls)
+    algorithm = algorithm_cls(model, algorithm_kwargs=cfg.algorithm_kwargs)
 
-    # PyTorch >=2.6 defaults torch.load to weights_only=True, which refuses
-    # to unpickle the custom ExperimentConfig object stored in our checkpoints.
-    # Safe to disable here since we only ever load checkpoints this project
-    # itself wrote.
-    ckpt = torch.load(args.checkpoint, map_location=runner.device, weights_only=False)
-    for module, state_dict in zip(runner.algorithm.trainable_modules(), ckpt["module_state_dicts"]):
-        module.to(runner.device)
-        module.load_state_dict(state_dict)
+    # Load checkpoint — handles both raw state-dicts and trainer payloads
+    state = torch.load(args.checkpoint, map_location=device)
+    model.load_state_dict(state.get("model_state", state))
+    # Restore extra modules (e.g. r_embed) if present in checkpoint
+    extra_modules = algorithm.trainable_modules()[1:]
+    for i, m in enumerate(extra_modules):
+        key = f"extra_module_{i}_state"
+        if key in state:
+            m.load_state_dict(state[key])
 
-    runner.sample()
-    runner.evaluate()
+    for m in algorithm.trainable_modules():
+        m.to(device)
 
-    if args.make_plots:
-        jsonl_path = f"{runner.run_dir}/metrics/{cfg.experiment_name}.jsonl"
-        plots_dir = f"{runner.run_dir}/metrics/plots"
-        plot_loss_vs_epoch(jsonl_path, f"{plots_dir}/loss_vs_epoch.png")
-        plot_training_time_comparison(jsonl_path, f"{plots_dir}/training_time.png")
-        plot_sampling_time_vs_nfe(jsonl_path, f"{plots_dir}/sampling_time_vs_nfe.png")
-        plot_fid_vs_nfe(jsonl_path, f"{plots_dir}/fid_vs_nfe.png")
-        plot_is_vs_nfe(jsonl_path, f"{plots_dir}/is_vs_nfe.png")
-        plot_gpu_memory_comparison(jsonl_path, f"{plots_dir}/gpu_memory.png")
-        plot_fid_vs_sampling_time(jsonl_path, f"{plots_dir}/fid_vs_sampling_time.png")
+    sampler   = Sampler(algorithm, device, run_dir, cfg.experiment_name, cfg.seed)
+    evaluator = Evaluator(cfg, run_dir, device)
+    evaluator.evaluate(sampler, nfe_values=cfg.evaluation.nfe_values,
+                       make_plots=args.make_plots)
 
 
 if __name__ == "__main__":

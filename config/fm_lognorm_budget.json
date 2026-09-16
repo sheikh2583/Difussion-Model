@@ -1,5 +1,5 @@
 {
-    "experiment_name": "fm_lognorm_rtx3060",
+    "experiment_name": "fm_lognorm_budget",
     "output_dir": "./results",
     "seed": 0,
     "device": "cuda",

@@ -14,10 +14,15 @@
     Path to a JSON config file. If omitted, built-in defaults are used.
     Preset configs live under config/:
         config/smoke_fast.json          -- quick smoke test (few epochs)
-        config/fm_full.json             -- full FM run
-        config/fm_lognorm.json          -- FM + logit-normal time sampling
-        config/fm_lognorm_rtx3060.json  -- FM-LN tuned for RTX 3060
+        config/fm_full.json             -- full FM run (CIFAR-10)
+        config/fm_lognorm_full.json     -- FM + logit-normal time sampling
+        config/fm_lognorm_budget.json   -- reduced batch/samples for limited VRAM
         config/mf_full.json             -- full Mean Flow run
+        config/mf_distill_full.json     -- MF distillation (needs FM checkpoint)
+        config/consistency_full.json    -- Consistency Models
+        config/reflow_full.json         -- Rectified Flow Reflow
+        config/fm_celeba64.json         -- FM on CelebA 64x64
+        config/mf_celeba64.json         -- MF on CelebA 64x64
 
 .PARAMETER ExperimentName
     Override the experiment_name field in the config (used as the output
@@ -42,7 +47,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet("mock", "fm", "fm_lognorm", "mf")]
+    [ValidateSet("mock", "fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow")]
     [string]$Algorithm = "fm",
 
     [string]$Config = "",

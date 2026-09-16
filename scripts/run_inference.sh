@@ -51,7 +51,7 @@ fi
 source "$VENV_ACTIVATE"
 export PYTHONPATH="$PROJECT_ROOT"
 
-ARGS=("inference_server.py" "--host" "$HOST" "--port" "$PORT")
+ARGS=("web/inference_server.py" "--host" "$HOST" "--port" "$PORT")
 [[ -n "$RESULTS_DIR" ]] && ARGS+=("--results-dir" "$RESULTS_DIR")
 [[ -n "$SELF_TEST" ]]   && ARGS+=("$SELF_TEST")
 

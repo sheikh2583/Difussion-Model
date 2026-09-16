@@ -4,9 +4,15 @@ Depends only on BaseAlgorithm.training_step(batch) -> {"loss": tensor}.
 
 Handles: epoch/batch loop, optimizer, scheduler, AMP, checkpointing,
 logging, reproducible seeding, timing, and calling evaluation hooks.
+
+Change from original: after each epoch, calls algorithm.on_epoch_end(epoch, total)
+if the algorithm defines it (used by MeanFlowAlgorithm for delta annealing).
 """
 import itertools
+import json
 import os
+import zipfile
+from datetime import datetime, timezone
 from typing import Callable, List, Optional
 
 import torch
@@ -120,13 +126,92 @@ class Trainer:
         if self.scheduler is not None:
             self.scheduler.step()
 
-        return running_loss / max(n_batches, 1)
+        avg_loss = running_loss / max(n_batches, 1)
+
+        # Notify algorithm that an epoch completed (used for delta annealing in MF)
+        if hasattr(self.algorithm, "on_epoch_end"):
+            self.algorithm.on_epoch_end(epoch, self.cfg.epochs)
+
+        return avg_loss
+
+    def save_checkpoint(self, epoch: int) -> None:
+        path = os.path.join(
+            self.checkpoint_dir,
+            f"{self.algorithm.name()}_epoch{epoch}.pt"
+        )
+        payload = {
+            "epoch": epoch,
+            "model_state": self.model.state_dict(),
+            "optimizer_state": self.optimizer.state_dict(),
+        }
+        # Save extra module states (e.g. r_embed for MF algorithms)
+        extra_modules = self.trainable_modules[1:]
+        for i, m in enumerate(extra_modules):
+            payload[f"extra_module_{i}_state"] = m.state_dict()
+
+        torch.save(payload, path)
+        self.logger.info(f"Checkpoint saved → {path}")
+        self._zip_checkpoint(epoch, path)
+
+    def _zip_checkpoint(self, epoch: int, ckpt_path: str) -> None:
+        """
+        Pack the checkpoint + config + metadata into a self-contained zip.
+
+        Archive layout:
+            <AlgoClass>_epoch<N>.zip
+              ├── checkpoint.pt     (the .pt file)
+              ├── config.json       (experiment config, copied from run_dir)
+              └── meta.json         (epoch, algorithm, experiment, timestamp)
+
+        The zip is written to checkpoints/archive/ alongside the .pt files.
+        It uses ZIP_STORED (no compression) because .pt files are already
+        compressed tensors — compressing them again wastes time.
+        """
+        archive_dir = os.path.join(self.checkpoint_dir, "archive")
+        os.makedirs(archive_dir, exist_ok=True)
+
+        algo_name  = self.algorithm.name()
+        zip_name   = f"{algo_name}_epoch{epoch}.zip"
+        zip_path   = os.path.join(archive_dir, zip_name)
+
+        meta = {
+            "epoch":      epoch,
+            "algorithm":  algo_name,
+            "experiment": self.cfg.experiment_name,
+            "dataset":    self.cfg.dataset.name,
+            "timestamp":  datetime.now(timezone.utc).isoformat(),
+        }
+
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED) as zf:
+            zf.write(ckpt_path, arcname="checkpoint.pt")
+
+            cfg_path = os.path.join(self.run_dir, "config.json")
+            if os.path.exists(cfg_path):
+                zf.write(cfg_path, arcname="config.json")
+
+            zf.writestr("meta.json", json.dumps(meta, indent=2))
+
+        self.logger.info(f"Checkpoint archive → {zip_path}")
+
+
+    def load_checkpoint(self, path: str) -> int:
+        state = torch.load(path, map_location=self.device)
+        self.model.load_state_dict(state["model_state"])
+        if "optimizer_state" in state:
+            self.optimizer.load_state_dict(state["optimizer_state"])
+        extra_modules = self.trainable_modules[1:]
+        for i, m in enumerate(extra_modules):
+            key = f"extra_module_{i}_state"
+            if key in state:
+                m.load_state_dict(state[key])
+        epoch = state.get("epoch", 0)
+        self.logger.info(f"Resumed from {path} at epoch {epoch}")
+        return epoch
 
     def fit(self) -> None:
         set_seed(self.cfg.seed)
         set_deterministic(True)
 
-        total_start = None
         with timer(self.device) as total_timer:
             for epoch in range(1, self.cfg.epochs + 1):
                 reset_peak_gpu_memory(self.device)
@@ -149,9 +234,6 @@ class Trainer:
                     record_type="train_epoch",
                     epoch=epoch,
                     loss=avg_loss,
-                    # Cumulative wall-clock training time through this epoch
-                    # (equal to total training time once the run finishes).
-                    # Measured, not inferred from epoch/step counts.
                     training_time=self.cumulative_training_time,
                     time_per_epoch=epoch_timer["elapsed"],
                     optimization_steps=self.optimization_steps,
@@ -165,39 +247,5 @@ class Trainer:
                 if epoch % self.cfg.checkpoint_frequency_epochs == 0 or epoch == self.cfg.epochs:
                     self.save_checkpoint(epoch)
 
-                if self.eval_hook is not None and \
-                        epoch % self.cfg.evaluation.eval_frequency_epochs == 0:
+                if self.eval_hook and epoch % self.cfg.evaluation.eval_frequency_epochs == 0:
                     self.eval_hook(epoch)
-
-        total_time = total_timer["elapsed"]
-        self.logger.info(f"training complete: total_time={total_time:.3f}s")
-        self.event_log.log({"event": "training_end", "total_training_time": total_time})
-
-    def save_checkpoint(self, epoch: int) -> str:
-        path = os.path.join(self.checkpoint_dir, f"{self.algorithm.name()}_epoch{epoch}.pt")
-        torch.save({
-            "epoch": epoch,
-            "seed": self.cfg.seed,
-            "algorithm": self.algorithm.name(),
-            "module_state_dicts": [m.state_dict() for m in self.trainable_modules],
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            "scheduler_state_dict": (
-                self.scheduler.state_dict() if self.scheduler is not None else None
-            ),
-            "config": self.cfg,
-        }, path)
-        self.logger.info(f"saved checkpoint: {path}")
-        return path
-
-    def load_checkpoint(self, path: str) -> int:
-        # PyTorch >=2.6 defaults torch.load to weights_only=True, which refuses
-        # to unpickle the custom ExperimentConfig object stored in our checkpoints.
-        # Safe to disable here since we only ever load checkpoints this project
-        # itself wrote.
-        ckpt = torch.load(path, map_location=self.device, weights_only=False)
-        for module, state_dict in zip(self.trainable_modules, ckpt["module_state_dicts"]):
-            module.load_state_dict(state_dict)
-        self.optimizer.load_state_dict(ckpt["optimizer_state_dict"])
-        if self.scheduler is not None and ckpt.get("scheduler_state_dict") is not None:
-            self.scheduler.load_state_dict(ckpt["scheduler_state_dict"])
-        return ckpt["epoch"]

@@ -6,14 +6,20 @@
 #   bash scripts/run_train.sh [OPTIONS]
 #
 # Options:
-#   -a, --algorithm   Algorithm to train: mock | fm | fm_lognorm | mf
+#   -a, --algorithm   Algorithm to train:
+#                     fm | fm_lognorm | mf | mf_distill | consistency | reflow | mock
 #                     Default: fm
 #   -c, --config      Path to a JSON config file. Preset configs:
-#                         config/smoke_fast.json       (quick smoke test)
-#                         config/fm_full.json           (full FM)
-#                         config/fm_lognorm.json        (FM + logit-normal)
-#                         config/fm_lognorm_rtx3060.json (RTX 3060 budget)
-#                         config/mf_full.json           (full Mean Flow)
+#                         config/smoke_fast.json         (quick smoke test)
+#                         config/fm_full.json            (full FM, CIFAR-10)
+#                         config/fm_lognorm_full.json    (FM + logit-normal)
+#                         config/fm_lognorm_budget.json  (reduced batch/samples)
+#                         config/mf_full.json            (full Mean Flow)
+#                         config/mf_distill_full.json    (MF distillation)
+#                         config/consistency_full.json   (Consistency Models)
+#                         config/reflow_full.json        (Rectified Flow Reflow)
+#                         config/fm_celeba64.json        (FM on CelebA 64x64)
+#                         config/mf_celeba64.json        (MF on CelebA 64x64)
 #   -n, --name        Override experiment_name in the config
 #   -e, --epochs      Override epoch count from the config
 #   -h, --help        Show this message

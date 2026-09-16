@@ -73,7 +73,7 @@ $env:PYTHONPATH = $ProjectRoot
 # ---------------------------------------------------------------------------
 # Build arguments
 # ---------------------------------------------------------------------------
-$Args = @("inference_server.py", "--host", $Host, "--port", $Port)
+$Args = @("web/inference_server.py", "--host", $Host, "--port", $Port)
 
 if ($ResultsDir -ne "") {
     $Args += @("--results-dir", $ResultsDir)

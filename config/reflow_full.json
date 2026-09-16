@@ -1,10 +1,10 @@
 {
-  "experiment_name": "mf_cifar10",
+  "experiment_name": "reflow_cifar10",
   "output_dir": "./results",
   "seed": 0,
   "device": "cuda",
   "amp": true,
-  "batch_size": 64,
+  "batch_size": 128,
   "epochs": 100,
   "checkpoint_frequency_epochs": 10,
   "dataset": {
@@ -23,7 +23,7 @@
   },
   "optim": {
     "optimizer": "adamw",
-    "learning_rate": 5e-5,
+    "learning_rate": 2e-4,
     "weight_decay": 0.0,
     "scheduler": "none",
     "scheduler_kwargs": {}
@@ -36,9 +36,6 @@
     "fid_reference_cache": "./results/metrics/fid_reference_stats.npz"
   },
   "algorithm_kwargs": {
-    "p_same": 0.25,
-    "jvp_delta_start": 0.01,
-    "jvp_delta_end": 0.0001,
-    "p_fd_step": 0.5
+    "pairs_path": "data/reflow_pairs_cifar10.pt"
   }
 }

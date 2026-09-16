@@ -1,48 +1,47 @@
 """
-algorithms — generative-model algorithm implementations.
+algorithms — all generative-model algorithm implementations.
 
-Each algorithm is a self-contained subclass of BaseAlgorithm that
-encapsulates the training loss and the sampling procedure for one
-particular generative-modelling approach.  The shared training /
-sampling / evaluation pipeline interacts with algorithms exclusively
-through the BaseAlgorithm interface, so algorithms are fully
-interchangeable at the CLI level.
+ALGORITHM_REGISTRY maps CLI --algorithm names to classes.
+To add a new algorithm: create algorithms/<name>.py, add one line here.
+Trainer / Evaluator / Sampler / plots.py need zero changes.
 
-Available algorithms
---------------------
-FlowMatchingAlgorithm
-    Standard conditional flow matching (Lipman et al. 2022 / rectified
-    flow): linear interpolation path, uniform-t sampling, Euler ODE
-    integration at inference time.
+    fm          FlowMatchingAlgorithm          — CFM, uniform-t          [Lipman 2022]
+    fm_lognorm  FlowMatchingLognormAlgorithm   — CFM, logit-normal t     [Esser 2024]
+    mf          MeanFlowAlgorithm              — Mean Flow, FD-JVP       [Geng 2025]
+    mf_distill  MeanFlowDistillAlgorithm       — Mean Flow, FM teacher   [Geng+Salimans]
+    consistency ConsistencyAlgorithm           — Consistency Models      [Song 2023]
+    reflow      ReflowAlgorithm                — Rectified Flow Reflow   [Liu 2022 §3]
 
-FlowMatchingLognormAlgorithm
-    Identical to FlowMatchingAlgorithm except that training timesteps
-    are drawn from a logit-normal distribution (Esser et al. 2024,
-    Stable Diffusion 3) rather than uniform.  Concentrates training on
-    the intermediate-t regime where the model learns the most.
-
-MeanFlowAlgorithm
-    Mean Flow (Geng et al. 2025, arXiv:2505.13447): trains the
-    *average* velocity over an interval [r, t] via the Mean Flow
-    Identity and a Jacobian-vector-product (JVP).  Supports exact one-
-    or few-step sampling via the displacement identity at inference.
-
-MockAlgorithm
-    Trivial smoke-test algorithm used to verify the shared pipeline
-    end-to-end (checkpointing, timing, logging, evaluation) without
-    requiring a real training run.
+Fairness note on mf_distill and consistency:
+    Both require a pre-trained FM teacher checkpoint. Their results are NOT
+    directly comparable to backbone-only runs. Report teacher cost separately.
+    Label plots "mf_distill" / "consistency" — never merge with "fm" or "mf".
 """
 
 from algorithms.base import BaseAlgorithm
 from algorithms.flow_matching import FlowMatchingAlgorithm
 from algorithms.flow_matching_lognorm import FlowMatchingLognormAlgorithm
 from algorithms.mean_flow import MeanFlowAlgorithm
-from algorithms.mock import MockAlgorithm
+from algorithms.mean_flow_distill import MeanFlowDistillAlgorithm
+from algorithms.consistency import ConsistencyAlgorithm
+from algorithms.reflow import ReflowAlgorithm
+
+ALGORITHM_REGISTRY = {
+    "fm":          FlowMatchingAlgorithm,
+    "fm_lognorm":  FlowMatchingLognormAlgorithm,
+    "mf":          MeanFlowAlgorithm,
+    "mf_distill":  MeanFlowDistillAlgorithm,
+    "consistency": ConsistencyAlgorithm,
+    "reflow":      ReflowAlgorithm,
+}
 
 __all__ = [
     "BaseAlgorithm",
     "FlowMatchingAlgorithm",
     "FlowMatchingLognormAlgorithm",
     "MeanFlowAlgorithm",
-    "MockAlgorithm",
+    "MeanFlowDistillAlgorithm",
+    "ConsistencyAlgorithm",
+    "ReflowAlgorithm",
+    "ALGORITHM_REGISTRY",
 ]

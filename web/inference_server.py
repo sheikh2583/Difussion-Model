@@ -1,12 +1,16 @@
 """Local HTTP inference service for the CIFAR-10 generative models.
 
 Run from the project root:
-    python inference_server.py
+    python web/inference_server.py
 
 Then open http://127.0.0.1:8000 in a browser.
 """
 
 from __future__ import annotations
+
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import argparse
 import base64
