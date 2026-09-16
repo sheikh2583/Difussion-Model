@@ -180,7 +180,7 @@ def process_run(experiment_name, results_root, out_root, nfe_values, n_samples, 
             try:
                 images = generate_grid(algorithm, nfe, n_samples, device, SEED)
                 save_image(images, out_path, nrow=8, normalize=True, value_range=(-1, 1))
-                print(f"  [OK]    epoch={epoch:03d} nfe={nfe:3d} → {out_path}")
+                print(f"  [OK]    epoch={epoch:03d} nfe={nfe:3d} -> {out_path}")
             except Exception as e:
                 print(f"  [ERROR] epoch={epoch} nfe={nfe}: {e}")
 

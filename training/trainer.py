@@ -150,7 +150,7 @@ class Trainer:
             payload[f"extra_module_{i}_state"] = m.state_dict()
 
         torch.save(payload, path)
-        self.logger.info(f"Checkpoint saved → {path}")
+        self.logger.info(f"Checkpoint saved -> {path}")
         self._zip_checkpoint(epoch, path)
 
     def _zip_checkpoint(self, epoch: int, ckpt_path: str) -> None:
@@ -191,7 +191,7 @@ class Trainer:
 
             zf.writestr("meta.json", json.dumps(meta, indent=2))
 
-        self.logger.info(f"Checkpoint archive → {zip_path}")
+        self.logger.info(f"Checkpoint archive -> {zip_path}")
 
 
     def load_checkpoint(self, path: str) -> int:

@@ -49,8 +49,8 @@ unavailable, download and extract `img_align_celeba/` into `data/raw/`, then use
 `--datasets none`.
 
 The bootstrap script requires Python 3.9+ (install it first if it is not already
-available). Pass `--gpu cpu`, `--gpu cuda118`,
-`--gpu cuda121`, or `--gpu rocm` to override hardware detection. `--skip-torch`
+available). Pass `--gpu cpu`, `--gpu cuda118`, `--gpu cuda121`, `--gpu cuda128`,
+or `--gpu rocm` to override hardware detection. `--skip-torch`
 is for a pre-populated project virtual environment only.
 
 ## First run

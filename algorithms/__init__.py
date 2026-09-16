@@ -25,6 +25,7 @@ from algorithms.mean_flow import MeanFlowAlgorithm
 from algorithms.mean_flow_distill import MeanFlowDistillAlgorithm
 from algorithms.consistency import ConsistencyAlgorithm
 from algorithms.reflow import ReflowAlgorithm
+from algorithms.mock import MockAlgorithm
 
 ALGORITHM_REGISTRY = {
     "fm":          FlowMatchingAlgorithm,
@@ -33,6 +34,7 @@ ALGORITHM_REGISTRY = {
     "mf_distill":  MeanFlowDistillAlgorithm,
     "consistency": ConsistencyAlgorithm,
     "reflow":      ReflowAlgorithm,
+    "mock":        MockAlgorithm,
 }
 
 __all__ = [
@@ -43,5 +45,6 @@ __all__ = [
     "MeanFlowDistillAlgorithm",
     "ConsistencyAlgorithm",
     "ReflowAlgorithm",
+    "MockAlgorithm",
     "ALGORITHM_REGISTRY",
 ]

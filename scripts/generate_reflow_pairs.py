@@ -98,7 +98,7 @@ def main():
 
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
     torch.save({"z1": z1_all, "x0": x0_all}, args.output)
-    print(f"Saved {args.n_pairs} pairs → {args.output}")
+    print(f"Saved {args.n_pairs} pairs -> {args.output}")
     print(f"Shapes: z1={z1_all.shape}, x0={x0_all.shape}")
 
 
