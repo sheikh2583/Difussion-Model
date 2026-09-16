@@ -15,6 +15,7 @@ torchvision>=0.15   # CIFAR-10 dataset loader + save_image utility
 # --- Evaluation metrics -------------------------------------------------------
 torchmetrics>=1.0   # FrechetInceptionDistance + InceptionScore (FID / IS)
 torch-fidelity>=0.3 # Inception feature extractor required by torchmetrics FID / IS
+gdown>=5.0          # Google Drive downloader used by torchvision CelebA
 scipy               # Required internally by torchmetrics FID (matrix sqrt)
 
 # --- Visualisation / analysis -------------------------------------------------
