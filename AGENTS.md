@@ -79,18 +79,22 @@ These are referenced by `scripts/interactive_train.py` for the CelebA menu optio
 
 ## Workflow for dual-agent editing
 
-**Before starting any session:**
-```bash
-git pull
-```
+Both agents (Antigravity and Codex) run on the **same machine** and share the same
+filesystem. File changes are visible to both agents instantly — no git push/pull
+required for sync.
 
-**After completing any task:**
-```bash
-git add -A && git commit -m "<description>" && git push
-```
+**Ground rules:**
+- Do not edit the same file at the same time — last write wins and work will be lost.
+- Commit periodically for history and rollback, but this is not required for sync.
+- If a task touches multiple files, finish and save all of them before the other agent
+  starts work on any of the same files.
 
-Both agents must pull before editing and push after. Never leave uncommitted changes
-when switching agents — the other agent will not see them.
+**Recommended task split to avoid collisions:**
+
+| Antigravity | Codex |
+|---|---|
+| Architecture, runner, trainer, scripts, docs | Algorithm math, loss functions, inline edits |
+| Config system, bootstrap, evaluation | VS Code workspace config, quick fixes |
 
 ## Naming conventions
 
