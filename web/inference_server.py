@@ -32,12 +32,7 @@ import torch
 from torchvision.utils import save_image
 
 from algorithms.base import BaseAlgorithm
-from algorithms.flow_matching import FlowMatchingAlgorithm
-from algorithms.flow_matching_lognorm import FlowMatchingLognormAlgorithm
-from algorithms.mean_flow import MeanFlowAlgorithm
-from algorithms.mean_flow_distill import MeanFlowDistillAlgorithm
-from algorithms.consistency import ConsistencyAlgorithm
-from algorithms.reflow import ReflowAlgorithm
+from algorithms import ALGORITHM_REGISTRY
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
 
@@ -74,94 +69,80 @@ class ModelSpec:
         return self.run_directory / "metrics" / f"{self.run_directory.name}.jsonl"
 
 
+# Reverse map: checkpoint filename class-name → algorithm class
+# e.g. "FlowMatchingAlgorithm" → FlowMatchingAlgorithm
+_CLS_NAME_TO_ALGO: dict[str, Type[BaseAlgorithm]] = {
+    cls.__name__: cls for cls in ALGORITHM_REGISTRY.values()
+}
+
+# Human-readable labels keyed by algorithm class name.
+_ALGO_LABELS: dict[str, str] = {
+    "FlowMatchingAlgorithm": "Flow Matching",
+    "FlowMatchingLognormAlgorithm": "Flow Matching + Logit-Normal",
+    "MeanFlowAlgorithm": "Mean Flow",
+    "MeanFlowDistillAlgorithm": "Mean Flow Distillation",
+    "ConsistencyAlgorithm": "Consistency Models",
+    "ReflowAlgorithm": "Rectified Flow Reflow",
+    "MockAlgorithm": "Mock (smoke test)",
+}
+
+
+def _infer_algo_cls_from_ckpt_dir(ckpt_dir: Path):
+    """Return (AlgorithmClass, checkpoint_prefix) by scanning .pt filenames."""
+    for pt in ckpt_dir.glob("*.pt"):
+        for cls_name, cls in _CLS_NAME_TO_ALGO.items():
+            if pt.name.startswith(cls_name):
+                return cls, f"{cls_name}_epoch"
+    return None, None
+
+
 def build_model_specs(results_root: Path) -> dict[str, "ModelSpec"]:
-    """Build the MODEL_SPECS registry from a configurable results root.
+    """Auto-discover all valid experiment runs under results_root.
 
-    Each entry maps a short model key to a ModelSpec that describes:
-      - which algorithm class to instantiate for inference;
-      - where to find checkpoints and the saved config.json;
-      - the filename prefix used by Trainer.save_checkpoint().
+    A directory is considered a valid run if it contains:
+      - config.json   (written by ExperimentRunner at the start of training)
+      - checkpoints/  (at least one .pt file)
 
-    The ``results_root`` argument (default: ``./results``, overridable via
-    ``--results-dir`` on the CLI) allows the server to be pointed at a
-    non-default output directory without editing source code.  Sub-directory
-    names inside ``results_root`` must match the ``experiment_name`` values
-    used when the models were trained.
-
-    Expected layout inside results_root::
-
-        results_root/
-        ├── fm_cifar10/                         # Flow Matching (uniform-t)
-        ├── fm_lognorm_cifar10/                 # FM + logit-normal sampling
-        ├── mf_cifar10/                         # Mean Flow
-        ├── mf_distill_cifar10/                 # MF Distillation
-        ├── consistency_cifar10/                # Consistency Models
-        └── reflow_cifar10/                     # Rectified Flow Reflow
-
-        Each subdir must contain config.json and checkpoints/<ClassName>_epoch<N>.pt
+    The algorithm class is inferred from the checkpoint filename prefix
+    (e.g. ``FlowMatchingAlgorithm_epoch10.pt`` → FlowMatchingAlgorithm).
+    No dataset names or directory names are hardcoded here.
     """
-    return {
-        # ---- Flow Matching (uniform-t) ----------------------------------------
-        # config: config/fm_full.json
-        "fm": ModelSpec(
-            "fm",
-            "Flow Matching",
-            FlowMatchingAlgorithm,
-            results_root / "fm_cifar10",
-            "FlowMatchingAlgorithm_epoch",
-        ),
-        # ---- Flow Matching + Logit-Normal time sampling -----------------------
-        # config: config/fm_lognorm_full.json
-        "fm_lognorm": ModelSpec(
-            "fm_lognorm",
-            "Flow Matching + Logit-Normal",
-            FlowMatchingLognormAlgorithm,
-            results_root / "fm_lognorm_cifar10",
-            "FlowMatchingLognormAlgorithm_epoch",
-        ),
-        # ---- Mean Flow (displacement identity, one-step capable) -------------
-        # config: config/mf_full.json
-        "mf": ModelSpec(
-            "mf",
-            "Mean Flow",
-            MeanFlowAlgorithm,
-            results_root / "mf_cifar10",
-            "MeanFlowAlgorithm_epoch",
-        ),
-        # ---- Mean Flow Distillation ------------------------------------------
-        # config: config/mf_distill_full.json  (needs FM teacher checkpoint)
-        "mf_distill": ModelSpec(
-            "mf_distill",
-            "Mean Flow Distillation",
-            MeanFlowDistillAlgorithm,
-            results_root / "mf_distill_cifar10",
-            "MeanFlowDistillAlgorithm_epoch",
-        ),
-        # ---- Consistency Models ----------------------------------------------
-        # config: config/consistency_full.json  (needs FM teacher checkpoint)
-        "consistency": ModelSpec(
-            "consistency",
-            "Consistency Models",
-            ConsistencyAlgorithm,
-            results_root / "consistency_cifar10",
-            "ConsistencyAlgorithm_epoch",
-        ),
-        # ---- Rectified Flow Reflow -------------------------------------------
-        # config: config/reflow_full.json  (needs reflow pairs)
-        "reflow": ModelSpec(
-            "reflow",
-            "Rectified Flow Reflow",
-            ReflowAlgorithm,
-            results_root / "reflow_cifar10",
-            "ReflowAlgorithm_epoch",
-        ),
-    }
+    specs: dict[str, ModelSpec] = {}
+    if not results_root.is_dir():
+        return specs
+
+    for run_dir in sorted(results_root.iterdir()):
+        if not run_dir.is_dir():
+            continue
+        cfg_path  = run_dir / "config.json"
+        ckpt_dir  = run_dir / "checkpoints"
+        if not cfg_path.exists() or not ckpt_dir.is_dir():
+            continue
+
+        algo_cls, ckpt_prefix = _infer_algo_cls_from_ckpt_dir(ckpt_dir)
+        if algo_cls is None:
+            continue  # no recognised .pt files yet
+
+        # Use the run directory name as the unique key (e.g. "fm_cifar10").
+        key = run_dir.name
+        with cfg_path.open(encoding="utf-8") as handle:
+            raw_config = json.load(handle)
+        dataset = raw_config.get("dataset", {}).get("name", "unknown dataset")
+        base_label = _ALGO_LABELS.get(algo_cls.__name__, algo_cls.__name__)
+        label = f"{base_label} ({dataset})"
+
+        specs[key] = ModelSpec(
+            key=key,
+            label=label,
+            algorithm_class=algo_cls,
+            run_directory=run_dir,
+            checkpoint_prefix=ckpt_prefix,
+        )
+
+    return specs
 
 
 # MODEL_SPECS is populated in main() after --results-dir is parsed.
-# Module-level code that needs it (checkpoint_map, training_losses, etc.)
-# receives a spec directly, so this sentinel is never dereferenced before
-# main() runs.
 MODEL_SPECS: dict[str, ModelSpec] = {}
 
 

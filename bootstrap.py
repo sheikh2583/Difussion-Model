@@ -12,9 +12,10 @@ What this does:
   3. Detects GPU: CUDA (nvidia-smi) → ROCm (Linux) → CPU fallback
   4. Installs the correct PyTorch build for the detected hardware
   5. Installs remaining project dependencies from requirements.txt
-  6. Creates runtime directories: data/raw/, results/, results/metrics/
-  7. Downloads the selected dataset(s), including the large source archives
-  8. Prints a getting-started summary
+  6. Downloads/verifies the pretrained metric feature extractor
+  7. Creates runtime directories: data/raw/, results/, results/metrics/
+  8. Downloads the selected dataset(s), including the large source archives
+  9. Prints a getting-started summary
 
 No shell-specific syntax — pure stdlib Python 3, works everywhere.
 """
@@ -235,6 +236,20 @@ def install_requirements() -> None:
     info("Dependencies installed")
 
 
+def prefetch_metric_assets() -> None:
+    """Download the pretrained Inception weights used by FID and IS."""
+    head("Step 6 - Evaluation assets")
+    code = (
+        "from torchmetrics.image.fid import FrechetInceptionDistance; "
+        "from torchmetrics.image.inception import InceptionScore; "
+        "FrechetInceptionDistance(normalize=False); "
+        "InceptionScore(normalize=False)"
+    )
+    print("  Downloading/verifying pretrained Inception metric weights ...")
+    run([str(VENV_PYTHON), "-c", code])
+    info("FID/Inception Score assets are ready")
+
+
 # ---------------------------------------------------------------------------
 # Step 6 — Runtime directories
 # ---------------------------------------------------------------------------
@@ -247,7 +262,7 @@ RUNTIME_DIRS = [
 
 
 def create_dirs() -> None:
-    head("Step 6 - Runtime directories")
+    head("Step 7 - Runtime directories")
     for d in RUNTIME_DIRS:
         path = ROOT / d
         path.mkdir(parents=True, exist_ok=True)
@@ -260,7 +275,7 @@ def create_dirs() -> None:
 
 def download_datasets(selection: str) -> None:
     """Download datasets through torchvision into the project's data directory."""
-    head("Step 7 - Dataset download")
+    head("Step 8 - Dataset download")
     if selection == "none":
         info("Dataset download skipped")
         return
@@ -324,6 +339,12 @@ def print_summary(gpu_type: str, datasets: str) -> None:
     print()
     print(_c("  Next steps:", "1"))
     print(f"{activate}          <- activate the environment")
+    print()
+    print("  # Beginner training menu:")
+    if IS_WINDOWS:
+        print(r"  TRAIN.cmd                         # double-click or run")
+    else:
+        print("  ./train_interactive.sh")
     print()
     print("  # Quick smoke test (2 epochs, no GPU required):")
     print(f"{python_cmd} train.py --algorithm mock --config config/smoke_fast.json")
@@ -395,6 +416,7 @@ def main() -> None:
         install_torch(gpu_type)
 
     install_requirements()
+    prefetch_metric_assets()
     create_dirs()
     download_datasets(args.datasets)
     print_summary(gpu_type, args.datasets)

@@ -5,6 +5,37 @@ algorithms with a shared backbone, data pipeline, sampler, and evaluation stack.
 It supports CIFAR-10 (32x32) and CelebA (64x64), persists resumable checkpoints,
 and includes a small browser UI for inspecting saved models.
 
+## Easiest setup and training
+
+No command-line knowledge is required on Windows:
+
+1. Double-click **`INIT_ALL.cmd`**. It finds or installs Python, creates the
+   project environment, selects a supported GPU/CPU PyTorch build, installs all
+   dependencies, and downloads both CIFAR-10 and CelebA.
+2. Double-click **`TRAIN.cmd`**. Choose a model from the numbered menu and
+   confirm. Training starts immediately.
+3. Find checkpoints under `results/<run>/checkpoints/`. Every checkpoint is
+   automatically zipped, and the completed run is exported to
+   `results/exports/<run>.zip`.
+
+On Linux, open a terminal in the cloned repository and run:
+
+```bash
+chmod +x init_all.sh train_interactive.sh
+./init_all.sh
+./train_interactive.sh
+```
+
+The training menu includes the smoke test and all six research algorithms for
+both datasets. If a selected distillation model needs an FM teacher, the menu
+trains it first. If Reflow pairs are missing, it trains the teacher if needed
+and generates the 50,000-pair artifact before starting Reflow. These automatic
+prerequisites can take hours and require substantial disk space.
+
+CelebA is hosted upstream on Google Drive. If its automated download is blocked
+by a quota, follow the manual fallback below and rerun the initializer; already
+completed setup steps are safely reused.
+
 ## One-command setup
 
 The cross-platform entry point is `bootstrap.py`. It uses only the Python standard
@@ -33,6 +64,10 @@ Linux/macOS:
 ```bash
 ./scripts/setup.sh --yes
 ```
+
+`INIT_ALL.cmd` and `init_all.sh` are the beginner launchers and request both
+datasets. The lower-level setup commands above are useful when only one dataset
+is wanted.
 
 ### Dataset download options
 
@@ -122,11 +157,23 @@ Config presets are in `config/`: `smoke_fast.json` is the tiny CPU test;
 `*_celeba64.json` preset for CelebA at 64x64. Command-line `--epochs` and
 `--experiment-name` override the configured values.
 
+For an interactive model menu, use `TRAIN.cmd` on Windows or
+`./train_interactive.sh` on Linux. Advanced non-interactive use is also
+available:
+
+```bash
+python scripts/interactive_train.py --list
+python scripts/interactive_train.py --choice cifar10:mf --yes
+python scripts/interactive_train.py --choice celeba:fm --dry-run
+```
+
 ## Outputs, evaluation, and inference
 
 Each run is written to `results/<experiment>_<dataset>/` and includes its resolved
-config, logs, samples, metrics, and checkpoints. Every checkpoint is also packaged
-as a self-contained archive containing weights, config, and metadata.
+config, logs, samples, metrics, and checkpoints. Every checkpoint is packaged as
+a self-contained archive containing weights, config, and metadata. Interactive
+training additionally packages the run's configuration, logs, metrics, samples,
+and checkpoint archives into `results/exports/<run>.zip`.
 
 ```bash
 # Evaluate a saved checkpoint
@@ -171,6 +218,8 @@ Evaluate every available epoch-100 checkpoint with:
 
 ```text
 bootstrap.py          Cross-platform environment and dataset setup
+INIT_ALL.cmd / init_all.sh  Install everything and download both datasets
+TRAIN.cmd / train_interactive.sh  Choose, train, and package a model
 train.py / evaluate.py Training and evaluation CLIs
 algorithms/           Flow Matching, Mean Flow, Consistency, and Reflow methods
 models/               Shared SimpleUNet backbone

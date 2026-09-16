@@ -1,5 +1,5 @@
 """
-CLI entry point: train any registered algorithm.
+CLI entry point: train any registered algorithm on any configured dataset.
 
 Usage
 -----
@@ -7,9 +7,11 @@ Usage
     python train.py --algorithm fm_lognorm --config config/fm_lognorm_full.json
     python train.py --algorithm mf         --config config/mf_full.json
     python train.py --algorithm mf_distill --config config/mf_distill_full.json
+    python train.py --algorithm consistency --config config/consistency_full.json
+    python train.py --algorithm reflow     --config config/reflow_full.json
 
-All four algorithms share the same pipeline (ExperimentRunner → Trainer →
-Sampler → Evaluator).  Algorithm selection is the only thing that differs.
+Output directory is derived automatically: results/<experiment_name>_<dataset.name>/
+So switching datasets in the config automatically routes to a new directory.
 """
 import argparse
 
@@ -19,7 +21,7 @@ from experiments.runner import ExperimentRunner
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Train a generative-model algorithm on CIFAR-10.")
+    parser = argparse.ArgumentParser(description="Train a generative-model algorithm.")
     parser.add_argument(
         "--algorithm",
         choices=list(ALGORITHM_REGISTRY.keys()),

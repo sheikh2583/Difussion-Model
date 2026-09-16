@@ -36,7 +36,11 @@ class ExperimentRunner:
         self.algorithm_cls = algorithm_cls
         self.device = resolve_device(cfg)
 
-        self.run_dir = os.path.join(cfg.output_dir, cfg.experiment_name)
+        # Derive run directory: <output_dir>/<experiment_name>_<dataset.name>
+        # This keeps source code dataset-agnostic — changing the dataset in the
+        # config automatically routes outputs to a different directory.
+        run_name = f"{cfg.experiment_name}_{cfg.dataset.name}"
+        self.run_dir = os.path.join(cfg.output_dir, run_name)
         os.makedirs(self.run_dir, exist_ok=True)
 
         # Dataset registry replaces direct cifar10 import
@@ -47,7 +51,7 @@ class ExperimentRunner:
 
         self.evaluator = Evaluator(cfg, self.run_dir, self.device)
         self.sampler = Sampler(self.algorithm, self.device, self.run_dir,
-                                cfg.experiment_name, cfg.seed)
+                                run_name, cfg.seed)
 
     def _eval_hook(self, epoch: int) -> None:
         self.evaluator.evaluate(self.sampler, nfe_values=self.cfg.evaluation.nfe_values)
