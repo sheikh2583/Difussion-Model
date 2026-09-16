@@ -21,10 +21,13 @@ No command-line knowledge is required on Windows:
 On Linux, open a terminal in the cloned repository and run:
 
 ```bash
-chmod +x init_all.sh train_interactive.sh
 ./init_all.sh
 ./train_interactive.sh
 ```
+
+The executable bits are stored in Git, so these commands work immediately after
+a normal Linux clone. If a ZIP download stripped permissions, restore them with
+`chmod +x init_all.sh train_interactive.sh scripts/*.sh`.
 
 The training menu includes the smoke test and all six research algorithms for
 both datasets. If a selected distillation model needs an FM teacher, the menu
@@ -44,10 +47,14 @@ NVIDIA/ROCm/CPU PyTorch target, installs dependencies, creates runtime folders, 
 downloads the requested dataset.
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/sheikh2583/Difussion-Model.git DiffusionProject
 cd DiffusionProject
-python3 bootstrap.py --yes                 # Linux/macOS
+./init_all.sh                              # Linux: install everything + both datasets
 ```
+
+On Windows, clone the same repository, open the `DiffusionProject` folder, and
+double-click `INIT_ALL.cmd`. Both launchers can install Python when it is missing,
+create `venv/`, install the appropriate dependencies, and download both datasets.
 
 The default download is CIFAR-10 (~170 MB), which is enough for the smoke test and
 all `*_full.json` CIFAR-10 presets. GPU PyTorch wheels can themselves be several GB.
@@ -125,6 +132,40 @@ python train.py --algorithm fm --config config/fm_full.json
 python train.py --algorithm mf --config config/mf_full.json
 python train.py --algorithm consistency --config config/consistency_full.json
 ```
+
+### Full two-dataset tournament
+
+The full-tournament scripts run one GPU job at a time in dependency order:
+FM, FM-LogNorm, Mean Flow, Consistency, Mean Flow Distillation, Reflow-pair
+generation, and Reflow. After training, they evaluate the selected dataset(s)
+and rebuild the aggregate tables and plots.
+
+Always inspect the plan first; dry-run mode never starts training:
+
+```bash
+# Linux
+./scripts/run_full_tournament.sh --dry-run
+./scripts/run_full_tournament.sh
+./scripts/run_full_tournament.sh --dataset cifar10
+```
+
+```powershell
+# Windows PowerShell
+.\scripts\run_full_tournament.ps1 -DryRun
+.\scripts\run_full_tournament.ps1
+.\scripts\run_full_tournament.ps1 -Dataset cifar10
+```
+
+The scripts use the project interpreter under `venv/`, skip an algorithm when
+its epoch-100 checkpoint already exists, skip existing Reflow pair artifacts,
+and write a timestamped transcript to `results/tournament_run_*.log`. Re-running
+after interruption therefore keeps all completed algorithms, although an
+algorithm interrupted between saved checkpoints is restarted by this
+orchestrator. A shared `results/.lock` prevents another project GPU job from
+overlapping a training/evaluation step; Reflow generation uses the same lock.
+
+Use `--dataset celeba` / `-Dataset celeba` for CelebA only. The dataset key is
+`celeba` even though the corresponding preset filenames end in `_celeba64.json`.
 
 Use the orchestration scripts to run the suite in dependency order:
 

@@ -210,3 +210,20 @@ python scripts/generate_reflow_pairs.py \
   --config config/fm_celeba64.json --n-pairs 50000 --nfe 50 \
   --output data/reflow_pairs_celeba.pt
 ```
+
+---
+
+## [Codex] Cross-platform tournament orchestration (2026-09-17)
+
+- Added matching `scripts/run_full_tournament.sh` and `.ps1` entry points.
+- Corrected the proposed CelebA identifiers to the repository convention:
+  dataset/run suffix `celeba`, presets ending in `_celeba64.json`, and artifact
+  `data/reflow_pairs_celeba.pt`.
+- Both scripts use the initialized project interpreter, execute all GPU work
+  sequentially, enforce `results/.lock`, skip completed epoch checkpoints and
+  existing pair artifacts, evaluate only selected datasets, and aggregate at
+  the end.
+- Windows PowerShell and Git Bash dry runs both completed the full command graph
+  without starting training. All shell entry points passed Bash syntax checks.
+- Restored executable Git modes for Linux setup, training, evaluation, and
+  tournament shell scripts so a normal clone can invoke them directly.

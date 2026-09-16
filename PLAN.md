@@ -264,3 +264,12 @@ check each agent separately.
   passes. The empirical sweep itself was not run because the user excluded
   model training; `config/consistency_full.json` therefore remains unchanged.
 - Track B is complete within the non-training scope and ready for checkpoint 2.
+
+### [Codex] 2026-09-17 — tournament integration complete
+
+- Reconciled the proposed full-tournament scripts with the merged Track A/Track
+  B implementation; no overlapping uncommitted Antigravity changes were found.
+- Added and dry-run verified the Windows and Bash tournament entry points with
+  canonical run/config/artifact paths and strict single-GPU ordering.
+- Fixed Linux executable modes and updated bootstrap/README clone-to-run
+  instructions. No model training was started.
