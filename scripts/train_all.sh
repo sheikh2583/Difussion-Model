@@ -57,16 +57,24 @@ case "$ONLY" in
   *) echo "ERROR: unknown algorithm for --only: $ONLY" >&2; exit 2 ;;
 esac
 
-# Only FM and MF currently have CelebA presets.
 if [[ "$DATASET" == "celeba" ]]; then
-  if [[ -n "$ONLY" && "$ONLY" != "fm" && "$ONLY" != "mf" ]]; then
-    echo "ERROR: CelebA currently supports only fm and mf presets." >&2
-    exit 2
-  fi
-  SKIP_FM_LOGNORM=true
-  SKIP_MF_DISTILL=true
-  SKIP_CONSISTENCY=true
-  SKIP_REFLOW=true
+  FM_CONFIG="config/fm_celeba64.json"
+  FM_LOGNORM_CONFIG="config/fm_lognorm_celeba64.json"
+  MF_CONFIG="config/mf_celeba64.json"
+  MF_DISTILL_CONFIG="config/mf_distill_celeba64.json"
+  CONSISTENCY_CONFIG="config/consistency_celeba64.json"
+  REFLOW_CONFIG="config/reflow_celeba64.json"
+  FM_CKPT="results/fm_celeba/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
+  REFLOW_PAIRS="data/reflow_pairs_celeba.pt"
+else
+  FM_CONFIG="config/fm_full.json"
+  FM_LOGNORM_CONFIG="config/fm_lognorm_full.json"
+  MF_CONFIG="config/mf_full.json"
+  MF_DISTILL_CONFIG="config/mf_distill_full.json"
+  CONSISTENCY_CONFIG="config/consistency_full.json"
+  REFLOW_CONFIG="config/reflow_full.json"
+  FM_CKPT="results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
+  REFLOW_PAIRS="data/reflow_pairs_cifar10.pt"
 fi
 
 FAILED=0
@@ -99,26 +107,29 @@ require_file() {
   echo "[OK] $purpose: $path"
 }
 
-if [[ "$DATASET" == "celeba" ]]; then
-  run_training fm "config/fm_celeba64.json" "$SKIP_FM"
-  run_training mf "config/mf_celeba64.json" "$SKIP_MF"
-else
-  FM_CKPT="results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
-  run_training fm "config/fm_full.json" "$SKIP_FM"
-  run_training fm_lognorm "config/fm_lognorm_full.json" "$SKIP_FM_LOGNORM"
-  run_training mf "config/mf_full.json" "$SKIP_MF"
+run_training fm "$FM_CONFIG" "$SKIP_FM"
+run_training fm_lognorm "$FM_LOGNORM_CONFIG" "$SKIP_FM_LOGNORM"
+run_training mf "$MF_CONFIG" "$SKIP_MF"
 
-  if [[ "$SKIP_MF_DISTILL" == false && ( -z "$ONLY" || "$ONLY" == "mf_distill" ) ]]; then
-    require_file "$FM_CKPT" "FM teacher checkpoint" || true
-    [[ "$FAILED" -ne 0 && "$DRY_RUN" == false ]] || run_training mf_distill "config/mf_distill_full.json" false
+if [[ "$SKIP_MF_DISTILL" == false && ( -z "$ONLY" || "$ONLY" == "mf_distill" ) ]]; then
+  READY=true
+  require_file "$FM_CKPT" "FM teacher checkpoint" || READY=false
+  if [[ "$READY" == true || "$DRY_RUN" == true ]]; then
+    run_training mf_distill "$MF_DISTILL_CONFIG" false
   fi
-  if [[ "$SKIP_CONSISTENCY" == false && ( -z "$ONLY" || "$ONLY" == "consistency" ) ]]; then
-    require_file "$FM_CKPT" "FM teacher checkpoint" || true
-    [[ "$FAILED" -ne 0 && "$DRY_RUN" == false ]] || run_training consistency "config/consistency_full.json" false
+fi
+if [[ "$SKIP_CONSISTENCY" == false && ( -z "$ONLY" || "$ONLY" == "consistency" ) ]]; then
+  READY=true
+  require_file "$FM_CKPT" "FM teacher checkpoint" || READY=false
+  if [[ "$READY" == true || "$DRY_RUN" == true ]]; then
+    run_training consistency "$CONSISTENCY_CONFIG" false
   fi
-  if [[ "$SKIP_REFLOW" == false && ( -z "$ONLY" || "$ONLY" == "reflow" ) ]]; then
-    require_file "data/reflow_pairs_cifar10.pt" "Reflow pairs" || true
-    [[ "$FAILED" -ne 0 && "$DRY_RUN" == false ]] || run_training reflow "config/reflow_full.json" false
+fi
+if [[ "$SKIP_REFLOW" == false && ( -z "$ONLY" || "$ONLY" == "reflow" ) ]]; then
+  READY=true
+  require_file "$REFLOW_PAIRS" "Reflow pairs" || READY=false
+  if [[ "$READY" == true || "$DRY_RUN" == true ]]; then
+    run_training reflow "$REFLOW_CONFIG" false
   fi
 fi
 

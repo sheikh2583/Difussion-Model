@@ -14,6 +14,16 @@ from config.config import ExperimentConfig
 from evaluation.metrics import cache_real_images, load_real_images, compute_fid, compute_inception_score
 from sampling.sampler import Sampler
 from utils.results import ResultRecord, ResultsWriter
+from utils.timing import timer, peak_gpu_memory_mb, reset_peak_gpu_memory
+from utils.plots import (
+    plot_fid_vs_nfe,
+    plot_fid_vs_sampling_time,
+    plot_gpu_memory_comparison,
+    plot_is_vs_nfe,
+    plot_loss_vs_epoch,
+    plot_sampling_time_vs_nfe,
+    plot_training_time_comparison,
+)
 
 
 def _fid_reference_meta_path(cache_path: str) -> str:
@@ -93,17 +103,32 @@ class Evaluator:
         self.cfg = cfg
         self.run_dir = run_dir
         self.device = device
-        self.results = ResultsWriter(run_dir, cfg.experiment_name)
+        run_name = os.path.basename(os.path.normpath(run_dir))
+        self.results = ResultsWriter(run_dir, run_name)
 
-    def evaluate(self, sampler: Sampler, nfe_values: List[int]) -> None:
+    def evaluate(self, sampler: Sampler, nfe_values: List[int],
+                 make_plots: bool = False) -> None:
         real_images = None
         if "fid" in self.cfg.evaluation.metrics:
             real_images = load_real_images(
                 self.cfg.evaluation.fid_reference_cache, self.device)
 
         for nfe in nfe_values:
-            images = sampler.generate_for_evaluation(
-                self.cfg.evaluation.num_generated_samples, nfe)
+            sample_count = self.cfg.evaluation.num_generated_samples
+            reset_peak_gpu_memory(self.device)
+            with timer(self.device) as sample_timer:
+                images = sampler.generate_for_evaluation(sample_count, nfe)
+            elapsed = sample_timer["elapsed"]
+            self.results.write(ResultRecord(
+                algorithm=sampler.algorithm.name(),
+                seed=sampler.seed,
+                record_type="sampling",
+                nfe=nfe,
+                sampling_time=elapsed,
+                time_per_image=elapsed / sample_count,
+                images_per_second=sample_count / max(elapsed, 1e-8),
+                peak_gpu_memory=peak_gpu_memory_mb(self.device),
+            ))
 
             fid_score = None
             if real_images is not None:
@@ -122,3 +147,21 @@ class Evaluator:
                 is_mean=is_mean,
                 is_std=is_std,
             ))
+
+        if make_plots:
+            self._make_plots()
+
+    def _make_plots(self) -> None:
+        plot_dir = os.path.join(self.run_dir, "metrics", "plots")
+        jsonl_path = self.results.jsonl_path
+        plots = (
+            (plot_fid_vs_nfe, "fid_vs_nfe.png"),
+            (plot_is_vs_nfe, "is_vs_nfe.png"),
+            (plot_sampling_time_vs_nfe, "sampling_time_vs_nfe.png"),
+            (plot_fid_vs_sampling_time, "fid_vs_sampling_time.png"),
+            (plot_loss_vs_epoch, "loss_vs_epoch.png"),
+            (plot_training_time_comparison, "training_time.png"),
+            (plot_gpu_memory_comparison, "gpu_memory.png"),
+        )
+        for plot_function, filename in plots:
+            plot_function(jsonl_path, os.path.join(plot_dir, filename))

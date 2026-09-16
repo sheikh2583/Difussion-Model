@@ -14,6 +14,7 @@ Add --make-plots to regenerate FID/IS vs NFE curves into results/<experiment>/me
 """
 import argparse
 import os
+from pathlib import Path
 
 import torch
 
@@ -46,7 +47,17 @@ def main():
         cfg.experiment_name = args.experiment_name
 
     device = resolve_device(cfg)
-    run_dir = os.path.join(cfg.output_dir, cfg.experiment_name)
+    checkpoint_path = Path(args.checkpoint).resolve()
+    if checkpoint_path.parent.name == "checkpoints":
+        run_dir = str(checkpoint_path.parent.parent)
+    else:
+        suffix = f"_{cfg.dataset.name}"
+        run_name = (
+            cfg.experiment_name
+            if cfg.experiment_name.endswith(suffix)
+            else f"{cfg.experiment_name}{suffix}"
+        )
+        run_dir = os.path.join(cfg.output_dir, run_name)
     os.makedirs(run_dir, exist_ok=True)
 
     _, test_loader = get_dataloaders_for_config(cfg)
@@ -63,7 +74,8 @@ def main():
     for m in algorithm.trainable_modules():
         m.to(device)
 
-    sampler   = Sampler(algorithm, device, run_dir, cfg.experiment_name, cfg.seed)
+    run_name = os.path.basename(os.path.normpath(run_dir))
+    sampler   = Sampler(algorithm, device, run_dir, run_name, cfg.seed)
     evaluator = Evaluator(cfg, run_dir, device)
     evaluator.evaluate(sampler, nfe_values=cfg.evaluation.nfe_values,
                        make_plots=args.make_plots)

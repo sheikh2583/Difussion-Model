@@ -33,7 +33,7 @@ already exist. Preview long workflows without launching training:
 | Cross-platform bootstrap | Ready | Completed on Windows 11 with Python 3.12, CUDA 12.8, dependencies, and CIFAR-10. Linux still needs runtime validation on an actual Linux host or active container. |
 | Algorithm registry | Ready | Six research algorithms plus the `mock` smoke utility are registered. |
 | CIFAR-10 pipeline | Ready | Batch verified as `(32, 3, 32, 32)` with range `[-1, 1]`. |
-| CelebA pipeline | Code ready | Loader and 64x64 FM/MF configs load; the 1.4 GB dataset is not present locally. |
+| CelebA pipeline | Code ready | Loader and 64x64 presets for all six methods load; the 1.4 GB dataset is not present locally. |
 | Smoke pipeline | Ready | Two epochs, FID/IS, checkpoints, and checkpoint archives completed. |
 | MF-Distill prerequisite | Ready locally | The expected FM epoch-100 teacher exists. |
 | Consistency prerequisite | Ready locally | The expected FM epoch-100 teacher exists; tuning remains. |
@@ -63,8 +63,8 @@ python train.py --algorithm fm --config config/fm_celeba64.json
 python train.py --algorithm mf --config config/mf_celeba64.json
 ```
 
-Only FM and MF currently have CelebA presets. The batch launchers therefore skip
-the other methods in CelebA mode instead of referencing nonexistent configs.
+All six methods have CelebA presets. The teacher-based presets require the
+CelebA FM checkpoint, and Reflow requires CelebA pairs generated from it.
 
 ## Phase 2: Mean Flow Distillation
 
@@ -74,8 +74,8 @@ Status: code and CIFAR-10 teacher ready; training pending.
 python train.py --algorithm mf_distill --config config/mf_distill_full.json
 ```
 
-The current config targets CIFAR-10. There is no
-`config/mf_distill_celeba64.json` preset.
+Both `config/mf_distill_full.json` and `config/mf_distill_celeba64.json` are
+provided. The CelebA preset becomes runnable after its FM teacher is trained.
 
 ## Phase 3: Consistency Distillation
 
@@ -117,14 +117,24 @@ Status: partial; only checkpoints present at the requested epoch can run.
 ```
 
 The scripts skip missing checkpoints and evaluate available ones. Run dry-run
-mode first. `scripts/aggregate_results.py` does not currently exist and must not
-be presented as a working command.
+mode first. Aggregate all available JSONL records into a summary table and plots
+with `python scripts/aggregate_results.py`.
+
+## Optional Mean Flow extensions
+
+Adaptive-NFE and multiscale sampling are implemented as inference wrappers and
+are intentionally not separate training algorithms. Inspect their portable CLI:
+
+```bash
+python scripts/sample_mean_flow_extensions.py adaptive --help
+python scripts/sample_mean_flow_extensions.py multiscale --help
+```
 
 ## Paths
 
-Outputs follow `results/<experiment_name>_<dataset_name>/`. Scripts are under
-`scripts/` and must be invoked from there. Large datasets, Reflow pairs, and
-results remain outside Git.
+Outputs follow `results/<experiment_name>_<dataset_name>/`. Run the documented
+`scripts/...` commands from the repository root. Large datasets, Reflow pairs,
+and results remain outside Git.
 
 ## Verification limits
 

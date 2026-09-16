@@ -1,9 +1,11 @@
 # Evaluate available epoch checkpoints for the six research algorithms.
-# Usage: .\scripts\evaluate_all.ps1 [-Epoch 100] [-DryRun]
+# Usage: .\scripts\evaluate_all.ps1 [-Dataset cifar10|celeba] [-Epoch 100] [-DryRun]
 [CmdletBinding()]
 param(
     [ValidateRange(1, [int]::MaxValue)]
     [int]$Epoch = 100,
+    [ValidateSet("cifar10", "celeba")]
+    [string]$Dataset = "cifar10",
     [switch]$DryRun
 )
 Set-StrictMode -Version Latest
@@ -31,12 +33,20 @@ function Invoke-Evaluation {
     }
 }
 
-Invoke-Evaluation "fm" "results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch$Epoch.pt" "config/fm_full.json"
-Invoke-Evaluation "fm_lognorm" "results/fm_lognorm_cifar10/checkpoints/FlowMatchingLognormAlgorithm_epoch$Epoch.pt" "config/fm_lognorm_full.json"
-Invoke-Evaluation "mf" "results/mf_cifar10/checkpoints/MeanFlowAlgorithm_epoch$Epoch.pt" "config/mf_full.json"
-Invoke-Evaluation "mf_distill" "results/mf_distill_cifar10/checkpoints/MeanFlowDistillAlgorithm_epoch$Epoch.pt" "config/mf_distill_full.json"
-Invoke-Evaluation "consistency" "results/consistency_cifar10/checkpoints/ConsistencyAlgorithm_epoch$Epoch.pt" "config/consistency_full.json"
-Invoke-Evaluation "reflow" "results/reflow_cifar10/checkpoints/ReflowAlgorithm_epoch$Epoch.pt" "config/reflow_full.json"
+if ($Dataset -eq "celeba") {
+    $Suffix = "celeba"
+    $ConfigSuffix = "celeba64"
+} else {
+    $Suffix = "cifar10"
+    $ConfigSuffix = "full"
+}
+
+Invoke-Evaluation "fm" "results/fm_$Suffix/checkpoints/FlowMatchingAlgorithm_epoch$Epoch.pt" "config/fm_$ConfigSuffix.json"
+Invoke-Evaluation "fm_lognorm" "results/fm_lognorm_$Suffix/checkpoints/FlowMatchingLognormAlgorithm_epoch$Epoch.pt" "config/fm_lognorm_$ConfigSuffix.json"
+Invoke-Evaluation "mf" "results/mf_$Suffix/checkpoints/MeanFlowAlgorithm_epoch$Epoch.pt" "config/mf_$ConfigSuffix.json"
+Invoke-Evaluation "mf_distill" "results/mf_distill_$Suffix/checkpoints/MeanFlowDistillAlgorithm_epoch$Epoch.pt" "config/mf_distill_$ConfigSuffix.json"
+Invoke-Evaluation "consistency" "results/consistency_$Suffix/checkpoints/ConsistencyAlgorithm_epoch$Epoch.pt" "config/consistency_$ConfigSuffix.json"
+Invoke-Evaluation "reflow" "results/reflow_$Suffix/checkpoints/ReflowAlgorithm_epoch$Epoch.pt" "config/reflow_$ConfigSuffix.json"
 
 if ($script:Available -eq 0) {
     throw "No epoch-$Epoch checkpoints were found."

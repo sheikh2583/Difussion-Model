@@ -1,55 +1,13 @@
-"""
-Future Direction 01: Adaptive MeanFlow for Dynamic NFE.
+"""Adaptive per-sample NFE allocation for a trained Mean Flow model.
 
-SLIDE REFERENCE: "Adaptive NFE Allocation" — thesis presentation, future work.
-
-Background
-----------
-MeanFlow's displacement identity enables exact jumps between arbitrary time
-points, making it uniquely suited to adaptive (per-sample) scheduling.
-However, the current Sampler always runs a fixed NFE for every sample in a
-batch, even when some samples have already converged to high-confidence
-predictions after just one or two steps.
-
-Observation: generation difficulty is uneven across CIFAR-10.  Uniform
-backgrounds (sky, solid-colour regions) converge in 1 step; fine textures
-(fur, vehicle grilles, foliage) require more.  A fixed NFE wastes compute on
-easy samples and under-allocates on hard ones.
-
-Planned Approach
-----------------
-1. Start with all N samples active (active_mask: BoolTensor of shape (B,)).
-2. At each step i in range(max_nfe):
-   a. Run _forward only on active samples: u = algorithm._forward(z[active], r[active], t[active])
-   b. Update z for active samples: z[active] -= step_size * u
-   c. Compute per-sample confidence:
-          conf = ||u - u_prev||_2 / (||u||_2 + eps)    [shape (B_active,)]
-      where u_prev is the velocity from the previous step (zero on first step).
-   d. Deactivate samples where conf < confidence_threshold AND i >= min_nfe.
-   e. Break early if active_mask.sum() == 0.
-3. Return z.clamp(-1, 1).
-
-Why this matters
-----------------
-- Preserves MeanFlow's low *average* NFE while recovering quality on hard cases.
-- No retraining needed: works on any MeanFlowAlgorithm checkpoint.
-- Expected outcome: FID improves over 1-step baseline at ~1.3–1.8 average NFE.
-
-Prerequisites before implementing
-----------------------------------
-- Decide time schedule: uniform linspace vs. learned schedule.
-- Decide how to handle the batch-dimension mismatch when only a subset is active
-  (masked indexing vs. padding vs. dynamic batch shrink).
-- Profile memory vs. dynamic-batch approach on RTX 3060 (12 GB).
-
-NOT a BaseAlgorithm subclass.  This is a pure sampling wrapper;
-it does not define a training_step.  The wrapped algorithm must expose
-._forward(z, r, t) (as MeanFlowAlgorithm does).
+This is an inference wrapper, not a ``BaseAlgorithm`` subclass. It compares
+successive clean-image predictions, retires converged samples from the active
+batch, and records the realized per-sample and average NFE.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import torch
 
@@ -89,6 +47,20 @@ class AdaptiveMeanFlowSampler:
         self.min_nfe              = min_nfe
         self.max_nfe              = max_nfe
         self.confidence_threshold = confidence_threshold
+        self.last_nfe_per_sample: Optional[torch.Tensor] = None
+        self.last_average_nfe: Optional[float] = None
+
+        if min_nfe < 1:
+            raise ValueError(f"min_nfe must be >= 1, got {min_nfe}")
+        if max_nfe < min_nfe:
+            raise ValueError(
+                f"max_nfe must be >= min_nfe, got {max_nfe} < {min_nfe}"
+            )
+        if confidence_threshold < 0:
+            raise ValueError(
+                "confidence_threshold must be non-negative, got "
+                f"{confidence_threshold}"
+            )
 
     # ------------------------------------------------------------------
     # Public API
@@ -103,40 +75,77 @@ class AdaptiveMeanFlowSampler:
         torch.Tensor
             Shape (n_samples, C, H, W), values clamped to [-1, 1].
         """
-        raise NotImplementedError(
-            "TODO: implement per-sample early exit.\n"
-            "\n"
-            "Outline:\n"
-            "  C = self.algorithm.model.cfg.in_channels\n"
-            "  H = W = self.algorithm.model._expected_image_size\n"
-            "  z = torch.randn(n_samples, C, H, W, device=device)     # start from noise\n"
-            "  times = torch.linspace(1.0, 0.0, self.max_nfe+1, device=device)\n"
-            "  active_mask = torch.ones(n_samples, dtype=torch.bool, device=device)\n"
-            "  u_prev = torch.zeros_like(z)                           # velocity memory\n"
-            "\n"
-            "  with torch.no_grad():\n"
-            "      for i in range(self.max_nfe):\n"
-            "          t_val  = times[i].item()\n"
-            "          r_val  = times[i + 1].item()\n"
-            "          step   = t_val - r_val\n"
-            "          idx    = active_mask.nonzero(as_tuple=True)[0]\n"
-            "          t_b    = torch.full((idx.numel(),), t_val, device=device)\n"
-            "          r_b    = torch.full((idx.numel(),), r_val, device=device)\n"
-            "          u      = self.algorithm._forward(z[idx], r_b, t_b)  # active only\n"
-            "          z[idx] = z[idx] - step * u\n"
-            "\n"
-            "          # Confidence: fractional velocity change per sample\n"
-            "          diff = (u - u_prev[idx]).flatten(1).norm(dim=1)\n"
-            "          mag  = u.flatten(1).norm(dim=1).clamp(min=1e-8)\n"
-            "          conf = diff / mag                              # (B_active,)\n"
-            "          u_prev[idx] = u\n"
-            "\n"
-            "          if i + 1 >= self.min_nfe:\n"
-            "              converged = conf < self.confidence_threshold\n"
-            "              active_mask[idx[converged]] = False\n"
-            "\n"
-            "          if not active_mask.any():\n"
-            "              break\n"
-            "\n"
-            "  return z.clamp(-1.0, 1.0)"
+        if n_samples < 1:
+            raise ValueError(f"n_samples must be >= 1, got {n_samples}")
+
+        model = self.algorithm.model
+        channels = model.cfg.in_channels
+        image_size = model._expected_image_size
+        z = torch.randn(
+            n_samples, channels, image_size, image_size, device=device
         )
+        output = torch.empty_like(z)
+        previous_prediction = torch.zeros_like(z)
+        has_previous = torch.zeros(n_samples, dtype=torch.bool, device=device)
+        active = torch.ones(n_samples, dtype=torch.bool, device=device)
+        nfe_used = torch.zeros(n_samples, dtype=torch.long, device=device)
+        times = torch.linspace(1.0, 0.0, self.max_nfe + 1, device=device)
+
+        for module in self.algorithm.trainable_modules():
+            module.eval()
+
+        with torch.no_grad():
+            for step_index in range(self.max_nfe):
+                indices = active.nonzero(as_tuple=True)[0]
+                if indices.numel() == 0:
+                    break
+
+                t_value = float(times[step_index])
+                next_t = float(times[step_index + 1])
+                t_batch = torch.full(
+                    (indices.numel(),), t_value, device=device, dtype=torch.float32
+                )
+                zero_batch = torch.zeros_like(t_batch)
+
+                # Mean Flow predicts average displacement to an arbitrary r.
+                # A direct r=0 prediction is a valid clean-image candidate at
+                # every step, so early-exited samples never remain at t>0.
+                velocity_to_zero = self.algorithm._forward(
+                    z[indices], zero_batch, t_batch
+                )
+                prediction = z[indices] - t_value * velocity_to_zero
+                nfe_used[indices] += 1
+
+                can_compare = has_previous[indices]
+                difference = (
+                    prediction - previous_prediction[indices]
+                ).flatten(1).norm(dim=1)
+                magnitude = prediction.flatten(1).norm(dim=1).clamp(min=1e-8)
+                relative_change = difference / magnitude
+                converged = (
+                    can_compare
+                    & (nfe_used[indices] >= self.min_nfe)
+                    & (relative_change < self.confidence_threshold)
+                )
+
+                if step_index == self.max_nfe - 1:
+                    converged = torch.ones_like(converged)
+
+                finished = indices[converged]
+                output[finished] = prediction[converged]
+                active[finished] = False
+
+                continuing = ~converged
+                if continuing.any():
+                    continuing_indices = indices[continuing]
+                    previous_prediction[continuing_indices] = prediction[continuing]
+                    has_previous[continuing_indices] = True
+                    delta_t = t_value - next_t
+                    z[continuing_indices] = (
+                        z[continuing_indices]
+                        - delta_t * velocity_to_zero[continuing]
+                    )
+
+        self.last_nfe_per_sample = nfe_used.detach().cpu()
+        self.last_average_nfe = float(nfe_used.float().mean().item())
+        return output.clamp(-1.0, 1.0)

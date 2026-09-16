@@ -25,7 +25,12 @@ CONFIGS = (
     "config/consistency_full.json",
     "config/reflow_full.json",
     "config/fm_celeba64.json",
+    "config/fm_lognorm_celeba64.json",
     "config/mf_celeba64.json",
+    "config/mf_distill_celeba64.json",
+    "config/consistency_celeba64.json",
+    "config/reflow_celeba64.json",
+    "config/mf_coarse16.json",
 )
 
 
@@ -86,6 +91,9 @@ def main() -> int:
         ("config/mf_distill_full.json", "teacher_checkpoint", "MF-Distill teacher"),
         ("config/consistency_full.json", "teacher_checkpoint", "Consistency teacher"),
         ("config/reflow_full.json", "pairs_path", "Reflow pairs"),
+        ("config/mf_distill_celeba64.json", "teacher_checkpoint", "CelebA MF-Distill teacher"),
+        ("config/consistency_celeba64.json", "teacher_checkpoint", "CelebA Consistency teacher"),
+        ("config/reflow_celeba64.json", "pairs_path", "CelebA Reflow pairs"),
     )
     for config_path, field, label in prerequisite_fields:
         cfg = loaded_configs.get(config_path)

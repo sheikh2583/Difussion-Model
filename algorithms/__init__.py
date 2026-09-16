@@ -26,6 +26,8 @@ from algorithms.mean_flow_distill import MeanFlowDistillAlgorithm
 from algorithms.consistency import ConsistencyAlgorithm
 from algorithms.reflow import ReflowAlgorithm
 from algorithms.mock import MockAlgorithm
+from algorithms.mean_flow_adaptive_nfe import AdaptiveMeanFlowSampler
+from algorithms.mean_flow_multiscale import MultiScaleMeanFlowPipeline
 
 ALGORITHM_REGISTRY = {
     "fm":          FlowMatchingAlgorithm,
@@ -46,5 +48,7 @@ __all__ = [
     "ConsistencyAlgorithm",
     "ReflowAlgorithm",
     "MockAlgorithm",
+    "AdaptiveMeanFlowSampler",
+    "MultiScaleMeanFlowPipeline",
     "ALGORITHM_REGISTRY",
 ]

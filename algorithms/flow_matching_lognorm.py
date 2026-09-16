@@ -20,6 +20,7 @@ All image tensors are in [-1, 1] (the project-wide convention).
 from typing import Any, Dict
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from algorithms.base import BaseAlgorithm
@@ -32,10 +33,17 @@ class FlowMatchingLognormAlgorithm(BaseAlgorithm):
     and Gaussian noise.
 
     algorithm_kwargs recognised (all optional):
-        sigma_min (float, default 0.0): unused in the base linear-path
-            formulation but reserved for future sigma-min augmentation
-            of the interpolation.  Must not shadow any shared config key.
+        logit_mean (float, default 0.0): mean of the Gaussian before sigmoid.
+        logit_std (float, default 1.0): positive standard deviation of that
+            Gaussian.
     """
+
+    def __init__(self, model: nn.Module, algorithm_kwargs: Dict[str, Any] = None):
+        super().__init__(model, algorithm_kwargs)
+        self.logit_mean = float(self.algorithm_kwargs.get("logit_mean", 0.0))
+        self.logit_std = float(self.algorithm_kwargs.get("logit_std", 1.0))
+        if self.logit_std <= 0:
+            raise ValueError(f"logit_std must be positive, got {self.logit_std}")
 
     # ------------------------------------------------------------------
     # Training
@@ -70,7 +78,10 @@ class FlowMatchingLognormAlgorithm(BaseAlgorithm):
         # Logit-normal time sampling (Esser et al. 2024, Stable Diffusion 3)
         # Concentrates training on intermediate timesteps where the model
         # learns the most, rather than uniform sampling.
-        u = torch.randn(x_data.shape[0], device=x_data.device)
+        u = (
+            torch.randn(x_data.shape[0], device=x_data.device) * self.logit_std
+            + self.logit_mean
+        )
         t = torch.sigmoid(u)
 
         # --- Step 3: compute the noisy interpolant x_t ---

@@ -84,7 +84,8 @@ class Trainer:
         self.logger = setup_logger(f"trainer.{algorithm.name()}",
                                     os.path.join(run_dir, "logs"))
         self.event_log = JsonlLogger(os.path.join(run_dir, "logs", "events.jsonl"))
-        self.results = ResultsWriter(run_dir, cfg.experiment_name)
+        run_name = os.path.basename(os.path.normpath(run_dir))
+        self.results = ResultsWriter(run_dir, run_name)
 
         self.checkpoint_dir = os.path.join(run_dir, "checkpoints")
         os.makedirs(self.checkpoint_dir, exist_ok=True)

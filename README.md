@@ -48,10 +48,12 @@ downloaded through torchvision; if its upstream Google Drive source is temporari
 unavailable, place the extracted images and official annotation files under
 `data/raw/celeba/`, then use `--datasets none`.
 
-The bootstrap script requires Python 3.9+ (install it first if it is not already
-available). Pass `--gpu cpu`, `--gpu cuda118`, `--gpu cuda121`, `--gpu cuda128`,
-or `--gpu rocm` to override hardware detection. `--skip-torch`
-is for a pre-populated project virtual environment only.
+The setup wrappers reuse a healthy project `venv` first and install Python 3.12
+through `winget` on Windows or a supported system package manager on Linux when
+Python 3.9+ is absent. Directly invoking `bootstrap.py` still requires Python.
+Pass `--gpu cpu`, `--gpu cuda118`, `--gpu cuda121`, `--gpu cuda128`, or
+`--gpu rocm` to override hardware detection. `--skip-torch` is for a
+pre-populated project virtual environment only.
 
 ## First run
 
@@ -97,6 +99,7 @@ bash scripts/train_all.sh                         # Linux/macOS
 
 bash scripts/train_all.sh --skip-reflow
 bash scripts/train_all.sh --only mf
+bash scripts/train_all.sh --dataset celeba
 
 # Validate commands and prerequisites without starting training:
 bash scripts/train_all.sh --dry-run
@@ -115,8 +118,8 @@ python scripts/generate_reflow_pairs.py \
 ```
 
 Config presets are in `config/`: `smoke_fast.json` is the tiny CPU test;
-`*_full.json` are the main CIFAR-10 runs; `fm_celeba64.json` and
-`mf_celeba64.json` select CelebA at 64x64. Command-line `--epochs` and
+`*_full.json` are the main CIFAR-10 runs; and every research algorithm has a
+`*_celeba64.json` preset for CelebA at 64x64. Command-line `--epochs` and
 `--experiment-name` override the configured values.
 
 ## Outputs, evaluation, and inference
@@ -133,6 +136,13 @@ python evaluate.py --algorithm fm \
 
 # Create sample grids from discovered checkpoints
 python scripts/generate_checkpoint_samples.py
+
+# Aggregate every run into a comparison CSV, JSONL, and plots
+python scripts/aggregate_results.py
+
+# Try the optional adaptive-NFE or coarse-to-fine Mean Flow samplers
+python scripts/sample_mean_flow_extensions.py adaptive --help
+python scripts/sample_mean_flow_extensions.py multiscale --help
 
 # Start the local inference UI, then open http://127.0.0.1:8000
 python web/inference_server.py
@@ -154,6 +164,7 @@ Evaluate every available epoch-100 checkpoint with:
 ```bash
 ./scripts/evaluate_all.sh --dry-run              # Linux/macOS plan only
 .\scripts\evaluate_all.ps1 -DryRun               # Windows plan only
+./scripts/evaluate_all.sh --dataset celeba --dry-run
 ```
 
 ## Repository map

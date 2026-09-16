@@ -338,7 +338,8 @@ The results are useful for describing observed behavior, but the guide reader sh
 
 ## 12. Repository issues a reviewer should know
 
-1. The original [README.md](README.md) is stale: it says FM and MF are `NotImplementedError` placeholders, while the actual algorithm files and artifacts implement FM, MF, and FM-LN.
+1. The current [README.md](../README.md) documents the implemented algorithms,
+   setup wrappers, workflow verification, and artifact prerequisites.
 2. [evaluate.py](evaluate.py#L21-L24) registers `mock`, `fm`, and `mf` but omits `fm_lognorm`, even though [train.py](train.py#L19-L24) and [inference_server.py](inference_server.py#L68-L91) support it.
 3. The artifact name `fm_lognorm_rtx3060` is evidence of intended hardware provenance, not a cryptographic or experiment-manifest proof of external training.
 4. JSONL files are append-only. Repeated train/evaluate invocations can place multiple runs in one metrics file; readers should group records by algorithm, configuration, and run provenance before drawing curves.

@@ -26,13 +26,23 @@ if (-not (Test-Path -LiteralPath $Python)) {
 }
 
 if ($Dataset -eq "celeba") {
-    if ($Only -and $Only -notin @("fm", "mf")) {
-        throw "CelebA currently supports only fm and mf presets."
-    }
-    $SkipFmLognorm = $true
-    $SkipMfDistill = $true
-    $SkipConsistency = $true
-    $SkipReflow = $true
+    $FmConfig = "config/fm_celeba64.json"
+    $FmLognormConfig = "config/fm_lognorm_celeba64.json"
+    $MfConfig = "config/mf_celeba64.json"
+    $MfDistillConfig = "config/mf_distill_celeba64.json"
+    $ConsistencyConfig = "config/consistency_celeba64.json"
+    $ReflowConfig = "config/reflow_celeba64.json"
+    $FmCheckpoint = "results/fm_celeba/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
+    $ReflowPairs = "data/reflow_pairs_celeba.pt"
+} else {
+    $FmConfig = "config/fm_full.json"
+    $FmLognormConfig = "config/fm_lognorm_full.json"
+    $MfConfig = "config/mf_full.json"
+    $MfDistillConfig = "config/mf_distill_full.json"
+    $ConsistencyConfig = "config/consistency_full.json"
+    $ReflowConfig = "config/reflow_full.json"
+    $FmCheckpoint = "results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
+    $ReflowPairs = "data/reflow_pairs_cifar10.pt"
 }
 
 $script:Failed = $false
@@ -63,32 +73,26 @@ function Test-Prerequisite {
     return $true
 }
 
-if ($Dataset -eq "celeba") {
-    Invoke-Training "fm" "config/fm_celeba64.json" $SkipFm
-    Invoke-Training "mf" "config/mf_celeba64.json" $SkipMf
-} else {
-    $FmCheckpoint = "results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
-    Invoke-Training "fm" "config/fm_full.json" $SkipFm
-    Invoke-Training "fm_lognorm" "config/fm_lognorm_full.json" $SkipFmLognorm
-    Invoke-Training "mf" "config/mf_full.json" $SkipMf
+Invoke-Training "fm" $FmConfig $SkipFm
+Invoke-Training "fm_lognorm" $FmLognormConfig $SkipFmLognorm
+Invoke-Training "mf" $MfConfig $SkipMf
 
-    if (-not $SkipMfDistill -and (-not $Only -or $Only -eq "mf_distill")) {
-        $Ready = Test-Prerequisite $FmCheckpoint "FM teacher checkpoint"
-        if ($Ready -or $DryRun) {
-            Invoke-Training "mf_distill" "config/mf_distill_full.json" $false
-        }
+if (-not $SkipMfDistill -and (-not $Only -or $Only -eq "mf_distill")) {
+    $Ready = Test-Prerequisite $FmCheckpoint "FM teacher checkpoint"
+    if ($Ready -or $DryRun) {
+        Invoke-Training "mf_distill" $MfDistillConfig $false
     }
-    if (-not $SkipConsistency -and (-not $Only -or $Only -eq "consistency")) {
-        $Ready = Test-Prerequisite $FmCheckpoint "FM teacher checkpoint"
-        if ($Ready -or $DryRun) {
-            Invoke-Training "consistency" "config/consistency_full.json" $false
-        }
+}
+if (-not $SkipConsistency -and (-not $Only -or $Only -eq "consistency")) {
+    $Ready = Test-Prerequisite $FmCheckpoint "FM teacher checkpoint"
+    if ($Ready -or $DryRun) {
+        Invoke-Training "consistency" $ConsistencyConfig $false
     }
-    if (-not $SkipReflow -and (-not $Only -or $Only -eq "reflow")) {
-        $Ready = Test-Prerequisite "data/reflow_pairs_cifar10.pt" "Reflow pairs"
-        if ($Ready -or $DryRun) {
-            Invoke-Training "reflow" "config/reflow_full.json" $false
-        }
+}
+if (-not $SkipReflow -and (-not $Only -or $Only -eq "reflow")) {
+    $Ready = Test-Prerequisite $ReflowPairs "Reflow pairs"
+    if ($Ready -or $DryRun) {
+        Invoke-Training "reflow" $ReflowConfig $false
     }
 }
 

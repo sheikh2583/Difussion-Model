@@ -6,6 +6,26 @@ from collections.abc import Mapping
 from typing import Any
 
 
+def _load_module_state(module: Any, state: Mapping[str, Any]) -> None:
+    """Load a module, adapting the legacy bare-Sequential key layout."""
+    try:
+        module.load_state_dict(state)
+        return
+    except RuntimeError as original_error:
+        current_keys = set(module.state_dict())
+        prefixed = {f"net.{key}": value for key, value in state.items()}
+        if set(prefixed) == current_keys:
+            module.load_state_dict(prefixed)
+            return
+        unprefixed = {
+            key.removeprefix("net."): value for key, value in state.items()
+        }
+        if set(unprefixed) == current_keys:
+            module.load_state_dict(unprefixed)
+            return
+        raise original_error
+
+
 def extract_model_state(checkpoint: Mapping[str, Any]) -> Mapping[str, Any]:
     """Return the backbone state dict from any project checkpoint schema."""
     if "model_state" in checkpoint:
@@ -32,11 +52,11 @@ def load_algorithm_state(algorithm: Any, checkpoint: Mapping[str, Any]) -> None:
                 f"but {algorithm.name()} expects {len(modules)}."
             )
         for module, state in zip(modules, states):
-            module.load_state_dict(state)
+            _load_module_state(module, state)
         return
 
-    modules[0].load_state_dict(extract_model_state(checkpoint))
+    _load_module_state(modules[0], extract_model_state(checkpoint))
     for index, module in enumerate(modules[1:]):
         key = f"extra_module_{index}_state"
         if key in checkpoint:
-            module.load_state_dict(checkpoint[key])
+            _load_module_state(module, checkpoint[key])

@@ -40,7 +40,8 @@ def plot_loss_vs_epoch(jsonl_path: str, out_path: str) -> None:
     plt.xlabel("Epoch")
     plt.ylabel("Training Loss")
     plt.title("Training Loss vs Epoch")
-    plt.legend()
+    if grouped:
+        plt.legend()
     _save(out_path)
 
 
@@ -117,7 +118,8 @@ def plot_fid_vs_sampling_time(jsonl_path: str, out_path: str) -> None:
     plt.xlabel("Sampling Time (s)")
     plt.ylabel("FID")
     plt.title("FID vs Sampling Time (Quality vs Compute Budget)")
-    plt.legend()
+    if grouped:
+        plt.legend()
     _save(out_path)
 
 
@@ -134,7 +136,8 @@ def _plot_metric_vs_nfe(jsonl_path: str, record_type: str, field: str,
     plt.xlabel("NFE")
     plt.ylabel(ylabel)
     plt.title(title)
-    plt.legend()
+    if grouped:
+        plt.legend()
     _save(out_path)
 
 
