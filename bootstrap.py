@@ -13,7 +13,8 @@ What this does:
   4. Installs the correct PyTorch build for the detected hardware
   5. Installs remaining project dependencies from requirements.txt
   6. Creates runtime directories: data/raw/, results/, results/metrics/
-  7. Prints a getting-started summary
+  7. Downloads the selected dataset(s), including the large source archives
+  8. Prints a getting-started summary
 
 No shell-specific syntax — pure stdlib Python 3, works everywhere.
 """
@@ -230,10 +231,52 @@ def create_dirs() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Step 7 — Summary
+# Step 7 — Dataset download
 # ---------------------------------------------------------------------------
 
-def print_summary(gpu_type: str) -> None:
+def download_datasets(selection: str) -> None:
+    """Download datasets through torchvision into the project's data directory."""
+    head("Step 7 — Dataset download")
+    if selection == "none":
+        info("Dataset download skipped")
+        return
+
+    dataset_root = ROOT / "data" / "raw"
+    selected = ("cifar10", "celeba") if selection == "all" else (selection,)
+    commands = {
+        "cifar10": (
+            "from torchvision import datasets; "
+            f"root = {str(dataset_root)!r}; "
+            "datasets.CIFAR10(root=root, train=True, download=True); "
+            "datasets.CIFAR10(root=root, train=False, download=True)"
+        ),
+        "celeba": (
+            "from torchvision import datasets; "
+            f"root = {str(dataset_root)!r}; "
+            "datasets.CelebA(root=root, split='train', download=True); "
+            "datasets.CelebA(root=root, split='valid', download=True)"
+        ),
+    }
+    sizes = {"cifar10": "~170 MB", "celeba": "~1.4 GB"}
+
+    for dataset in selected:
+        print(f"  Downloading/verifying {dataset} ({sizes[dataset]}) ...")
+        try:
+            run([str(VENV_PYTHON), "-c", commands[dataset]])
+            info(f"{dataset} is ready in data/raw/")
+        except subprocess.CalledProcessError:
+            error(f"Could not download {dataset}.")
+            if dataset == "celeba":
+                warn("CelebA downloads can be blocked by Google Drive quotas.")
+                warn("See README.md for the manual-download fallback.")
+            raise
+
+
+# ---------------------------------------------------------------------------
+# Step 8 — Summary
+# ---------------------------------------------------------------------------
+
+def print_summary(gpu_type: str, datasets: str) -> None:
     head("Setup complete!")
     print()
 
@@ -252,6 +295,7 @@ def print_summary(gpu_type: str) -> None:
     }[gpu_type]
 
     print(_c("  Hardware target:", "1") + f" {gpu_label}")
+    print(_c("  Dataset(s):", "1") + f" {datasets}")
     print()
     print(_c("  Next steps:", "1"))
     print(f"{activate}          ← activate the environment")
@@ -290,6 +334,12 @@ def parse_args() -> argparse.Namespace:
         "--skip-torch", action="store_true",
         help="Skip PyTorch installation (use if already installed in the venv)."
     )
+    p.add_argument(
+        "--datasets", "--dataset", dest="datasets",
+        choices=["cifar10", "celeba", "all", "none"], default="cifar10",
+        help=("Dataset download selection (default: cifar10). 'celeba' is ~1.4 GB; "
+              "use 'all' for both or 'none' to skip downloads.")
+    )
     return p.parse_args()
 
 
@@ -321,7 +371,8 @@ def main() -> None:
 
     install_requirements()
     create_dirs()
-    print_summary(gpu_type)
+    download_datasets(args.datasets)
+    print_summary(gpu_type, args.datasets)
 
 
 if __name__ == "__main__":
