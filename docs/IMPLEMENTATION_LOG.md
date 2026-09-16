@@ -149,3 +149,30 @@ and results remain outside Git.
   and CelebA Reflow pairs therefore remain training-dependent.
 - Model-quality and FID targets require real experiments; setup tests cannot
   guarantee them.
+
+---
+
+## [Antigravity] Track A — Verification results (2026-09-17)
+
+### A1 — CelebA dataset
+- Images: **202,599 jpg files** extracted in `data/raw/celeba/img_align_celeba/`
+- All 5 annotation files present
+- Loader smoke call (`fm_celeba64.json`, batch=4):
+  shape `(4, 3, 64, 64)`, dtype `float32`, range `[-0.9922, 1.0000]` ✓
+- **PASS**
+
+### A2 — verify_workflow.py (CIFAR-10)
+- 6 research algorithms + mock registered ✓
+- All 14 config files valid ✓
+- FM teacher checkpoint present ✓  (`results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt`)
+- Reflow pairs present ✓  (`data/reflow_pairs_cifar10.pt`)
+- CIFAR-10 batch: shape `(32, 3, 32, 32)`, range `[-1.000, 1.000]` ✓
+- **PASS**
+
+### A3 — aggregate_results.py
+- Aggregated **262 records** from 6 JSONL files across 4 existing runs
+- Outputs written to `results/aggregate/` (JSONL + CSV + plots)
+- **PASS** — pipeline ready for real tournament results
+
+### A4 — Linux checklist
+- Created `docs/LINUX_VERIFICATION.md`
