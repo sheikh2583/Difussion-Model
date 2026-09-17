@@ -127,7 +127,10 @@ function Invoke-Algorithm {
         return
     }
     Assert-FileReady -Path $Config -Purpose "config"
-    $TrainArguments = @("train.py", "--algorithm", $Algorithm, "--config", $Config)
+    $TrainArguments = @(
+        "train.py", "--algorithm", $Algorithm, "--config", $Config,
+        "--epochs", "$Epoch", "--resume", "auto"
+    )
     if ($BatchSize -gt 0) {
         $TrainArguments += @("--batch-size", "$BatchSize")
     }

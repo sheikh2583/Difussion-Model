@@ -9,8 +9,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
-PYTHON="$PROJECT_ROOT/venv/bin/python"
-if [[ ! -x "$PYTHON" ]]; then
+if [[ -x "$PROJECT_ROOT/venv/bin/python" ]]; then
+  PYTHON="$PROJECT_ROOT/venv/bin/python"
+elif [[ -f "$PROJECT_ROOT/venv/Scripts/python.exe" ]]; then
+  # Git Bash on Windows; native Linux clones use venv/bin/python.
+  PYTHON="$PROJECT_ROOT/venv/Scripts/python.exe"
+else
   echo "ERROR: project environment not found. Run ./scripts/setup.sh --yes first." >&2
   exit 1
 fi
@@ -90,9 +94,9 @@ run_training() {
     FAILED=1
     return 0
   fi
-  echo "[PLAN] $PYTHON train.py --algorithm $algorithm --config $config"
+  echo "[PLAN] $PYTHON train.py --algorithm $algorithm --config $config --resume auto"
   if [[ "$DRY_RUN" == false ]]; then
-    "$PYTHON" train.py --algorithm "$algorithm" --config "$config"
+    "$PYTHON" train.py --algorithm "$algorithm" --config "$config" --resume auto
   fi
 }
 
@@ -100,6 +104,10 @@ require_file() {
   local path=$1
   local purpose=$2
   if [[ ! -f "$path" ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+      echo "[PLANNED] $purpose: $path"
+      return 0
+    fi
     echo "[BLOCKED] $purpose: $path" >&2
     FAILED=1
     return 1
@@ -126,11 +134,21 @@ if [[ "$SKIP_CONSISTENCY" == false && ( -z "$ONLY" || "$ONLY" == "consistency" )
   fi
 fi
 if [[ "$SKIP_REFLOW" == false && ( -z "$ONLY" || "$ONLY" == "reflow" ) ]]; then
+  if [[ ! -f "$REFLOW_PAIRS" ]]; then
+    READY=true
+    require_file "$FM_CKPT" "FM teacher checkpoint" || READY=false
+    if [[ "$READY" == true ]]; then
+      echo "[PLAN] Generate Reflow pairs: $REFLOW_PAIRS"
+      if [[ "$DRY_RUN" == false ]]; then
+        "$PYTHON" scripts/generate_reflow_pairs.py \
+          --checkpoint "$FM_CKPT" --config "$FM_CONFIG" \
+          --n-pairs 50000 --nfe 50 --output "$REFLOW_PAIRS"
+      fi
+    fi
+  fi
   READY=true
   require_file "$REFLOW_PAIRS" "Reflow pairs" || READY=false
-  if [[ "$READY" == true || "$DRY_RUN" == true ]]; then
-    run_training reflow "$REFLOW_CONFIG" false
-  fi
+  [[ "$READY" == false ]] || run_training reflow "$REFLOW_CONFIG" false
 fi
 
 if [[ "$FAILED" -ne 0 ]]; then

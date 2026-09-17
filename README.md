@@ -159,9 +159,9 @@ Always inspect the plan first; dry-run mode never starts training:
 The scripts use the project interpreter under `venv/`, skip an algorithm when
 its epoch-100 checkpoint already exists, skip existing Reflow pair artifacts,
 and write a timestamped transcript to `results/tournament_run_*.log`. Re-running
-after interruption therefore keeps all completed algorithms, although an
-algorithm interrupted between saved checkpoints is restarted by this
-orchestrator. A shared `results/.lock` prevents another project GPU job from
+after interruption resumes an in-progress algorithm from its newest checkpoint,
+including optimizer, scheduler, AMP scaler, counters, EMA, and RNG state. A
+shared `results/.lock` prevents another project GPU job from
 overlapping a training/evaluation step; Reflow generation uses the same lock.
 
 Use `--dataset celeba` / `-Dataset celeba` for CelebA only. The dataset key is
@@ -199,8 +199,10 @@ bash scripts/train_all.sh --dry-run
 .\scripts\train_all.ps1 -DryRun
 ```
 
-`mf_distill` and `consistency` expect an FM teacher checkpoint. Reflow additionally
-needs pairs generated from that checkpoint:
+`train_all` and the interactive menu automatically resume partial runs and build
+missing teacher/Reflow prerequisites. For manual workflows, `mf_distill` and
+`consistency` expect an FM teacher checkpoint, while Reflow additionally needs
+pairs generated from that checkpoint:
 
 ```bash
 python scripts/generate_reflow_pairs.py \
@@ -213,7 +215,8 @@ python scripts/generate_reflow_pairs.py \
 Config presets are in `config/`: `smoke_fast.json` is the tiny CPU test;
 `*_full.json` are the main CIFAR-10 runs; and every research algorithm has a
 `*_celeba64.json` preset for CelebA at 64x64. Command-line `--epochs` and
-`--experiment-name` override the configured values.
+`--experiment-name` override the configured values. Use `--resume auto` to
+continue the newest saved checkpoint for that run.
 
 For an interactive model menu, use `TRAIN.cmd` on Windows or
 `./train_interactive.sh` on Linux. Advanced non-interactive use is also

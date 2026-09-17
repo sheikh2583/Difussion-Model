@@ -20,8 +20,10 @@ build/
 *.egg-info/
 
 # Large Files & Directories (Local Data/Outputs)
-data/
-models/
+# Keep Python packages under data/ and models/ tracked; ignore only artifacts.
+data/raw/
+data/reflow_pairs_*.pt
+models/checkpoints/
 results/
 *.pdf
 *.pptx

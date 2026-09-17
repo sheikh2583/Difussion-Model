@@ -132,7 +132,10 @@ run_algorithm() {
     return 0
   fi
   require_file "$config" "config"
-  local train_args=(train.py --algorithm "$algorithm" --config "$config")
+  local train_args=(
+    train.py --algorithm "$algorithm" --config "$config"
+    --epochs "$EPOCH" --resume auto
+  )
   if [[ "$BATCH_SIZE" -gt 0 ]]; then
     train_args+=(--batch-size "$BATCH_SIZE")
   fi

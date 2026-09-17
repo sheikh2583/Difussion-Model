@@ -39,6 +39,10 @@ def parse_args():
                         help="Override epochs from config.")
     parser.add_argument("--batch-size", type=int, default=None,
                         help="Override batch size from config (useful for low-memory runs).")
+    parser.add_argument(
+        "--resume", type=str, default=None,
+        help="Resume from a checkpoint path, or use 'auto' for the latest checkpoint.",
+    )
     return parser.parse_args()
 
 
@@ -57,7 +61,7 @@ def main():
     algorithm_cls = ALGORITHM_REGISTRY[args.algorithm]
     runner = ExperimentRunner(cfg, algorithm_cls)
     cfg.save(f"{runner.run_dir}/config.json")
-    runner.run_full()
+    runner.run_full(resume_checkpoint=args.resume)
 
 
 if __name__ == "__main__":

@@ -125,6 +125,11 @@ Each checkpoint ZIP contains:
 - the resolved `config.json`;
 - `meta.json` with the algorithm, dataset, epoch, experiment, and timestamp.
 
+Resumption restores model and algorithm-owned state, optimizer, scheduler, AMP
+scaler, counters, dataloader shuffle state, and Python/NumPy/PyTorch RNG state.
+The tournament, batch scripts, and interactive menu use automatic latest-
+checkpoint resumption.
+
 Interactive training additionally invokes `scripts/package_run.py` after the run
 completes. It produces:
 

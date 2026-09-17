@@ -11,12 +11,15 @@ if the algorithm defines it (used by MeanFlowAlgorithm for delta annealing).
 import itertools
 import json
 import os
+import random
+import warnings
 import zipfile
 from datetime import datetime, timezone
 from typing import Callable, List, Optional
 
 import torch
 import torch.nn as nn
+import numpy as np
 from torch.utils.data import DataLoader
 
 from algorithms.base import BaseAlgorithm
@@ -125,10 +128,10 @@ class Trainer:
             # remain unchanged in that case.
             if self.scaler.get_scale() >= scale_before_step:
                 self.algorithm.on_after_optimizer_step()
+                self.optimization_steps += 1
 
             running_loss += loss.item()
             n_batches += 1
-            self.optimization_steps += 1
             self.samples_seen += batch.shape[0]
 
         if self.scheduler is not None:
@@ -151,7 +154,24 @@ class Trainer:
             "epoch": epoch,
             "model_state": self.model.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
+            "scheduler_state": (
+                self.scheduler.state_dict() if self.scheduler is not None else None
+            ),
+            "scaler_state": self.scaler.state_dict(),
             "algorithm_state": self.algorithm.checkpoint_state(),
+            "optimization_steps": self.optimization_steps,
+            "samples_seen": self.samples_seen,
+            "cumulative_training_time": self.cumulative_training_time,
+            "rng_state": {
+                "python": random.getstate(),
+                "numpy": np.random.get_state(),
+                "torch": torch.get_rng_state(),
+                "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
+            },
+            "data_loader_generator_state": (
+                self.train_loader.generator.get_state()
+                if self.train_loader.generator is not None else None
+            ),
         }
         # Save extra module states (e.g. r_embed for MF algorithms)
         extra_modules = self.trainable_modules[1:]
@@ -210,15 +230,50 @@ class Trainer:
         if optimizer_state is not None:
             self.optimizer.load_state_dict(optimizer_state)
         epoch = state.get("epoch", 0)
+        scheduler_state = state.get("scheduler_state")
+        if self.scheduler is not None:
+            if scheduler_state is not None:
+                self.scheduler.load_state_dict(scheduler_state)
+            elif epoch:
+                # Legacy checkpoints predate scheduler persistence. Reconstruct
+                # the epoch-indexed schedule instead of silently restarting it.
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", UserWarning)
+                    self.scheduler.step(epoch)
+        scaler_state = state.get("scaler_state")
+        if scaler_state:
+            self.scaler.load_state_dict(scaler_state)
+        self.optimization_steps = state.get(
+            "optimization_steps", epoch * len(self.train_loader)
+        )
+        self.samples_seen = state.get(
+            "samples_seen", self.optimization_steps * self.cfg.batch_size
+        )
+        self.cumulative_training_time = state.get("cumulative_training_time", 0.0)
+        rng_state = state.get("rng_state")
+        if rng_state:
+            random.setstate(rng_state["python"])
+            np.random.set_state(rng_state["numpy"])
+            torch.set_rng_state(rng_state["torch"].cpu())
+            if torch.cuda.is_available() and rng_state.get("cuda"):
+                torch.cuda.set_rng_state_all(
+                    [item.cpu() for item in rng_state["cuda"]]
+                )
+        loader_generator_state = state.get("data_loader_generator_state")
+        if loader_generator_state is not None and self.train_loader.generator is not None:
+            self.train_loader.generator.set_state(loader_generator_state.cpu())
         self.logger.info(f"Resumed from {path} at epoch {epoch}")
         return epoch
 
-    def fit(self) -> None:
-        set_seed(self.cfg.seed)
+    def fit(self, start_epoch: int = 1) -> None:
+        if start_epoch < 1:
+            raise ValueError(f"start_epoch must be >= 1, got {start_epoch}")
+        if start_epoch == 1:
+            set_seed(self.cfg.seed)
         set_deterministic(True)
 
         with timer(self.device) as total_timer:
-            for epoch in range(1, self.cfg.epochs + 1):
+            for epoch in range(start_epoch, self.cfg.epochs + 1):
                 reset_peak_gpu_memory(self.device)
                 with timer(self.device) as epoch_timer:
                     avg_loss = self._run_epoch(epoch)

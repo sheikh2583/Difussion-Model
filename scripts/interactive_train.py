@@ -77,7 +77,10 @@ def run(command: list[str], dry_run: bool) -> None:
 
 
 def train(algorithm: str, config: str, dry_run: bool) -> None:
-    run([sys.executable, "train.py", "--algorithm", algorithm, "--config", config], dry_run)
+    run([
+        sys.executable, "train.py", "--algorithm", algorithm,
+        "--config", config, "--resume", "auto",
+    ], dry_run)
 
 
 def ensure_teacher(choice: TrainingChoice, dry_run: bool) -> Path:

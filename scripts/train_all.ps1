@@ -55,9 +55,9 @@ function Invoke-Training {
         $script:Failed = $true
         return
     }
-    Write-Host "[PLAN] $Python train.py --algorithm $Algorithm --config $Config"
+    Write-Host "[PLAN] $Python train.py --algorithm $Algorithm --config $Config --resume auto"
     if (-not $DryRun) {
-        & $Python train.py --algorithm $Algorithm --config $Config
+        & $Python train.py --algorithm $Algorithm --config $Config --resume auto
         if ($LASTEXITCODE -ne 0) { throw "Training failed: $Algorithm" }
     }
 }
@@ -65,6 +65,10 @@ function Invoke-Training {
 function Test-Prerequisite {
     param([string]$Path, [string]$Purpose)
     if (-not (Test-Path -LiteralPath $Path)) {
+        if ($DryRun) {
+            Write-Host "[PLANNED] ${Purpose}: $Path"
+            return $true
+        }
         Write-Warning "[BLOCKED] ${Purpose}: $Path"
         $script:Failed = $true
         return $false
@@ -90,10 +94,20 @@ if (-not $SkipConsistency -and (-not $Only -or $Only -eq "consistency")) {
     }
 }
 if (-not $SkipReflow -and (-not $Only -or $Only -eq "reflow")) {
-    $Ready = Test-Prerequisite $ReflowPairs "Reflow pairs"
-    if ($Ready -or $DryRun) {
-        Invoke-Training "reflow" $ReflowConfig $false
+    if (-not (Test-Path -LiteralPath $ReflowPairs)) {
+        $TeacherReady = Test-Prerequisite $FmCheckpoint "FM teacher checkpoint"
+        if ($TeacherReady) {
+            Write-Host "[PLAN] Generate Reflow pairs: $ReflowPairs"
+            if (-not $DryRun) {
+                & $Python scripts/generate_reflow_pairs.py `
+                    --checkpoint $FmCheckpoint --config $FmConfig `
+                    --n-pairs 50000 --nfe 50 --output $ReflowPairs
+                if ($LASTEXITCODE -ne 0) { throw "Reflow pair generation failed" }
+            }
+        }
     }
+    $Ready = Test-Prerequisite $ReflowPairs "Reflow pairs"
+    if ($Ready) { Invoke-Training "reflow" $ReflowConfig $false }
 }
 
 if ($script:Failed) {

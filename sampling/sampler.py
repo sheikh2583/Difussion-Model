@@ -25,6 +25,14 @@ class Sampler:
         self.samples_dir = os.path.join(run_dir, "samples")
         os.makedirs(self.samples_dir, exist_ok=True)
 
+    def _fork_rng_devices(self):
+        if self.device.type != "cuda":
+            return []
+        return [
+            self.device.index
+            if self.device.index is not None else torch.cuda.current_device()
+        ]
+
     def run(self, n_samples: int, nfe_values: List[int], save_grid: bool = True,
             grid_size: int = 64) -> None:
         if n_samples < 1:
@@ -37,11 +45,14 @@ class Sampler:
             if nfe < 1:
                 raise ValueError(f"nfe must be >= 1, got {nfe}")
 
-            torch.manual_seed(self.seed)  # identical noise/init across algorithms per NFE
-            reset_peak_gpu_memory(self.device)
+            # Evaluation gets deterministic noise without mutating the training
+            # RNG stream used by subsequent epochs.
+            with torch.random.fork_rng(devices=self._fork_rng_devices()):
+                torch.manual_seed(self.seed)
+                reset_peak_gpu_memory(self.device)
 
-            with timer(self.device) as t:
-                images = self.algorithm.sample(n_samples, nfe, self.device)
+                with timer(self.device) as t:
+                    images = self.algorithm.sample(n_samples, nfe, self.device)
 
             elapsed = t["elapsed"]
             peak_mem = peak_gpu_memory_mb(self.device)
@@ -78,9 +89,10 @@ class Sampler:
 
         for module in self.algorithm.trainable_modules():
             module.eval()
-        torch.manual_seed(self.seed)
         batches = []
-        for start in range(0, n_samples, batch_size):
-            count = min(batch_size, n_samples - start)
-            batches.append(self.algorithm.sample(count, nfe, self.device).cpu())
+        with torch.random.fork_rng(devices=self._fork_rng_devices()):
+            torch.manual_seed(self.seed)
+            for start in range(0, n_samples, batch_size):
+                count = min(batch_size, n_samples - start)
+                batches.append(self.algorithm.sample(count, nfe, self.device).cpu())
         return torch.cat(batches, dim=0)
