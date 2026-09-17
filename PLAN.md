@@ -287,3 +287,12 @@ check each agent separately.
 - Windows PowerShell and Bash tournament dry-runs, workflow verification, source
   compilation, and targeted state/evaluation/Reflow checks all pass. The work is
   ready to commit and push; real training remains explicitly deferred.
+
+### [Codex] 2026-09-17 — no-compromise hardware protocol
+
+- The 8 GB RTX 4070 Laptop is the exact-config preflight system; the 24 GB
+  desktop RTX 3090 is the final training system.
+- The 6 GB RTX 3060 Laptop is excluded. Canonical batch sizes and all evaluation
+  controls remain unchanged, so no low-memory run can enter the comparison.
+- README and runtime documentation now distinguish diagnostic overrides from the
+  controlled tournament. No training was started.

@@ -34,10 +34,10 @@ Approximate full sequential tournament totals:
 - RTX 3090 desktop: **about 137 hours (5.7 days)**; allow roughly 5–7 days.
 - RTX 3060 Laptop: **about 399 hours (16.6 days)**; allow roughly 15–20 days.
 
-Laptop power limits and sustained cooling cause large variation. NVIDIA lists
-wide laptop clock/power ranges, so the estimates for the RTX 3090 and RTX 3060
-Laptop are scaled projections rather than measurements. Re-run the included
-benchmark on the destination machine for a tighter estimate.
+Laptop power limits and sustained cooling cause large variation. The RTX 3090
+column refers specifically to the 24 GB desktop card. Its numbers and the RTX
+3060 Laptop numbers are scaled projections rather than measurements. Re-run the
+included benchmark on the destination machine for a tighter estimate.
 
 ## Measured RTX 4070 Laptop memory
 
@@ -53,20 +53,22 @@ Peak allocated training memory at the configured batch sizes:
 | Reflow | 2.20 GiB | 2.24 GiB |
 
 Allocated memory excludes the CUDA context, allocator reserve, desktop display,
-and other applications. CelebA FM and FM-LogNorm at batch 64 are therefore
-borderline on a 6 GB Windows laptop GPU. Use batch 32 for the CelebA tournament
-on that class of machine:
+and other applications. The 6 GB RTX 3060 Laptop is therefore excluded from the
+controlled tournament. Reducing its batch sizes would alter optimizer-step
+counts, gradient noise, and Consistency EMA updates, creating a different
+training condition.
 
-```bash
-./scripts/run_full_tournament.sh --dataset celeba --batch-size 32
-```
+The final protocol uses the canonical config batch sizes without overrides:
 
-```powershell
-.\scripts\run_full_tournament.ps1 -Dataset celeba -BatchSize 32
-```
+1. Run the disposable exact-config checks on the 8 GB RTX 4070 Laptop and fix
+   any mechanical training-flow errors.
+2. Transfer the same commit and unchanged configs to the 24 GB desktop RTX 3090.
+3. Run the full sequential tournament without `--batch-size` / `-BatchSize`.
+4. Keep epochs, seeds, NFE values, generated sample counts, FID reference data,
+   evaluation frequency, and checkpoint selection identical for every model.
 
-Run CIFAR-10 separately without the override; its configured batches fit within
-the measured memory budget.
+The batch-size override remains available for diagnostics, but results produced
+with it must not be mixed into the controlled comparison.
 
 ## Reproduce on another GPU
 
@@ -95,7 +97,8 @@ and holds `results/.lock` while benchmarking.
   without the original teacher file and unused teachers do not occupy VRAM.
 - Preallocated Reflow pair storage, avoiding a temporary host-RAM doubling, and
   reduced the generator's default GPU batch size from 256 to 64.
-- Added a generic training batch-size override to the CLI and tournament scripts.
+- Added a diagnostic batch-size override to the CLI and tournament scripts; the
+  controlled tournament intentionally does not use it.
 
 ## Estimate limitations
 

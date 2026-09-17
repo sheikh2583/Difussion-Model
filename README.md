@@ -166,8 +166,10 @@ overlapping a training/evaluation step; Reflow generation uses the same lock.
 
 Use `--dataset celeba` / `-Dataset celeba` for CelebA only. The dataset key is
 `celeba` even though the corresponding preset filenames end in `_celeba64.json`.
-For a 6 GB GPU, run CIFAR-10 normally, then run CelebA with
-`--batch-size 32` / `-BatchSize 32` to cap the two batch-64 presets safely.
+For the controlled tournament, do not pass `--batch-size` / `-BatchSize`.
+The canonical config batch sizes are part of the experimental protocol and must
+remain unchanged across algorithms and machines. The override exists only for
+diagnostics and produces a different training condition.
 
 Before a multi-day run, benchmark every disposable training flow on the target
 GPU without training on the datasets:
@@ -178,6 +180,9 @@ python scripts/benchmark_training_flows.py
 
 Measured memory and three-GPU duration estimates are documented in
 [`docs/TRAINING_TIME_ESTIMATES.md`](docs/TRAINING_TIME_ESTIMATES.md).
+The intended workflow is to run this exact-config preflight on the 8 GB RTX 4070
+Laptop, fix any mechanical failures, then run the untouched full tournament on
+the 24 GB desktop RTX 3090.
 
 Use the orchestration scripts to run the suite in dependency order:
 

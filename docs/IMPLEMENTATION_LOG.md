@@ -255,3 +255,15 @@ python scripts/generate_reflow_pairs.py \
   Bash parsing, repeated prepared-FID scoring, EMA checkpoint round-trip and
   legacy fallback, chunked sampling, lazy teacher sampling, and real-checkpoint
   two-pair Reflow generation. `results/.lock` was released.
+
+---
+
+## [Codex] Controlled hardware protocol clarification (2026-09-17)
+
+- Designated the 8 GB RTX 4070 Laptop for exact-config preflight checks only and
+  the 24 GB desktop RTX 3090 for final full training.
+- Excluded the 6 GB RTX 3060 Laptop from the controlled tournament rather than
+  reducing batch sizes. Final runs use canonical config batches with identical
+  seeds, epochs, evaluation samples, NFE values, FID references, and checkpoints.
+- Retained batch-size overrides only as diagnostic controls; overridden results
+  are explicitly non-comparable and must not enter the tournament aggregate.
