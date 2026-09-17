@@ -363,8 +363,8 @@ def print_summary(gpu_type: str, datasets: str) -> None:
     print(f"{python_cmd} web/inference_server.py")
     print("  -> Open http://127.0.0.1:8000 in a browser")
     print()
-    print(_c("  Docs:", "1") + " docs/IMPLEMENTATION_LOG.md  (status + commands)")
-    print(_c("  Theory:", "1") + " docs/THEORY_NOTES.md        (maths + citations)")
+    print(_c("  Docs:", "1") + " README.md                    (setup + commands)")
+    print(_c("  Theory:", "1") + " docs/THEORY_NOTES.md         (maths + citations)")
     print()
 
 

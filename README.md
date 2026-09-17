@@ -288,7 +288,7 @@ evaluation/           FID, IS, and plotting support
 config/               Experiment presets
 scripts/              Setup, batch training, evaluation, and asset utilities
 web/                  Local inference server and browser pages
-docs/                 Theory notes, implementation log, and thesis material
+docs/                 Theory notes, verification guides, and thesis material
 results/              Generated experiment outputs (gitignored)
 ```
 
@@ -301,6 +301,7 @@ backbone, dataset, optimizer, or evaluation settings. Timing and GPU memory are
 recorded during training and sampling; FID reference statistics are reused across
 comparable runs.
 
-For implementation status, verification commands, and known limitations, see
-`docs/IMPLEMENTATION_LOG.md`. Mathematical notes and citations live in
-`docs/THEORY_NOTES.md`.
+For implementation details and the beginner workflow, see
+`docs/IMPLEMENTATION_CHANGES.md`. Mathematical notes and citations live in
+`docs/THEORY_NOTES.md`, and hardware guidance lives in
+`docs/TRAINING_TIME_ESTIMATES.md`.

@@ -152,5 +152,5 @@ python web/inference_server.py               # stays running, open http://127.0.
 
 | Date | Machine | OS | CUDA | Result | Notes |
 |---|---|---|---|---|---|
-| 2026-09-17 | Dev PC (Windows) | Windows 11 | 12.x | PASS | All steps verified by Antigravity agent |
+| 2026-09-17 | Dev PC (Windows) | Windows 11 | 12.x | PASS | All steps verified |
 | _(add row when run on Linux lab PC)_ | | | | | |

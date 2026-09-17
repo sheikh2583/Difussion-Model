@@ -200,7 +200,8 @@ Multi-step: alternately apply f_θ and re-inject noise for refinement.
 - Boundary condition: c_skip/c_out parameterization is critical for stability.
 
 **In codebase:** `algorithms/consistency.py`
-**Status:** implemented; empirical loss tuning is still required (see IMPLEMENTATION_LOG.md §Phase 3)
+**Status:** implemented; empirical loss tuning is still required (see
+`docs/CONSISTENCY_TUNING_NOTES.md`).
 
 ---
 
@@ -237,7 +238,8 @@ and can be integrated with fewer Euler steps.
 This is the "clean before/after" result described in the thesis plan.
 
 **In codebase:** `algorithms/reflow.py`
-**Pair generator:** `scripts/generate_reflow_pairs.py` (see IMPLEMENTATION_LOG.md §Phase 4)
+**Pair generator:** `scripts/generate_reflow_pairs.py` (run with `--help` for
+the complete command interface)
 
 ---
 
