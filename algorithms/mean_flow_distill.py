@@ -65,14 +65,8 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
                 "MeanFlowDistillAlgorithm requires algorithm_kwargs['teacher_checkpoint'] "
                 "pointing to a trained FlowMatchingAlgorithm checkpoint."
             )
-        self.teacher = build_backbone(model.cfg, image_size=model._expected_image_size)
-        state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
-        # checkpoint may be a full trainer dict or a raw state dict
-        sd = extract_model_state(state)
-        self.teacher.load_state_dict(sd)
-        for p in self.teacher.parameters():
-            p.requires_grad = False
-        self.teacher.eval()
+        self.teacher_checkpoint = ckpt_path
+        self.teacher = None
 
     # ------------------------------------------------------------------
     # Module list — teacher excluded from optimizer by design
@@ -93,10 +87,30 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
     # works with MeanFlowDistillAlgorithm without modification.
     _forward = _student_forward
 
+    def _ensure_teacher(self, device: torch.device) -> nn.Module:
+        """Load the frozen teacher only for training, never for sampling."""
+        if self.teacher is None:
+            teacher = build_backbone(
+                self.model.cfg, image_size=self.model._expected_image_size
+            )
+            state = torch.load(
+                self.teacher_checkpoint, map_location="cpu", weights_only=False
+            )
+            teacher.load_state_dict(extract_model_state(state))
+            for parameter in teacher.parameters():
+                parameter.requires_grad = False
+            teacher.eval()
+            self.teacher = teacher
+        if next(self.teacher.parameters()).device != device:
+            self.teacher.to(device)
+        return self.teacher
+
 
     @torch.no_grad()
     def _teacher_velocity(self, z: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """Single frozen-teacher forward pass (FM: plain backbone, no r)."""
+        if self.teacher is None:
+            raise RuntimeError("Teacher must be loaded before teacher inference.")
         return self.teacher(z, t)
 
     @torch.no_grad()
@@ -137,9 +151,7 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
         v       = epsilon - x_data
         z_t     = (1.0 - t.view(-1, 1, 1, 1)) * x_data + t.view(-1, 1, 1, 1) * epsilon
 
-        # Move teacher to same device lazily
-        if next(self.teacher.parameters()).device != dev:
-            self.teacher.to(dev)
+        self._ensure_teacher(dev)
 
         # Step 2 — sample r with optional diagonal forcing
         u_uniform = torch.rand(B, device=dev) * t
@@ -154,13 +166,17 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
         # Diagonal: u_tgt = instantaneous teacher velocity (single call)
         if same.any():
             idx         = same.nonzero(as_tuple=True)[0]
-            u_tgt[idx]  = self._teacher_velocity(z_t[idx], t[idx])
+            u_tgt[idx]  = self._teacher_velocity(z_t[idx], t[idx]).to(u_tgt.dtype)
 
         # Interval: u_tgt = (z_t - z_r) / (t - r) via teacher Euler rollout
         if (~same).any():
             idx        = (~same).nonzero(as_tuple=True)[0]
             z_r        = self._teacher_rollout(z_t[idx], t[idx], r[idx])
-            u_tgt[idx] = (z_t[idx] - z_r) / dt[idx].view(-1, 1, 1, 1).clamp(min=1e-6)
+            interval_target = (
+                (z_t[idx] - z_r)
+                / dt[idx].view(-1, 1, 1, 1).clamp(min=1e-6)
+            )
+            u_tgt[idx] = interval_target.to(u_tgt.dtype)
 
         u_tgt  = u_tgt.detach()
         u_pred = self._student_forward(z_t, r, t)
@@ -176,9 +192,6 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
         H = W = self.model._expected_image_size
         z   = torch.randn(n_samples, C, H, W, device=device)
         times = torch.linspace(1.0, 0.0, nfe + 1, device=device)
-
-        if next(self.teacher.parameters()).device != device:
-            self.teacher.to(device)
 
         with torch.no_grad():
             for i in range(nfe):

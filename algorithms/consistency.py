@@ -35,7 +35,8 @@ Training notes (read before tuning)
 """
 
 import copy
-from typing import Any, Dict, List
+import warnings
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -71,13 +72,8 @@ class ConsistencyAlgorithm(BaseAlgorithm):
                 "ConsistencyAlgorithm requires algorithm_kwargs['teacher_checkpoint'] "
                 "pointing to a trained FlowMatchingAlgorithm checkpoint."
             )
-        self.teacher = build_backbone(model.cfg, image_size=model._expected_image_size)
-        state = torch.load(ckpt_path, map_location="cpu", weights_only=False)
-        sd = extract_model_state(state)
-        self.teacher.load_state_dict(sd)
-        for p in self.teacher.parameters():
-            p.requires_grad = False
-        self.teacher.eval()
+        self.teacher_checkpoint = ckpt_path
+        self.teacher = None
 
         # Discrete time schedule: n_timesteps points in (0, 1]
         self._ts = torch.linspace(1.0 / self.n_timesteps, 1.0, self.n_timesteps)
@@ -112,20 +108,56 @@ class ConsistencyAlgorithm(BaseAlgorithm):
         c_out  = self._c_out(t).view(-1, 1, 1, 1)
         return c_skip * x + c_out * net(x, t)
 
+    def _ensure_teacher(self, device: torch.device) -> nn.Module:
+        """Load the frozen teacher only when a training step actually needs it."""
+        if self.teacher is None:
+            teacher = build_backbone(
+                self.model.cfg, image_size=self.model._expected_image_size
+            )
+            state = torch.load(
+                self.teacher_checkpoint, map_location="cpu", weights_only=False
+            )
+            teacher.load_state_dict(extract_model_state(state))
+            for parameter in teacher.parameters():
+                parameter.requires_grad = False
+            teacher.eval()
+            self.teacher = teacher
+        if next(self.teacher.parameters()).device != device:
+            self.teacher.to(device)
+        return self.teacher
+
     # ------------------------------------------------------------------
     # EMA update (called after each optimizer step)
     # ------------------------------------------------------------------
 
     def update_ema(self) -> None:
-        """Update EMA target network. Called by Trainer via on_epoch_end hook."""
+        """Update the EMA target after a student optimizer step."""
         with torch.no_grad():
             for p_ema, p_student in zip(self.ema_model.parameters(),
                                          self.model.parameters()):
                 p_ema.data.mul_(self.ema_decay).add_(p_student.data, alpha=1 - self.ema_decay)
 
-    def on_epoch_end(self, epoch: int, total_epochs: int) -> None:
-        """Hook called by Trainer — update EMA once per epoch."""
+    def on_after_optimizer_step(self) -> None:
+        """Hook called by Trainer after each student optimizer step."""
         self.update_ema()
+
+    def checkpoint_state(self) -> Dict[str, Any]:
+        return {"ema_model": self.ema_model.state_dict()}
+
+    def load_checkpoint_state(self, state: Optional[Dict[str, Any]]) -> None:
+        if state and "ema_model" in state:
+            self.ema_model.load_state_dict(state["ema_model"])
+            return
+        # Legacy checkpoints did not persist EMA weights. Copying the trained
+        # student is a safe fallback; retaining a random EMA would invalidate
+        # sampling and evaluation.
+        self.ema_model.load_state_dict(self.model.state_dict())
+        warnings.warn(
+            "Consistency checkpoint has no EMA state; initialized EMA from "
+            "the student weights for legacy compatibility.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
     # ------------------------------------------------------------------
     # Training
@@ -135,9 +167,8 @@ class ConsistencyAlgorithm(BaseAlgorithm):
         x_data = batch
         B, dev = x_data.shape[0], x_data.device
 
-        # Move teacher and EMA model to device lazily
-        if next(self.teacher.parameters()).device != dev:
-            self.teacher.to(dev)
+        # Load/move teacher and EMA model lazily. Sampling never needs teacher.
+        teacher = self._ensure_teacher(dev)
         if next(self.ema_model.parameters()).device != dev:
             self.ema_model.to(dev)
 
@@ -153,7 +184,7 @@ class ConsistencyAlgorithm(BaseAlgorithm):
         # Step 2 — one Euler step with frozen teacher to get x_{t-Δt}
         with torch.no_grad():
             dt = 1.0 / self.n_timesteps
-            v_teacher = self.teacher(x_t, t)                   # (B, C, H, W)
+            v_teacher = teacher(x_t, t)                        # (B, C, H, W)
             t_prev    = (t - dt).clamp(min=0.0)
             x_t_prev  = x_t - dt * v_teacher                  # one step toward data
 

@@ -35,6 +35,7 @@ from algorithms.base import BaseAlgorithm
 from algorithms import ALGORITHM_REGISTRY
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
+from utils.checkpoints import load_algorithm_state
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -230,10 +231,8 @@ class InferenceRuntime:
         checkpoint = torch.load(
             checkpoints[epoch], map_location=self.device, weights_only=False
         )
-        for module, state_dict in zip(
-            algorithm.trainable_modules(), checkpoint["module_state_dicts"]
-        ):
-            module.load_state_dict(state_dict)
+        load_algorithm_state(algorithm, checkpoint)
+        for module in algorithm.trainable_modules():
             module.eval()
 
         self.algorithm = algorithm

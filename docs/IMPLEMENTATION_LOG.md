@@ -227,3 +227,31 @@ python scripts/generate_reflow_pairs.py \
   without starting training. All shell entry points passed Bash syntax checks.
 - Restored executable Git modes for Linux setup, training, evaluation, and
   tournament shell scripts so a normal clone can invoke them directly.
+
+---
+
+## [Codex] Training-flow preflight and runtime analysis (2026-09-17)
+
+- Exercised all six registered training algorithms on both datasets with
+  disposable AMP forward/backward/optimizer steps and NFE-1 sampling. All 12
+  flows passed; no dataset training or experiment checkpoints were produced.
+- Fixed the MF-Distill AMP target dtype crash and corrected Consistency EMA to
+  update after successful optimizer steps, persist in checkpoints, and load
+  safely from both current and legacy checkpoint schemas.
+- Made teacher models training-only/lazy, and routed the sample generator and
+  inference server through the shared checkpoint loader.
+- Bounded evaluation generation to accelerator batches, retained images on the
+  CPU, reused real FID statistics across NFE values, and removed duplicate final
+  evaluation.
+- Reduced Reflow pair-generation GPU and host-memory peaks with a batch-64
+  default and preallocated CPU output tensors.
+- Added portable batch-size overrides to `train.py` and both tournament scripts;
+  simultaneous Windows/Linux launcher logs now use process-unique names.
+- Added `scripts/benchmark_training_flows.py` and
+  `docs/TRAINING_TIME_ESTIMATES.md` with measured memory and projected runtime
+  for the three requested GPU classes. README now links the preflight workflow
+  and recommends batch 32 for CelebA on a 6 GB GPU.
+- Validation passed: project compile, workflow verifier, both launcher dry-runs,
+  Bash parsing, repeated prepared-FID scoring, EMA checkpoint round-trip and
+  legacy fallback, chunked sampling, lazy teacher sampling, and real-checkpoint
+  two-pair Reflow generation. `results/.lock` was released.

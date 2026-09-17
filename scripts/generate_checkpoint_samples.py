@@ -37,6 +37,7 @@ from torchvision.utils import save_image
 from algorithms import ALGORITHM_REGISTRY
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
+from utils.checkpoints import load_algorithm_state
 
 RESULTS_ROOT = "./results"
 OUT_ROOT     = "./results/checkpoint_samples"
@@ -85,23 +86,8 @@ def load_algorithm(cfg, algorithm_cls, ckpt_path, device):
 
     ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
 
-    # Support both trainer-payload format and raw state-dict format
-    if "model_state" in ckpt:
-        model.load_state_dict(ckpt["model_state"])
-        extra_modules = algorithm.trainable_modules()[1:]
-        for i, m in enumerate(extra_modules):
-            key = f"extra_module_{i}_state"
-            if key in ckpt:
-                m.load_state_dict(ckpt[key])
-        epoch = ckpt.get("epoch", 0)
-    elif "module_state_dicts" in ckpt:
-        for module, sd in zip(algorithm.trainable_modules(), ckpt["module_state_dicts"]):
-            module.load_state_dict(sd)
-        epoch = ckpt.get("epoch", 0)
-    else:
-        # Raw state-dict fallback
-        model.load_state_dict(ckpt)
-        epoch = 0
+    load_algorithm_state(algorithm, ckpt)
+    epoch = ckpt.get("epoch", 0)
 
     for m in algorithm.trainable_modules():
         m.eval()

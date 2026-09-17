@@ -166,6 +166,18 @@ overlapping a training/evaluation step; Reflow generation uses the same lock.
 
 Use `--dataset celeba` / `-Dataset celeba` for CelebA only. The dataset key is
 `celeba` even though the corresponding preset filenames end in `_celeba64.json`.
+For a 6 GB GPU, run CIFAR-10 normally, then run CelebA with
+`--batch-size 32` / `-BatchSize 32` to cap the two batch-64 presets safely.
+
+Before a multi-day run, benchmark every disposable training flow on the target
+GPU without training on the datasets:
+
+```bash
+python scripts/benchmark_training_flows.py
+```
+
+Measured memory and three-GPU duration estimates are documented in
+[`docs/TRAINING_TIME_ESTIMATES.md`](docs/TRAINING_TIME_ESTIMATES.md).
 
 Use the orchestration scripts to run the suite in dependency order:
 

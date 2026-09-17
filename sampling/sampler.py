@@ -65,14 +65,22 @@ class Sampler:
                 save_image(images[:grid_size], grid_path, normalize=True, value_range=(-1, 1))
 
     @torch.no_grad()
-    def generate_for_evaluation(self, n_samples: int, nfe: int) -> torch.Tensor:
-        """Used by evaluation/evaluator.py; not itself logged as a metric row."""
+    def generate_for_evaluation(
+        self, n_samples: int, nfe: int, batch_size: int = 32
+    ) -> torch.Tensor:
+        """Generate in bounded accelerator batches and return CPU images."""
         if n_samples < 1:
             raise ValueError(f"n_samples must be >= 1, got {n_samples}")
         if nfe < 1:
             raise ValueError(f"nfe must be >= 1, got {nfe}")
+        if batch_size < 1:
+            raise ValueError(f"batch_size must be >= 1, got {batch_size}")
 
         for module in self.algorithm.trainable_modules():
             module.eval()
         torch.manual_seed(self.seed)
-        return self.algorithm.sample(n_samples, nfe, self.device)
+        batches = []
+        for start in range(0, n_samples, batch_size):
+            count = min(batch_size, n_samples - start)
+            batches.append(self.algorithm.sample(count, nfe, self.device).cpu())
+        return torch.cat(batches, dim=0)

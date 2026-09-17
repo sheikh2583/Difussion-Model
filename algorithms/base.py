@@ -10,7 +10,7 @@ a batch before computing its loss, that transformation happens inside
 `training_step` itself, not in shared trainer code.
 """
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -70,6 +70,16 @@ class BaseAlgorithm(ABC):
         returned list by convention.
         """
         return [self.model]
+
+    def on_after_optimizer_step(self) -> None:
+        """Optional hook for state updated after every optimizer step."""
+
+    def checkpoint_state(self) -> Dict[str, Any]:
+        """Return algorithm-owned non-optimizer state for checkpointing."""
+        return {}
+
+    def load_checkpoint_state(self, state: Optional[Dict[str, Any]]) -> None:
+        """Restore algorithm-owned state; defaults to no additional state."""
 
     def name(self) -> str:
         return type(self).__name__

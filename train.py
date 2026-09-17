@@ -37,6 +37,8 @@ def parse_args():
                         help="Override experiment_name from config.")
     parser.add_argument("--epochs", type=int, default=None,
                         help="Override epochs from config.")
+    parser.add_argument("--batch-size", type=int, default=None,
+                        help="Override batch size from config (useful for low-memory runs).")
     return parser.parse_args()
 
 
@@ -47,6 +49,10 @@ def main():
         cfg.experiment_name = args.experiment_name
     if args.epochs:
         cfg.epochs = args.epochs
+    if args.batch_size is not None:
+        if args.batch_size < 1:
+            raise ValueError("--batch-size must be at least 1")
+        cfg.batch_size = args.batch_size
 
     algorithm_cls = ALGORITHM_REGISTRY[args.algorithm]
     runner = ExperimentRunner(cfg, algorithm_cls)

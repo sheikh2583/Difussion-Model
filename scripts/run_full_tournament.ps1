@@ -4,12 +4,14 @@
 #   .\scripts\run_full_tournament.ps1 -DryRun
 #   .\scripts\run_full_tournament.ps1
 #   .\scripts\run_full_tournament.ps1 -Dataset cifar10
+#   .\scripts\run_full_tournament.ps1 -Dataset celeba -BatchSize 32
 [CmdletBinding()]
 param(
     [ValidateSet("all", "cifar10", "celeba")]
     [string]$Dataset = "all",
     [ValidateRange(1, [int]::MaxValue)]
     [int]$Epoch = 100,
+    [int]$BatchSize = 0,
     [switch]$DryRun
 )
 
@@ -22,11 +24,14 @@ $Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $Python)) {
     throw "Project environment not found. Run INIT_ALL.cmd first."
 }
+if ($BatchSize -lt 0) {
+    throw "-BatchSize must be 0 (use config values) or a positive integer."
+}
 
 $ResultsDir = Join-Path $ProjectRoot "results"
 New-Item -ItemType Directory -Force -Path $ResultsDir | Out-Null
 $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$LogFile = Join-Path $ResultsDir "tournament_run_$Timestamp.log"
+$LogFile = Join-Path $ResultsDir "tournament_run_${Timestamp}_pid${PID}.log"
 $LockFile = Join-Path $ResultsDir ".lock"
 $PowerShellExe = (Get-Process -Id $PID).Path
 $TranscriptStarted = $false
@@ -122,8 +127,12 @@ function Invoke-Algorithm {
         return
     }
     Assert-FileReady -Path $Config -Purpose "config"
+    $TrainArguments = @("train.py", "--algorithm", $Algorithm, "--config", $Config)
+    if ($BatchSize -gt 0) {
+        $TrainArguments += @("--batch-size", "$BatchSize")
+    }
     Invoke-Step -Description $Description -Executable $Python -UseGpuLock `
-        -Arguments @("train.py", "--algorithm", $Algorithm, "--config", $Config)
+        -Arguments $TrainArguments
 }
 
 function Invoke-DatasetTournament {

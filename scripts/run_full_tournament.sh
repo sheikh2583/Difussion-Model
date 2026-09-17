@@ -5,6 +5,7 @@
 #   ./scripts/run_full_tournament.sh --dry-run
 #   ./scripts/run_full_tournament.sh
 #   ./scripts/run_full_tournament.sh --dataset cifar10
+#   ./scripts/run_full_tournament.sh --dataset celeba --batch-size 32
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,6 +24,7 @@ fi
 
 DATASET="all"
 EPOCH=100
+BATCH_SIZE=0
 DRY_RUN=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -32,6 +34,9 @@ while [[ $# -gt 0 ]]; do
     --epoch)
       [[ $# -ge 2 ]] || { echo "ERROR: --epoch requires a value" >&2; exit 2; }
       EPOCH="$2"; shift 2 ;;
+    --batch-size)
+      [[ $# -ge 2 ]] || { echo "ERROR: --batch-size requires a value" >&2; exit 2; }
+      BATCH_SIZE="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -46,9 +51,12 @@ esac
 [[ "$EPOCH" =~ ^[1-9][0-9]*$ ]] || {
   echo "ERROR: --epoch must be a positive integer" >&2; exit 2;
 }
+[[ "$BATCH_SIZE" =~ ^[0-9]+$ ]] || {
+  echo "ERROR: --batch-size must be 0 or a positive integer" >&2; exit 2;
+}
 
 mkdir -p results
-LOG_FILE="results/tournament_run_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="results/tournament_run_$(date +%Y%m%d_%H%M%S)_pid$$.log"
 LOCK_FILE="results/.lock"
 LOCK_TOKEN=""
 LOCK_OWNED=false
@@ -124,8 +132,11 @@ run_algorithm() {
     return 0
   fi
   require_file "$config" "config"
-  run_step true "$description" "$PYTHON" train.py \
-    --algorithm "$algorithm" --config "$config"
+  local train_args=(train.py --algorithm "$algorithm" --config "$config")
+  if [[ "$BATCH_SIZE" -gt 0 ]]; then
+    train_args+=(--batch-size "$BATCH_SIZE")
+  fi
+  run_step true "$description" "$PYTHON" "${train_args[@]}"
 }
 
 run_dataset() {

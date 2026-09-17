@@ -13,20 +13,13 @@ size is an implementation/performance detail only — it does not change
 the resulting FID/IS values, so it is fixed here rather than exposed
 as an experimental control.
 
-IMPORTANT: FrechetInceptionDistance accumulates its real/fake feature
-statistics as plain Python lists internally, which are NOT captured by
-`nn.Module.state_dict()`/`load_state_dict()` (only registered
-tensors/buffers are). Caching a metric object's `state_dict()` and
-reloading it therefore silently produces a metric with zero
-accumulated samples — no error at save or load time, but a
-"more than one sample is required" crash at compute() time. To avoid
-this, the real-image *tensor* is cached/loaded (not the metric
-object), and a fresh FrechetInceptionDistance is constructed for every
-evaluation call, updated with both real and fake images within that
-same call.
+The raw real-image tensor is cached on disk for portability. Within one
+evaluation sweep, its Inception statistics are computed once and retained while
+fake statistics are reset between NFE values. This avoids repeatedly processing
+the same real images for every NFE.
 """
 import os
-from typing import Optional, Tuple
+from typing import Tuple
 
 import torch
 from torchmetrics.image.fid import FrechetInceptionDistance
@@ -64,12 +57,27 @@ def compute_fid(real_images: torch.Tensor, generated_images: torch.Tensor,
     """
     Builds a fresh FID metric, updates it with both the real reference
     images and the generated images, and computes the score in one
-    call. real_images is expected to already be on `device` (or movable
-    to it); it is NOT a pre-built metric object (see module docstring
-    for why that caching approach was unreliable).
+    call. Input tensors may remain on CPU; metric batches are moved to
+    `device` incrementally.
     """
+    fid = prepare_fid(real_images, device)
+    return compute_fid_from_prepared(fid, generated_images, device)
+
+
+def prepare_fid(real_images: torch.Tensor, device: torch.device):
+    """Create a FID metric and accumulate reusable real statistics once."""
     fid = FrechetInceptionDistance(normalize=False).to(device)
     _batched_update(fid, real_images, device, real=True)
+    return fid
+
+
+def compute_fid_from_prepared(
+    fid, generated_images: torch.Tensor, device: torch.device
+) -> float:
+    """Score one generated set while retaining prepared real statistics."""
+    fid.fake_features_sum.zero_()
+    fid.fake_features_cov_sum.zero_()
+    fid.fake_features_num_samples.zero_()
     _batched_update(fid, generated_images, device, real=False)
     return fid.compute().item()
 

@@ -53,10 +53,11 @@ def load_algorithm_state(algorithm: Any, checkpoint: Mapping[str, Any]) -> None:
             )
         for module, state in zip(modules, states):
             _load_module_state(module, state)
-        return
+    else:
+        _load_module_state(modules[0], extract_model_state(checkpoint))
+        for index, module in enumerate(modules[1:]):
+            key = f"extra_module_{index}_state"
+            if key in checkpoint:
+                _load_module_state(module, checkpoint[key])
 
-    _load_module_state(modules[0], extract_model_state(checkpoint))
-    for index, module in enumerate(modules[1:]):
-        key = f"extra_module_{index}_state"
-        if key in checkpoint:
-            _load_module_state(module, checkpoint[key])
+    algorithm.load_checkpoint_state(checkpoint.get("algorithm_state"))

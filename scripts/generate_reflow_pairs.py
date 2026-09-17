@@ -46,7 +46,7 @@ def parse_args():
     p.add_argument("--n-pairs",    type=int, default=50000)
     p.add_argument("--nfe",        type=int, default=50,
                    help="Euler steps for generating clean images. Higher=better quality.")
-    p.add_argument("--batch-size", type=int, default=256)
+    p.add_argument("--batch-size", type=int, default=64)
     p.add_argument("--output",     required=True)
     p.add_argument(
         "--lock-file",
@@ -112,8 +112,11 @@ def _generate(args):
     C = cfg.backbone.in_channels
     H = W = cfg.dataset.image_size
 
-    all_z1 = []
-    all_x0 = []
+    # Preallocate the final CPU tensors. Keeping per-batch lists and then
+    # concatenating them temporarily doubled host RAM (about 9.2 GiB at 50k
+    # 64x64 RGB pairs), which made CelebA generation unnecessarily fragile.
+    z1_all = torch.empty(args.n_pairs, C, H, W, dtype=torch.float32)
+    x0_all = torch.empty_like(z1_all)
     n_generated = 0
 
     print(f"Generating {args.n_pairs} pairs at NFE={args.nfe}...", flush=True)
@@ -132,8 +135,9 @@ def _generate(args):
                 x     = x - v * step
             x0_hat = x.clamp(-1.0, 1.0)
 
-            all_z1.append(z1.cpu())
-            all_x0.append(x0_hat.cpu())
+            next_generated = n_generated + bs
+            z1_all[n_generated:next_generated].copy_(z1)
+            x0_all[n_generated:next_generated].copy_(x0_hat)
             n_generated += bs
 
             if n_generated % 5000 == 0 or n_generated >= args.n_pairs:
@@ -141,9 +145,6 @@ def _generate(args):
                     f"  {n_generated}/{args.n_pairs} pairs generated",
                     flush=True,
                 )
-
-    z1_all = torch.cat(all_z1, dim=0)[:args.n_pairs]
-    x0_all = torch.cat(all_x0, dim=0)[:args.n_pairs]
 
     output_path = os.path.abspath(args.output)
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)

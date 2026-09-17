@@ -11,7 +11,13 @@ import torch
 from torch.utils.data import DataLoader
 
 from config.config import ExperimentConfig
-from evaluation.metrics import cache_real_images, load_real_images, compute_fid, compute_inception_score
+from evaluation.metrics import (
+    cache_real_images,
+    compute_fid_from_prepared,
+    compute_inception_score,
+    load_real_images,
+    prepare_fid,
+)
 from sampling.sampler import Sampler
 from utils.results import ResultRecord, ResultsWriter
 from utils.timing import timer, peak_gpu_memory_mb, reset_peak_gpu_memory
@@ -109,9 +115,11 @@ class Evaluator:
     def evaluate(self, sampler: Sampler, nfe_values: List[int],
                  make_plots: bool = False) -> None:
         real_images = None
+        fid_metric = None
         if "fid" in self.cfg.evaluation.metrics:
             real_images = load_real_images(
-                self.cfg.evaluation.fid_reference_cache, self.device)
+                self.cfg.evaluation.fid_reference_cache, torch.device("cpu"))
+            fid_metric = prepare_fid(real_images, self.device)
 
         for nfe in nfe_values:
             sample_count = self.cfg.evaluation.num_generated_samples
@@ -131,8 +139,10 @@ class Evaluator:
             ))
 
             fid_score = None
-            if real_images is not None:
-                fid_score = compute_fid(real_images, images, self.device)
+            if fid_metric is not None:
+                fid_score = compute_fid_from_prepared(
+                    fid_metric, images, self.device
+                )
 
             is_mean = is_std = None
             if "is" in self.cfg.evaluation.metrics:

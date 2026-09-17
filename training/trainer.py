@@ -117,8 +117,14 @@ class Trainer:
                 loss = out["loss"]
 
             self.scaler.scale(loss).backward()
+            scale_before_step = self.scaler.get_scale()
             self.scaler.step(self.optimizer)
             self.scaler.update()
+            # A decreasing scale means GradScaler detected non-finite gradients
+            # and skipped optimizer.step(); dependent state such as EMA must
+            # remain unchanged in that case.
+            if self.scaler.get_scale() >= scale_before_step:
+                self.algorithm.on_after_optimizer_step()
 
             running_loss += loss.item()
             n_batches += 1
@@ -145,6 +151,7 @@ class Trainer:
             "epoch": epoch,
             "model_state": self.model.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
+            "algorithm_state": self.algorithm.checkpoint_state(),
         }
         # Save extra module states (e.g. r_embed for MF algorithms)
         extra_modules = self.trainable_modules[1:]

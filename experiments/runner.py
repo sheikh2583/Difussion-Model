@@ -71,4 +71,9 @@ class ExperimentRunner:
 
     def run_full(self) -> None:
         self.train()
-        self.evaluator.evaluate(self.sampler, nfe_values=self.cfg.evaluation.nfe_values)
+        # The trainer evaluates at configured epoch intervals. Do not repeat
+        # the full evaluation when the final epoch has just triggered that hook.
+        if self.cfg.epochs % self.cfg.evaluation.eval_frequency_epochs != 0:
+            self.evaluator.evaluate(
+                self.sampler, nfe_values=self.cfg.evaluation.nfe_values
+            )

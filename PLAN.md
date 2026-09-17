@@ -273,3 +273,17 @@ check each agent separately.
   canonical run/config/artifact paths and strict single-GPU ordering.
 - Fixed Linux executable modes and updated bootstrap/README clone-to-run
   instructions. No model training was started.
+
+### [Codex] 2026-09-17 — training-flow preflight complete
+
+- Sanity-tested all 12 algorithm/dataset flows using disposable synthetic
+  optimizer steps and sampling only; no real model training was started.
+- Fixed the discovered MF-Distill AMP failure, Consistency EMA lifecycle,
+  current/legacy checkpoint consumers, evaluation memory scaling, repeated FID
+  work, Reflow pair-generation memory usage, and duplicate final evaluation.
+- Added a reusable hardware preflight benchmark, three-GPU runtime/memory notes,
+  and cross-platform batch-size overrides. README and implementation log are
+  updated.
+- Windows PowerShell and Bash tournament dry-runs, workflow verification, source
+  compilation, and targeted state/evaluation/Reflow checks all pass. The work is
+  ready to commit and push; real training remains explicitly deferred.
