@@ -1,0 +1,121 @@
+﻿\chapter{Background and Related Work}
+
+\section{Continuous Generative Flows}
+
+A continuous generative model parameterises a time-dependent vector field
+$v_\theta(x_t, t)$ such that integrating the corresponding ODE
+\begin{equation}
+  \frac{dx_t}{dt} = v_\theta(x_t, t)
+\end{equation}
+from $t=1$ (noise) to $t=0$ (data) produces samples from the learned
+distribution. Neural ODEs~\cite{chen2018neural} established the general
+framework in which a neural network defines this derivative and a numerical
+solver computes the transformation. The number of times the network is called
+during this integration is the NFE; minimising NFE while preserving quality
+is the central efficiency objective.
+
+\section{Flow Matching}
+
+Flow Matching~\cite{lipman2023flow} trains a velocity network on a conditional
+probability path without simulating the ODE during training. For data sample
+$x_0$ drawn from the data distribution and noise $\varepsilon \sim \mathcal{N}(0,I)$,
+the implementation defines a linear interpolation:
+\begin{equation}
+  x_t = (1 - t)\,x_0 + t\,\varepsilon, \qquad t \in [0, 1].
+\end{equation}
+The conditional target velocity is
+\begin{equation}
+  v = \varepsilon - x_0,
+\end{equation}
+and the training loss minimises the mean squared difference between the predicted
+and target velocities:
+\begin{equation}
+  \mathcal{L}_{\mathrm{FM}}
+    = \mathbb{E}_{x_0, \varepsilon, t}\bigl\|v_\theta(x_t, t)
+      - (\varepsilon - x_0)\bigr\|_2^2.
+\end{equation}
+Sampling starts at $t=1$ and applies uniform backward Euler steps toward $t=0$:
+\begin{equation}
+  x_{t-h} = x_t - h\,v_\theta(x_t, t), \qquad h = 1/\mathrm{NFE}.
+\end{equation}
+One step can be too coarse when the learned field varies along the path;
+more steps reduce integration error but increase latency.
+
+\section{Logit-Normal Time Sampling}
+
+The logit-normal variant draws the training time as
+$t = \sigma(u)$ where $u \sim \mathcal{N}(0, 1)$ and $\sigma$ is the sigmoid
+function, concentrating samples near $t = 0.5$~\cite{esser2024scaling}.
+The path, target, backbone, and sampler remain unchanged; only the empirical
+distribution of $t$ during training is altered. Perceptually important
+intermediate noise levels receive more gradient signal, which can improve
+sample quality without changing the model architecture.
+
+\section{Mean Flow}
+
+Mean Flow~\cite{geng2025mean} replaces instantaneous velocity with average
+velocity over an interval. The network $u_\theta(z_t, r, t)$ models the
+mean velocity over $[r, t]$, enabling the displacement rule:
+\begin{equation}
+  z_r = z_t - (t - r)\,u_\theta(z_t, r, t).
+\end{equation}
+Training uses the Mean Flow Identity, which relates interval-average velocity
+to instantaneous velocity via a Jacobian-vector product (JVP):
+\begin{equation}
+  u(z_t, r, t)
+    = v(z_t, t)
+      - (t - r)\,\frac{d}{dt}\,u(z_t, r, t),
+\end{equation}
+where the total derivative $du/dt$ is evaluated along the direction
+$(v, 0, 1)$ for $(z, r, t)$ using forward-mode automatic differentiation.
+With probability 0.25 the endpoints coincide ($r = t$), recovering the
+instantaneous velocity objective and regularising training.
+
+At inference, setting $r = 0$ and $t = 1$ enables a direct noise-to-image
+displacement in a single network call---the key one-step generation property.
+Multiple steps are also possible by partitioning $[0,1]$ into sub-intervals.
+
+The implementation used here is an educational CIFAR-10 adaptation;
+it is not a reproduction of the paper's large-scale headline result.
+
+\section{Rectified Flow and Reflow}
+
+Rectified Flow~\cite{liu2022flow} learns straight trajectories between noise
+and data, and its \emph{reflow} procedure distils a trained flow into a
+single-step model by generating noise-data pairs using the original model and
+training on those straight-line pairs. While not implemented in the submitted
+system, this related approach contextualises MF's goal of one-step generation.
+
+\section{Consistency Models}
+
+Consistency Models~\cite{song2023consistency} train a network to map any point
+on a trajectory directly to its endpoint, enforcing self-consistency across the
+trajectory. Like MF, this enables single-step generation; unlike MF, it uses an
+exponential moving average (EMA) teacher rather than a JVP-based identity.
+
+\section{Backbone, Dataset, and Evaluation Metrics}
+
+\paragraph{Backbone.}
+U-Net-style encoders, decoders, and skip connections provide multi-scale
+processing~\cite{ronneberger2015unet}. A sinusoidal time embedding is injected
+into every residual block, making the architecture time-conditioned without
+altering its structure between algorithms.
+
+\paragraph{CIFAR-10.}
+The dataset comprises 60{,}000 $32\!\times\!32$ RGB images in ten balanced
+classes, conventionally split 50{,}000 train / 10{,}000 test~\cite{krizhevsky2009learning}.
+Its manageable size makes repeated training, checkpoint sampling, and metric
+computation practical on consumer hardware.
+
+\paragraph{Fr\'echet Inception Distance.}
+FID compares the multivariate Gaussian fitted to Inception-v3 features of real
+and generated images~\cite{heusel2017gans}. Lower FID indicates closer
+distributional alignment. Estimates from 1{,}000 samples have higher variance
+than the standard 50{,}000-sample benchmark and should not be compared directly
+to published results.
+
+\paragraph{Inception Score.}
+IS rewards both confident predictions (low entropy of $p(y|x)$) and diverse
+predictions (high entropy of $p(y)$)~\cite{salimans2016improved}. It does not
+compare against real images, making it an incomplete quality metric when used
+alone.

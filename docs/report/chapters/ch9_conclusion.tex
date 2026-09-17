@@ -1,0 +1,56 @@
+\chapter{Conclusion and Future Work}
+
+\section{Conclusion}
+
+This project delivers an auditable comparison of Flow Matching, Flow Matching
+with logit-normal time sampling, and Mean Flow for unconditional CIFAR-10 image
+generation. The implementations share a common backbone, data pipeline,
+evaluation path, and evidence format, making configuration differences visible
+rather than hiding them inside separate codebases.
+
+Under the submitted training artefacts, FM-LN is the strongest multi-step
+configuration at NFE=20, reaching FID~72.66 and IS~$6.18\!\pm\!0.52$ on
+1{,}000 generated images. Standard FM is close, with FID~76.10 and
+IS~$6.12\!\pm\!0.72$. Mean Flow improves the one-step result relative to both
+FM variants, demonstrating its direct displacement mechanism, but its rising
+training loss and degraded multi-step behaviour show that the learned average
+velocity field is not yet competitive.
+
+These results support a narrow conclusion: logit-normal time sampling is the
+best observed configuration among the submitted artefacts, while Mean Flow's
+potential depends on substantially more stable interval-conditioned training.
+Because training budgets, hardware contexts, and evaluation sample counts are
+not fully matched, the evidence does not establish universal algorithm
+superiority.
+
+\section{Future Direction}
+
+The project identifies two specific future research contributions, matching the
+approved presentation scope.
+
+\subsection{Adaptive MeanFlow for Dynamic NFE}
+
+Instead of assigning every sample the same inference budget, an adaptive system
+would estimate sample difficulty or confidence and allocate extra refinement
+only where it is needed. Easy samples could retain one-step or low-step
+efficiency, while difficult samples could receive additional corrections.
+Candidate stopping signals include the norm of the predicted residual
+displacement, disagreement between consecutive predictions, an estimate of
+local truncation error, or an auxiliary confidence head. Evaluation should
+compare FID, IS, average NFE, wall-clock latency, and the distribution of per-
+sample computation. A practical batched implementation may use a small set of
+discrete budgets, such as 1, 2, 4, and 8 NFE, to limit branch divergence.
+
+\subsection{Multi-Scale MeanFlow for High-Resolution Generation}
+
+A coarse-to-fine Mean Flow system would first generate global structure at low
+resolution and then refine it progressively at higher resolutions. This avoids
+performing every operation at full spatial cost. One implementation is a cascade
+in which a low-resolution sample is upsampled and supplied as conditioning to a
+higher-resolution stage; another is a shared network with resolution-specific
+heads.
+
+The central research question is whether Mean Flow's low-NFE advantage survives
+across scales. Each stage must remain consistent with the preceding resolution,
+and evaluation must report end-to-end network evaluations, latency, memory, and
+quality rather than assessing each stage in isolation.

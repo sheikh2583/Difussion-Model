@@ -308,3 +308,33 @@ For implementation details and the beginner workflow, see
 `docs/IMPLEMENTATION_CHANGES.md`. Mathematical notes and citations live in
 `docs/THEORY_NOTES.md`, and hardware guidance lives in
 `docs/TRAINING_TIME_ESTIMATES.md`.
+
+## Design project report
+
+The LaTeX source is under `docs/report/`, with versioned figures in
+`docs/assets/`. The report documents the submitted three-model study (FM,
+FM-LogNorm, and the original MF) and keeps later research extensions outside its
+experimental claims.
+
+To rebuild empirical figures after restoring the archived result directories:
+
+```bash
+python scripts/generate_report_figures.py
+```
+
+The generator uses hardware-agnostic run names by default. Alternate archive
+directory names can be supplied with `--fm-run`, `--fm-lognorm-run`, and
+`--mf-run`. If archived metrics are absent, bundled empirical figures are kept
+instead of being replaced with empty or synthetic placeholders.
+
+With a LaTeX distribution providing `pdflatex` and `biber`, compile the report
+from `docs/report/`:
+
+```bash
+pdflatex main.tex
+biber main
+pdflatex main.tex
+pdflatex main.tex
+```
+
+Generated PDFs remain untracked so source archives stay small.

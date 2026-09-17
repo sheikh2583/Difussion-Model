@@ -1,0 +1,57 @@
+﻿\chapter{Problem Definition, Scope, and Validity}
+
+\section{Boundary Conditions}
+
+The project scope is unconditional $32\!\times\!32$ RGB image generation on
+CIFAR-10. In scope: data loading, shared model construction, three algorithm
+classes, training loops, epoch checkpoints, sampling, FID/IS evaluation,
+structured logging, and a local browser demonstration. Out of scope:
+class-conditional or text-conditional generation, higher-resolution datasets,
+distributed or multi-GPU training, human perceptual evaluation, and any form of
+public deployment.
+
+\section{Controlled and Uncontrolled Factors}
+
+\begin{table}[htbp]\centering
+\caption{Submitted run configurations. Differences in batch, epochs, learning
+  rate, and environment mean these are not a pure ablation.}\label{tab:config}
+\begin{tabular}{lrrrrl}\toprule
+Run & Epochs & Batch & Learning Rate & Seed & Time Sampling\\\midrule
+FM                 & 100 & 128 & $2\!\times\!10^{-4}$ & 0 & Uniform $t\!\sim\!\mathcal{U}(0,1)$\\
+FM-LN  & 100 &  32 & $2\!\times\!10^{-4}$ & 0 & $t=\sigma(u),\ u\!\sim\!\mathcal{N}(0,1)$\\
+MF     &  30 &  32 & $5\!\times\!10^{-5}$ & 0 & Uniform $t$, $r\!\le\!t$\\\bottomrule
+\end{tabular}\end{table}
+
+Shared controls include: dataset, image normalisation, backbone constructor,
+evaluator, NFE grid, FID reference cache, evaluation sample count (1{,}000),
+and random seed. Intentionally varied controls are: training objective and time
+sampling distribution. Uncontrolled differences (arising from practical
+constraints) are: batch size, epochs, learning rate, number of dataloader
+workers, and GPU hardware context (FM-LN was trained on a different hardware
+session). These uncontrolled differences prevent causal attribution of quality
+differences to the algorithm alone.
+
+\section{Validity Threats and Mitigations}
+
+\begin{description}
+  \item[Duplicate JSONL rows.] A restarted run can append rows for epochs that
+    were already logged. Mitigation: the canonical rule retains the \emph{last} row per epoch
+    without modifying source files. The audit script verifies uniqueness after
+    deduplication.
+  \item[Small evaluation set.] FID and IS are estimated from 1{,}000 generated
+    samples. This produces higher-variance estimates than the standard 50{,}000.
+    Mitigation: disclosed in all tables and conclusions; absolute values are not
+    compared to published benchmarks.
+  \item[Unmatched compute.] FM trains for 100 epochs at batch 128; MF trains for
+    30 epochs at batch 32. Mitigation: all differences are listed in Table~\ref{tab:config}
+    and results are labelled as artefact-specific evidence.
+  \item[Single seed.] One seed cannot estimate run-to-run variance.
+    Mitigation: fixed seed is disclosed; multi-seed reruns are listed as future work.
+  \item[Documentation drift.] Earlier README text lagged behind the working
+    implementation. Mitigation: the setup and workflow documentation was updated,
+    and clean-clone Windows/Linux dry runs were completed before publication.
+\end{description}
+
+The evidence supports conclusions about these specific artefacts, not universal
+algorithm superiority. Stronger causal claims require matched budgets, multiple
+seeds, larger evaluation sets, and systematic ablations.

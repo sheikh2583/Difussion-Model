@@ -1,0 +1,74 @@
+\chapter{Reproducibility and Demonstration}\label{app:reproducibility}\label{app:checklist}
+
+\section{Fresh-Clone Setup}
+
+The repository is designed to initialise from a clean clone on Windows or Linux.
+The beginner launchers install the project environment, dependencies, evaluation
+assets, and datasets:
+
+\begin{lstlisting}[language=bash]
+# Windows: double-click INIT_ALL.cmd
+
+# Linux
+chmod +x init_all.sh train_interactive.sh scripts/*.sh
+./init_all.sh
+\end{lstlisting}
+
+For a CIFAR-10-only command-line setup, run:
+
+\begin{lstlisting}[language=bash]
+python bootstrap.py --yes --datasets cifar10
+\end{lstlisting}
+
+The runtime data, virtual environment, generated intermediate artefacts, results,
+and checkpoints are intentionally excluded from version control. The Python source
+packages under \texttt{data/} and \texttt{models/} remain tracked.
+
+\section{Original Three-Model Workflow}
+
+The report covers the original FM, FM-LN, and MF contribution. The following
+commands exercise those implementations:
+
+\begin{lstlisting}[language=bash]
+python train.py --algorithm fm --config config/fm_full.json
+python train.py --algorithm fm_lognorm --config config/fm_lognorm_full.json
+python train.py --algorithm mf --config config/mf_full.json
+\end{lstlisting}
+
+The exact submitted measurements in Chapter~6 came from the configuration
+snapshots stored with those run artefacts: FM used batch 128 for 100 epochs,
+FM-LN used batch 32 for 100 epochs, and MF used batch 32 for 30 epochs. Because
+the maintained repository presets may evolve, reproducing those numerical rows
+requires the corresponding archived \texttt{config.json} and checkpoint rather
+than assuming that a later preset has identical controls.
+
+\section{Evaluation and Demonstration}
+
+Standalone evaluation accepts an algorithm, configuration, and checkpoint. The
+local browser demonstration starts with:
+
+\begin{lstlisting}[language=bash]
+python web/inference_server.py
+\end{lstlisting}
+
+Open \url{http://127.0.0.1:8000}. The demonstration should show the training
+history, verify that checkpoint images correspond to the selected epoch, return
+to the home page, open live inference, select a model/NFE/count/seed, and repeat
+generation at a second NFE. Epoch 10 is the first saved trained checkpoint in
+the submitted runs; no qualitative checkpoints exist for epochs 1--9.
+
+\section{Evidence Audit}
+
+Before publication or regeneration of figures, verify that:
+
+\begin{itemize}
+  \item every JSONL row parses and all losses and metrics are finite;
+  \item for duplicate restart rows, retain the final occurrence of each key
+        without rewriting the raw log;
+  \item canonical epochs are unique and contiguous;
+  \item step/sample counters increase and parameter counts remain constant;
+  \item the evaluation NFE grid and sample count match the report tables;
+  \item each figure is regenerated from the audited records; and
+  \item no environment, dataset, credential, result directory, or oversized
+        checkpoint is added to the public source archive.
+\end{itemize}

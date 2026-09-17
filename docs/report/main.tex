@@ -1,0 +1,50 @@
+﻿% !TeX program = pdflatex
+% ============================================================
+%  DiffusionProject BSc Thesis -- main.tex
+%  Compile: pdflatex main -> biber main -> pdflatex main (x2)
+%  Figures: ../assets/ relative to this file
+% ============================================================
+\documentclass{iutbscthesis}
+
+\usepackage{longtable,tabularx,enumitem,xcolor,microtype,placeins,url}
+\usepackage{multirow}
+\addbibresource{citations.bib}
+\graphicspath{{../assets/}}
+\definecolor{deepblue}{HTML}{173B68}
+\definecolor{softblue}{HTML}{EAF2FB}
+\definecolor{softgray}{HTML}{F4F6F8}
+\hypersetup{colorlinks=true,linkcolor=deepblue,citecolor=deepblue,urlcolor=deepblue}
+\setlist[itemize]{leftmargin=1.8em,itemsep=.2em}
+\setlist[enumerate]{leftmargin=1.8em,itemsep=.2em}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,frame=single,backgroundcolor=\color{softgray},showstringspaces=false}
+
+\title{A Controlled Comparison of Flow Matching and Mean Flow for Unconditional CIFAR-10 Image Generation}
+\addauthor{Sheikh Mosheul Akbar}{220041137}
+\addauthor{Md.\ Samiul Islam}{220041027}
+\addauthor{Rad Shahmad Daiyan}{220041209}
+\supervisor{Dr.\ Md.\ Azam Hossain}{Supervisor}{Department of Computer Science and Engineering}
+\addcosupervisor{Samnun Azfar}{Co-Supervisor}{Department of Computer Science and Engineering}
+\department{Department of Computer Science and Engineering}
+\program{BACHELOR OF SCIENCE IN COMPUTER SCIENCE AND ENGINEERING}
+\defensedate{14}{September}{2026}
+
+\begin{document}
+\pagenumbering{roman}\titlepage
+\input{chapters/frontmatter}
+\pagenumbering{arabic}
+\input{chapters/ch1_introduction}
+\input{chapters/ch2_background}
+\input{chapters/ch3_scope}
+\input{chapters/ch4_methodology}
+\input{chapters/ch5_implementation}
+\input{chapters/ch6_results}
+\input{chapters/ch7_challenges}
+\input{chapters/ch8_ethics}
+\input{chapters/ch9_conclusion}
+\printbib
+\begin{appendices}
+\input{chapters/appA_reproducibility}
+\input{chapters/appB_contributions}
+\input{chapters/appC_github}
+\end{appendices}
+\end{document}

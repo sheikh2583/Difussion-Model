@@ -1,0 +1,80 @@
+﻿\chapter{Challenges and Limitations}
+
+\section{Mean Flow Training Instability}
+
+The most significant challenge encountered was MF training divergence. The loss
+rose from epoch 1 and never recovered. Several factors likely contributed:
+
+\begin{itemize}
+  \item \textbf{Learning rate.} The submitted configuration uses
+        $5\!\times\!10^{-5}$, four times lower than FM and four times lower than
+        the default used in the Mean Flow paper~\cite{geng2025mean}. This slows
+        convergence and may interact poorly with the JVP-based target.
+  \item \textbf{Small batch size.} Batch 32 introduces noisy gradient estimates
+        for the JVP target, which itself depends on the current network output.
+        Larger batches could stabilise the target.
+  \item \textbf{Short training.} 30 epochs at batch 32 processes approximately
+        1.5 million samples, versus 4.99 million for FM at batch 128 / 100 epochs.
+        The network may need significantly more gradient steps to learn a stable
+        mean-velocity field.
+  \item \textbf{Additive $r$-conditioning.} The $r$-embedding adds a 3-channel
+        offset to the input tensor. A stronger conditioning mechanism (e.g.,
+        concatenation or cross-attention) may be needed for the backbone to
+        disentangle the two time endpoints.
+  \item \textbf{No EMA or gradient clipping.} The paper uses EMA and gradient
+        clipping to stabilise JVP-based training; neither is present in the
+        submitted configuration.
+\end{itemize}
+
+\section{JVP Numerical Sensitivity}
+
+The JVP computation is sensitive to the magnitude of the tangent vector
+$v_\theta(z_t, t)$. Early in training, when $v_\theta$ is uninitialised noise,
+the JVP output can be very large, producing unstable targets. Without gradient
+clipping, the first few epochs may inject large loss spikes that compound through
+the rest of training.
+
+\section{Unmatched Compute Budgets}
+
+The three submitted runs differ in batch size, epoch count, learning rate, and
+GPU hardware context (FM-LN was trained in a different session on the same
+machine). Attributing quality differences to the algorithm alone is therefore
+not valid. The MF vs FM comparison in particular conflates training budget
+differences with objective differences.
+
+\section{Evaluation Limitations}
+
+\begin{itemize}
+  \item FID and IS are estimated from 1{,}000 generated samples. Standard
+        benchmarks use 50{,}000; estimates from 1{,}000 samples have substantially
+        higher variance and cannot be compared to published results.
+  \item IS does not compare against real images and does not detect memorisation
+        or mode collapse; it rewards only confidence and diversity of Inception
+        classifier predictions.
+  \item The FID reference is computed from 1{,}000 real test images rather than
+        the full test set, introducing additional variance.
+\end{itemize}
+
+\section{Timing and Hardware Attribution}
+
+Logged sampling times differ across runs because measurements were taken in
+different GPU sessions with different system loads. The absence of a complete
+hardware fingerprint (GPU model, driver, TGP, clock state, background processes)
+means that absolute cross-run latency differences cannot be attributed to the
+algorithm.
+
+\section{Missing Early Checkpoints}
+
+Checkpoints are saved every ten epochs; no trained images exist for epochs 1--9
+in any run. The training history UI therefore begins at epoch 10. This gap
+prevents studying early-training behaviour qualitatively.
+
+\section{Documentation Drift}
+
+Earlier root README text described placeholders after working implementations
+were present. This drift risked misrepresenting project status to external
+readers. The publication workflow therefore added updated setup and training
+instructions, scoped ignore rules that retain source packages, and clean-clone
+Windows/Linux validation. The incident remains documented here as an engineering
+lesson: implementation and public reproducibility guidance must be reviewed as
+one deliverable.

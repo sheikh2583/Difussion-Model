@@ -1,0 +1,32 @@
+\chapter{Public Repository}\label{app:github}
+
+The public source repository for the project is:
+
+\begin{center}
+\url{https://github.com/sheikh2583/Design-Project-CSE-4610}
+\end{center}
+
+The repository contains the implementation, configuration presets, Windows and
+Linux initialisation scripts, training/evaluation entry points, browser UI, and
+supporting documentation. A fresh clone can be initialised through
+\texttt{INIT\_ALL.cmd} on Windows or \texttt{init\_all.sh} on Linux.
+
+Large and machine-specific artefacts are deliberately excluded from GitHub:
+
+\begin{itemize}
+  \item downloaded datasets under \texttt{data/raw/};
+  \item generated intermediate datasets and model checkpoints;
+  \item the local virtual environment;
+  \item run logs, metrics, figures, and exports under \texttt{results/}; and
+  \item packaged archives and presentation binaries.
+\end{itemize}
+
+The source modules under \texttt{data/} and \texttt{models/} are tracked; only
+their generated artefacts are ignored. This distinction is required for a clean
+clone to import the dataset registry and shared backbone successfully.
+
+The report's numerical results remain tied to the archived submitted run
+artefacts described in Appendix~\ref{app:reproducibility}. GitHub provides the
+maintained source and reproducible workflow, but large trained artefacts must be
+transferred or hosted separately when independent verification of the exact
+reported checkpoints is required.

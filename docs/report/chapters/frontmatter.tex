@@ -1,0 +1,92 @@
+﻿% ---- Front matter: Declaration, Acknowledgement, CO table, Abstract, Abbreviations ----
+
+\chapter*{Declaration}\addcontentsline{toc}{chapter}{Declaration}
+We declare that this report is an original account of the submitted system and
+experiments. External ideas, datasets, and metrics are cited throughout.
+Numerical claims are derived from the supplied JSONL logs under the audit rule
+described in Section~\ref{sec:audit}. Code, checkpoints, metric logs, sample
+images, and a local inference UI constitute the submitted system artefacts.
+\par\vspace{2cm}
+\noindent\begin{tabularx}{\textwidth}{X p{.30\textwidth}}
+Sheikh Mosheul Akbar:\hrulefill  & Date:\hrulefill\\[2em]
+Md.\ Samiul Islam:\hrulefill     & Date:\hrulefill\\[2em]
+Rad Shahmad Daiyan:\hrulefill    & Date:\hrulefill
+\end{tabularx}
+\clearpage
+
+\chapter*{Acknowledgement}\addcontentsline{toc}{chapter}{Acknowledgement}
+We express our sincere gratitude to our supervisor, Dr.\ Md.\ Azam Hossain, and
+our co-supervisor, Samnun Azfar, for their guidance, critical feedback, and
+encouragement throughout this design project. We also thank the Department of
+Computer Science and Engineering and the computing facilities that supported the
+training and evaluation runs. Finally, we acknowledge the researchers and
+open-source communities behind Flow Matching, Mean Flow, CIFAR-10, PyTorch, and
+TorchMetrics, whose published work and software made this comparative study
+possible.
+\clearpage
+
+\begin{table}[htbp]\centering
+\caption{Course Outcome Marks Distribution}\label{tab:co}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|>{\raggedright\arraybackslash}p{9cm}|c|c|}\hline
+\textbf{CO No.} & \textbf{Course Outcome} & \textbf{Contributing Chapters} & \textbf{Marks}\\\hline
+CO1 & Identify research problems and implement innovative solutions by exploring,
+analysing, and applying state-of-the-art technologies, frameworks, tools, and
+algorithms to address complex real-world engineering challenges. & Ch.\ 1, 2, 3 & 10\\\hline
+CO2 & Demonstrate effective teamwork, professional ethics, and responsibility by
+applying project management principles to plan, execute, and deliver a complex
+software system within defined constraints. & App.\ B \& C & 5\\\hline
+CO3 & Evaluate and design computing solutions considering ethical, societal, and
+environmental implications, ensuring responsible and sustainable engineering
+practices. & Ch.\ 4, 5, 7 & 10\\\hline
+CO5 & Build a strong foundation for future research in the same or related
+domains. & Ch.\ 8 \& 9 & 5\\\hline
+\end{tabular}}\end{table}
+\newpage
+
+\begin{abstract}
+This project studies how the target learned by a continuous-time generative model
+and the distribution used to sample training time affect image quality and
+inference cost. Three unconditional CIFAR-10 generative systems are implemented
+within one algorithm-agnostic pipeline: Flow Matching (FM) with uniform time
+sampling, FM with logit-normal time sampling (FM-LN), and Mean Flow (MF) with
+interval-conditioned average velocity. All three share a single
+6{,}352{,}899-parameter time-conditioned SimpleUNet backbone; MF adds 323
+parameters for the second interval endpoint.
+
+The system records training loss, wall-clock timing, GPU memory, epoch
+checkpoints, sample grids, Fr\'echet Inception Distance (FID), and Inception
+Score (IS), and exposes trained checkpoints through interactive training-history
+and live-inference browser views.
+
+The strongest submitted configuration is logit-normal FM at 20 function
+evaluations (NFE), achieving FID~72.66 and IS~$6.18\!\pm\!0.52$ on 1{,}000
+samples. Standard FM reaches FID~76.10 and IS~$6.12\!\pm\!0.72$. MF achieves
+the best single-step result (FID~210.99, IS~$2.54\!\pm\!0.21$) but its loss
+rises over 30 epochs and additional NFE does not improve quality. Under the
+submitted training budgets, logit-normal FM is the strongest multi-step system,
+while MF requires further optimisation before its intended one-step benefit
+becomes competitive. Because batch size, epochs, learning rate, hardware context,
+and sample count are not fully matched across runs, all results are reported as
+audited engineering evidence rather than a universal algorithm ranking.
+\end{abstract}
+
+\tableofcontents\listoffigures\listoftables\clearpage
+
+\begin{abbreviations}
+\abbr{AMP}{Automatic Mixed Precision}
+\abbr{CFM}{Conditional Flow Matching}
+\abbr{CNF}{Continuous Normalizing Flow}
+\abbr{FID}{Fr\'echet Inception Distance}
+\abbr{FM}{Flow Matching}
+\abbr{FM-LN}{FM with Logit-Normal time sampling}
+\abbr{IS}{Inception Score}
+\abbr{JVP}{Jacobian-Vector Product}
+\abbr{MF}{Mean Flow}
+\abbr{MSE}{Mean Squared Error}
+\abbr{NFE}{Number of Function Evaluations}
+\abbr{ODE}{Ordinary Differential Equation}
+\abbr{UI}{User Interface}
+\abbr{VRAM}{Video Random Access Memory}
+\end{abbreviations}
+\clearpage

@@ -1,0 +1,104 @@
+﻿\chapter{Implementation}
+
+\section{Module Organisation and Separation of Concerns}
+
+The codebase separates mathematical concerns (algorithms) from engineering
+concerns (backbone, training, evaluation, UI) using a strict layering policy.
+Table~\ref{tab:modules} summarises the core modules.
+
+\begin{table}[htbp]\centering
+\caption{Core module responsibilities.}\label{tab:modules}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{.34\textwidth}>{\raggedright\arraybackslash}X}\toprule
+Module & Responsibility\\\midrule
+\texttt{config/} & Validated configuration dataclass. Algorithm kwargs cannot shadow shared controls\\
+\texttt{data/} & CIFAR-10 download, normalisation, dataloader construction\\
+\texttt{models/backbone.py} & Sinusoidal time embedding, ResBlocks, SimpleUNet\\
+\texttt{algorithms/*.py} & Mathematical objective, JVP target, and sampler logic for each algorithm\\
+\texttt{training/trainer.py} & Optimisation loop, AMP, timing, checkpointing\\
+\texttt{sampling/sampler.py} & NFE sweep, batched generation, sample-grid saving\\
+\texttt{evaluation/} & FID reference cache, FID/IS computation via TorchMetrics\\
+\path{experiments/runner.py} & End-to-end orchestration; builds shared objects, runs train/sample/evaluate\\
+\path{web/inference_server.py} & HTTP server; auto-discovers run directories; serialises GPU requests with a threading lock\\
+\texttt{*.html} & Home, training history, and live-inference browser views\\\bottomrule
+\end{tabularx}\end{table}
+
+\section{Algorithm Registry}
+
+All algorithms are registered in \texttt{algorithms/\_\_init\_\_.py} under string
+keys (\texttt{fm}, \texttt{fm\_lognorm}, \texttt{mf}, etc.). The CLI
+\texttt{train.py} selects an algorithm class from this registry via
+\texttt{--algorithm}, and \texttt{evaluate.py} does the same for standalone
+evaluation. This pattern ensures no algorithm can be accidentally selected or
+skipped.
+
+\section{Flow Matching Implementation}
+
+\texttt{FlowMatchingAlgorithm.training\_step} receives a batch of data images,
+samples $t \sim \mathcal{U}(0, 1)$ per image, constructs the linear interpolant
+$x_t = (1-t)x_0 + t\varepsilon$, calls the backbone with $(x_t, t)$, and
+returns the MSE against the target $\varepsilon - x_0$. \texttt{sample} starts
+at pure noise and applies backward Euler, calling the backbone once per step.
+
+\section{Logit-Normal FM Implementation}
+
+\texttt{FlowMatchingLognormAlgorithm} inherits from
+\texttt{FlowMatchingAlgorithm} and overrides only the time-sampling line:
+\begin{lstlisting}[language=Python]
+t = torch.sigmoid(torch.randn(batch_size, device=device))
+\end{lstlisting}
+The path construction, loss, sampler, and backbone call are identical to FM.
+This single-line override is the complete difference between the two algorithms.
+
+\section{Mean Flow Correctness-Critical Path}
+
+The JVP is computed by:
+\begin{lstlisting}[language=Python]
+tangents = (v_theta, zeros_like(r), ones_like(t))
+_, jvp_out = torch.func.jvp(self._forward, (z, r, t), tangents)
+target = (v_theta - (t - r) * jvp_out).detach()
+\end{lstlisting}
+The critical points are:
+\begin{itemize}
+  \item Tangents are $(v_\theta, 0, 1)$ for $(z, r, t)$, implementing the
+        total time derivative $dv/dt$ along the ODE.
+  \item The target is \texttt{.detach()}-ed before the MSE loss, preventing
+        second-order gradients through the JVP.
+  \item AMP autocast is disabled inside \texttt{jvp} to avoid dtype mismatches
+        in forward-mode AD.
+  \item The $r$-embedding (\texttt{r\_embed}) is exposed through
+        \texttt{trainable\_modules()}, ensuring the optimiser, device transfer,
+        \texttt{eval()} mode, and checkpoint coverage all include it.
+\end{itemize}
+
+\section{Evaluation Infrastructure}
+
+FID and IS are computed via TorchMetrics. The implementation:
+\begin{itemize}
+  \item Batches 1{,}000-image evaluation generation in groups of 32 to prevent a single
+        large GPU allocation.
+  \item Moves completed batches to CPU immediately, bounding VRAM usage to one
+        generation batch at a time.
+  \item Reuses the real-image reference statistics across all NFE values in one
+        evaluation sweep, rather than recomputing per NFE.
+  \item Saves cache metadata (sample count, resolution, channels) alongside the
+        \texttt{.npz} statistics; a mismatch raises explicitly.
+\end{itemize}
+
+\section{UI and Inference Server}\label{sec:ui}
+
+\texttt{web/inference\_server.py} auto-discovers all run directories under
+\texttt{results/}, loading checkpoint paths and metric logs at start-up. It
+serialises GPU inference requests with a \texttt{threading.Lock} so concurrent
+browser sessions do not corrupt GPU state. The training dashboard maps a slider
+to checkpoint epochs, loads the corresponding sample image, and overlays the
+loss curve truncated at that epoch. Epoch 0 is conceptual noise; epoch 10 is the
+first saved checkpoint image.
+
+\section{Reproducibility}\label{sec:reproducibility}
+
+Every run directory contains: a config snapshot, per-epoch JSONL metrics, sample
+grids for each NFE, FID reference cache with metadata, and checkpoint archives.
+Earlier README text lagged behind the implementation. Before publication it was
+updated with fresh-clone setup, Windows/Linux commands, dependency ordering, and
+checkpoint-archive guidance. The reproducibility checklist is provided in
+Appendix~\ref{app:reproducibility}.

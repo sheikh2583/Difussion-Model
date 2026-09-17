@@ -1,0 +1,45 @@
+\chapter{Ethical, Social, and Environmental Considerations}
+
+\section{Dataset and Representation}
+
+CIFAR-10 is a small historical web-image benchmark and is not representative of
+the diversity, resolution, or context encountered in real deployments. The
+system is unconditional and its $32\!\times\!32$ outputs are intended for
+research comparison only. Generated images should be labelled as synthetic and
+must not be presented as factual records or as representative of people,
+communities, or real events.
+
+The low resolution and absence of personal conditioning reduce identity and
+privacy risks, but they do not remove the general risks associated with
+generative imagery. Any extension to faces, private data, or deployment-facing
+content would require a separate data-governance review, provenance controls,
+acceptable-use guidance, and an appropriate model card.
+
+\section{Responsible Reporting}
+
+The report preserves unfavourable Mean Flow results, discloses unmatched
+training budgets, and avoids claiming universal algorithm superiority. FID and
+IS are reported with their sample count and limitations. The project therefore
+treats negative and inconclusive evidence as part of the result rather than
+selecting only favourable checkpoints or metrics.
+
+The public repository contains source code and configuration files, while local
+datasets, environments, generated pairs, results, and large checkpoints are
+excluded. This separation reduces accidental publication of bulky artefacts or
+machine-specific data and makes the boundary between reproducible source and
+generated evidence explicit.
+
+\section{Compute and Environmental Cost}
+
+The canonical submitted training histories total approximately 8.26 GPU-hours,
+excluding abandoned attempts, evaluation, and checkpoint generation. A carbon
+estimate cannot be calculated reliably because power draw, utilisation, grid
+intensity, and execution location were not logged. The report therefore states
+the measured GPU time without converting it into an unsupported emissions
+figure.
+
+Future experimental logging should include GPU model, power draw, utilisation,
+energy consumption, and location. The proposed adaptive-inference direction in
+Chapter~9 is also environmentally relevant: allocating additional evaluations
+only to difficult samples may reduce average computation when compared with a
+fixed high-NFE policy.

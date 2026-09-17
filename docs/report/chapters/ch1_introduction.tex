@@ -1,0 +1,93 @@
+﻿\chapter{Introduction}
+
+\section{Motivation}
+
+Continuous-time generative models learn to transform a simple noise distribution
+into a complex data distribution by following a learned trajectory in pixel space.
+At inference, this trajectory is integrated numerically: the model is called once
+per integration step, and each call is known as a \emph{function evaluation}
+(NFE). Reducing NFE without sacrificing image quality is therefore a core research
+objective, since it directly controls generation latency and compute cost.
+
+Flow Matching (FM)~\cite{lipman2023flow} addresses this by training a neural
+network to predict the instantaneous velocity of a prescribed interpolation path
+between data and noise, without simulating the resulting ODE during training. This
+conditional-path approach yields stable gradients and fast training. However,
+standard FM still requires many NFE for accurate integration, because the learned
+field can vary significantly along the trajectory.
+
+Mean Flow (MF)~\cite{geng2025mean} takes a different approach: instead of
+predicting a local velocity at a single time, the network predicts the
+\emph{average velocity} over an interval $[r, t]$. When the interval spans the
+entire noise-to-data range $[0, 1]$, a single network call directly displaces a
+noise sample to a data sample---making one-step generation theoretically exact
+rather than an approximation.
+
+A third configuration tests logit-normal time sampling, motivated by
+rectified-flow work~\cite{esser2024scaling} showing that concentrating training
+samples near intermediate noise levels improves generation quality under the
+same number of training steps.
+
+\section{Problem Statement}
+
+Algorithm comparisons become unreliable when the model architecture,
+preprocessing pipeline, evaluation metrics, random seed, or log interpretation
+differ between runs. This project therefore combines implementation with evidence
+control: all three algorithms share a single backbone, data pipeline, evaluator,
+and JSONL logging schema, while every remaining configuration difference is
+explicitly disclosed and its effect on comparability is assessed.
+
+\section{Aim, Objectives, and Research Questions}
+
+The aim is to build and critically evaluate a reproducible educational system for
+unconditional CIFAR-10 image generation using three flow-based generative
+objectives. Specific objectives are:
+
+\begin{enumerate}
+  \item Implement FM, FM-LN, and MF as interchangeable wrappers around a shared
+        backbone and training engine.
+  \item Preserve identical evaluation infrastructure across all algorithms: same
+        FID reference, same NFE grid, same JSONL schema.
+  \item Measure and record training loss, sampling time, GPU memory, FID, and IS
+        across NFE $\in\{1,5,10,20\}$.
+  \item Provide a local browser-based demonstration of training history playback
+        and live inference.
+  \item Audit all JSONL logs to detect and resolve duplicate epoch entries before
+        reporting.
+\end{enumerate}
+
+The project is guided by the following research questions:
+
+\begin{description}
+  \item[RQ1.] How do the three training objectives behave during training---in
+              terms of loss trajectory, convergence, and stability?
+  \item[RQ2.] How does sample quality (FID, IS) change with NFE for each
+              algorithm?
+  \item[RQ3.] What quality--latency trade-offs are observed at matched and
+              mismatched compute budgets?
+  \item[RQ4.] Does this MF implementation realise competitive one-step generation
+              relative to multi-step FM?
+  \item[RQ5.] Can every reported claim be traced back to a configuration file,
+              checkpoint, JSONL log, and UI demonstration?
+\end{description}
+
+\section{Contributions}
+
+The deliverable comprises:
+
+\begin{itemize}
+  \item Complete FM, FM-LN, and MF implementations sharing one 6.35M-parameter
+        SimpleUNet backbone.
+  \item Ten-epoch checkpoint archives for preserving submitted model states.
+  \item Structured JSONL evidence with a documented audit protocol for handling
+        duplicate restart rows.
+  \item Cached real-image FID reference statistics with metadata validation to
+        prevent silent distribution mismatch.
+  \item FID and IS evaluation via TorchMetrics, batched to avoid GPU overflow.
+  \item A browser inference API (\texttt{inference\_server.py}) and a training
+        history dashboard that synchronises checkpoint images with loss curves.
+  \item A deterministic duplicate-log audit script that validates epoch
+        contiguity, parameter invariance, and NFE grid completeness.
+  \item This report, with all figures generated from logged artefacts and all
+        tables cross-checked against source JSONL.
+\end{itemize}
