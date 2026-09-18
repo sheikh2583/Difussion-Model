@@ -18,10 +18,10 @@ def test_linux_platform_scripts_parse_and_are_executable() -> None:
     if shell is None or bash is None:
         pytest.skip("POSIX shells are unavailable")
 
-    for name in ("init.sh", "train.sh", "train_cifar.sh"):
+    for name in ("init.sh", "train.sh", "train_cifar.sh", "train_all_datasets.sh"):
         path = LINUX_DIR / name
         assert path.stat().st_mode & 0o111
-        interpreter = bash if name == "train_cifar.sh" else shell
+        interpreter = bash if name in ("train_cifar.sh", "train_all_datasets.sh") else shell
         subprocess.run([interpreter, "-n", str(path)], check=True)
 
 
@@ -30,7 +30,7 @@ def test_platform_wrappers_reference_preserved_entrypoints() -> None:
     assert "train_interactive.sh" in (LINUX_DIR / "train.sh").read_text(
         encoding="utf-8"
     )
-    assert "scripts/train_all.sh" in (LINUX_DIR / "train_cifar.sh").read_text(
+    assert "train_all_datasets.sh" in (LINUX_DIR / "train_cifar.sh").read_text(
         encoding="utf-8"
     )
     assert "INIT_ALL.cmd" in (WINDOWS_DIR / "init.cmd").read_text(encoding="utf-8")
@@ -41,12 +41,13 @@ def test_platform_wrappers_reference_preserved_entrypoints() -> None:
 
 
 def test_linux_cifar_launcher_uses_v3_meanflow_and_tracks_only_text_log() -> None:
-    text = (LINUX_DIR / "train_cifar.sh").read_text(encoding="utf-8")
+    text = (LINUX_DIR / "train_all_datasets.sh").read_text(encoding="utf-8")
     assert "config/mf_v3_exact_jvp_b128.json" in text
     assert "training_logs/" in text
-    assert 'git add -- "$LOG_RELATIVE"' in text
-    assert 'git commit -m "logs: record CIFAR-10 training' in text
-    assert "--train-only" not in text
+    assert 'DATASETS=(cifar10 celeba)' in text
+    assert 'ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)' in text
+    assert 'git add -- "${LOG_FILES[@]}"' in text
+    assert 'git commit -m "logs: record unattended dataset training' in text
 
 
 def test_generated_outputs_remain_ignored() -> None:
