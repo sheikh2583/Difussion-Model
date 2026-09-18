@@ -26,6 +26,7 @@ from utils.run_lifecycle import (
 )
 from utils.checkpoint_runs import (
     checkpoint_run_number_from_path,
+    latest_epoch_checkpoint,
     latest_checkpoint_run_number,
     migrate_legacy_checkpoint_layout,
     next_checkpoint_run_number,
@@ -52,6 +53,10 @@ def parse_args():
                         help="Override epochs from config.")
     parser.add_argument("--batch-size", type=int, default=None,
                         help="Override batch size from config (useful for low-memory runs).")
+    parser.add_argument(
+        "--checkpoint-every", type=int, default=None,
+        help="Save a resumable .pt file and self-contained ZIP every N epochs.",
+    )
     parser.add_argument(
         "--train-only", action="store_true",
         help=("Disable FID cache preparation, periodic evaluation, and final "
@@ -85,6 +90,10 @@ def main():
         if args.batch_size < 1:
             raise ValueError("--batch-size must be at least 1")
         cfg.batch_size = args.batch_size
+    if args.checkpoint_every is not None:
+        if args.checkpoint_every < 1:
+            raise ValueError("--checkpoint-every must be at least 1")
+        cfg.checkpoint_frequency_epochs = args.checkpoint_every
 
     project_root = Path(__file__).resolve().parent
     canonical_run_dir = run_directory(cfg, project_root)
@@ -106,9 +115,23 @@ def main():
         else:
             print("[fresh] No previous run artifacts found; starting at epoch 1.")
     elif args.mode == "continue":
-        if existing:
+        latest_saved_checkpoint = latest_epoch_checkpoint(canonical_run_dir)
+        if latest_saved_checkpoint is not None:
             resume_checkpoint = "auto"
             print(f"[continue] Resuming the latest checkpoint in: {canonical_run_dir}")
+        elif existing:
+            # A stop before the first scheduled checkpoint may leave config and
+            # log files but no resumable state. Preserve that diagnostic evidence
+            # and begin a clean epoch-1 attempt instead of failing or mixing logs.
+            archived = archive_existing_run(
+                canonical_run_dir, preserve_checkpoints=True
+            )
+            existing = False
+            resume_checkpoint = None
+            print(
+                "[continue] Existing artifacts contain no checkpoint; preserved "
+                f"them at {archived} and starting a clean run at epoch 1."
+            )
         else:
             resume_checkpoint = None
             print("[continue] No previous run found; starting the first run at epoch 1.")

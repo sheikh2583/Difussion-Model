@@ -73,6 +73,24 @@ To verify the menu and a complete training plan without starting a model:
 ./train_interactive.sh --choice cifar10:fm --mode fresh --dry-run
 ```
 
+For a recovery-first Linux run that only trains and checkpoints (no periodic
+FID work), use:
+
+```bash
+./scripts/run_train.sh --algorithm fm --config config/fm_full.json \
+  --mode continue --checkpoint-every 10 --train-only
+```
+
+Replace `fm` and its config with `fm_lognorm`, `mf`, or another preset as
+needed. `--mode continue` resumes the latest checkpoint when one exists and
+starts normally when it does not. Use `--batch-size N` if GPU memory is tight.
+To train the dependency-ordered CIFAR-10 suite with the same recovery policy:
+
+```bash
+./scripts/train_all.sh --dataset cifar10 --mode continue \
+  --checkpoint-every 10 --train-only
+```
+
 To initialize both datasets explicitly, run `INIT_ALL.cmd -Datasets all` on
 Windows or `./init_all.sh --datasets all` on Linux. The checked-in
 `requirements_frozen.txt` is the CUDA workstation snapshot, not a portable
@@ -750,6 +768,10 @@ preventing checkpoints from separate attempts from being mixed.
 Each `.pt` file is also packaged as a self-contained ZIP with weights, config,
 and metadata. Resumption restores
 model state, optimizer, scheduler, AMP scaler, counters, and RNG state.
+Checkpoint and ZIP writes are atomic: their final names appear only after the
+entire file has been flushed and the ZIP has passed a CRC check. If only a ZIP
+backup remains, extract `checkpoint.pt` and resume it explicitly with
+`python train.py ... --resume /path/to/checkpoint.pt`.
 If a canonical run directory is non-empty, direct `train.py` calls require an
 explicit `--mode continue` or `--mode fresh`; this prevents accidental metric
 mixing and checkpoint replacement. The beginner menu asks the same question.

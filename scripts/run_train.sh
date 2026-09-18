@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# run_train.sh — Train a generative model on CIFAR-10 (Linux / macOS)
+# run_train.sh — Train one configured model (Linux / macOS)
 # =============================================================================
 # Usage:
 #   bash scripts/run_train.sh [OPTIONS]
@@ -22,7 +22,10 @@
 #                         config/mf_celeba64.json        (MF on CelebA 64x64)
 #   -n, --name        Override experiment_name in the config
 #   -e, --epochs      Override epoch count from the config
+#   -b, --batch-size  Override batch size for this machine
+#   -k, --checkpoint-every  Save .pt + ZIP every N epochs (default: config; full presets use 10)
 #   -m, --mode        continue | fresh (default: continue)
+#       --train-only  Skip FID/evaluation and train/checkpoint only
 #   -h, --help        Show this message
 #
 # Examples:
@@ -46,7 +49,10 @@ ALGORITHM="fm"
 CONFIG=""
 EXPERIMENT_NAME=""
 EPOCHS=""
+BATCH_SIZE=""
+CHECKPOINT_EVERY=""
 MODE="continue"
+TRAIN_ONLY=false
 
 # ---------------------------------------------------------------------------
 # Parse arguments
@@ -57,9 +63,12 @@ while [[ $# -gt 0 ]]; do
         -c|--config)     CONFIG="$2"; shift 2 ;;
         -n|--name)       EXPERIMENT_NAME="$2"; shift 2 ;;
         -e|--epochs)     EPOCHS="$2"; shift 2 ;;
+        -b|--batch-size) BATCH_SIZE="$2"; shift 2 ;;
+        -k|--checkpoint-every) CHECKPOINT_EVERY="$2"; shift 2 ;;
         -m|--mode)       MODE="$2"; shift 2 ;;
+        --train-only)    TRAIN_ONLY=true; shift ;;
         -h|--help)
-            sed -n '2,/^# ===/p' "$0"; exit 0 ;;
+            sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'; exit 0 ;;
         *) echo "Unknown argument: $1"; exit 1 ;;
     esac
 done
@@ -93,6 +102,9 @@ ARGS=("train.py" "--algorithm" "$ALGORITHM" "--mode" "$MODE")
 [[ -n "$CONFIG" ]]          && ARGS+=("--config" "$CONFIG")
 [[ -n "$EXPERIMENT_NAME" ]] && ARGS+=("--experiment-name" "$EXPERIMENT_NAME")
 [[ -n "$EPOCHS" ]]          && ARGS+=("--epochs" "$EPOCHS")
+[[ -n "$BATCH_SIZE" ]]      && ARGS+=("--batch-size" "$BATCH_SIZE")
+[[ -n "$CHECKPOINT_EVERY" ]] && ARGS+=("--checkpoint-every" "$CHECKPOINT_EVERY")
+[[ "$TRAIN_ONLY" == true ]] && ARGS+=("--train-only")
 
 # ---------------------------------------------------------------------------
 # Launch
@@ -101,8 +113,8 @@ echo "=== DiffusionProject Training ==="
 echo "Algorithm : $ALGORITHM"
 echo "Config    : ${CONFIG:-(defaults)}"
 echo "Mode      : $MODE"
-echo "Command   : python ${ARGS[*]}"
+echo "Command   : $PROJECT_ROOT/venv/bin/python ${ARGS[*]}"
 echo ""
 
 cd "$PROJECT_ROOT"
-python "${ARGS[@]}"
+exec "$PROJECT_ROOT/venv/bin/python" "${ARGS[@]}"

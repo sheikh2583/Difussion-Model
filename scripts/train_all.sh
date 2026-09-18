@@ -2,7 +2,9 @@
 # Train the supported algorithm suite in dependency order.
 # Usage:
 #   ./scripts/train_all.sh [--dataset cifar10|celeba] [--only ALGORITHM]
-#                          [--skip-ALGORITHM] [--mode continue|fresh] [--dry-run]
+#                          [--skip-ALGORITHM] [--mode continue|fresh]
+#                          [--batch-size N] [--checkpoint-every N]
+#                          [--train-only] [--dry-run]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,6 +31,9 @@ ONLY=""
 DATASET="cifar10"
 DRY_RUN=false
 MODE="continue"
+BATCH_SIZE=""
+CHECKPOINT_EVERY=10
+TRAIN_ONLY=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -47,6 +52,13 @@ while [[ $# -gt 0 ]]; do
     --mode)
       [[ $# -ge 2 ]] || { echo "ERROR: --mode requires a value" >&2; exit 2; }
       MODE="$2"; shift 2 ;;
+    --batch-size)
+      [[ $# -ge 2 ]] || { echo "ERROR: --batch-size requires a value" >&2; exit 2; }
+      BATCH_SIZE="$2"; shift 2 ;;
+    --checkpoint-every)
+      [[ $# -ge 2 ]] || { echo "ERROR: --checkpoint-every requires a value" >&2; exit 2; }
+      CHECKPOINT_EVERY="$2"; shift 2 ;;
+    --train-only) TRAIN_ONLY=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -103,9 +115,15 @@ run_training() {
     FAILED=1
     return 0
   fi
-  echo "[PLAN] $PYTHON train.py --algorithm $algorithm --config $config --mode $MODE"
+  local command=(
+    "$PYTHON" train.py --algorithm "$algorithm" --config "$config"
+    --mode "$MODE" --checkpoint-every "$CHECKPOINT_EVERY"
+  )
+  [[ -z "$BATCH_SIZE" ]] || command+=(--batch-size "$BATCH_SIZE")
+  [[ "$TRAIN_ONLY" == false ]] || command+=(--train-only)
+  echo "[PLAN] ${command[*]}"
   if [[ "$DRY_RUN" == false ]]; then
-    "$PYTHON" train.py --algorithm "$algorithm" --config "$config" --mode "$MODE"
+    "${command[@]}"
   fi
 }
 
@@ -127,8 +145,17 @@ require_file() {
 run_training fm "$FM_CONFIG" "$SKIP_FM"
 run_training fm_lognorm "$FM_LOGNORM_CONFIG" "$SKIP_FM_LOGNORM"
 run_training mf "$MF_CONFIG" "$SKIP_MF"
-FM_CKPT="$("$PYTHON" scripts/checkpoint_path.py --run-dir "$FM_RUN_DIR" \
-  --class-name FlowMatchingAlgorithm --epoch 100 --planned-mode "$MODE")"
+if [[ "$DRY_RUN" == true ]]; then
+  # Nothing has been created during a dry run, so resolve the path that the
+  # selected lifecycle mode would create.
+  FM_CKPT="$("$PYTHON" scripts/checkpoint_path.py --run-dir "$FM_RUN_DIR" \
+    --class-name FlowMatchingAlgorithm --epoch 100 --planned-mode "$MODE")"
+else
+  # FM has already run by this point. Resolve the checkpoint that now exists;
+  # using --planned-mode fresh here would incorrectly advance to run_(N+1).
+  FM_CKPT="$("$PYTHON" scripts/checkpoint_path.py --run-dir "$FM_RUN_DIR" \
+    --class-name FlowMatchingAlgorithm --epoch 100)"
+fi
 
 if [[ "$SKIP_MF_DISTILL" == false && ( -z "$ONLY" || "$ONLY" == "mf_distill" ) ]]; then
   READY=true

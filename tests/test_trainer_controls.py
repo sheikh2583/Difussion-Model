@@ -21,6 +21,7 @@ import os
 import random
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, call, patch
@@ -451,6 +452,44 @@ class TestCheckpointProvenanceSerialization(unittest.TestCase):
             )
             self.assertNotIn("provenance", loaded,
                              "Provenance key must be absent when attribute is not set")
+
+    def test_checkpoint_and_archive_are_complete_and_leave_no_temp_files(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trainer = self._make_minimal_trainer(tmpdir)
+            trainer.cfg.save(os.path.join(tmpdir, "config.json"))
+            trainer.save_checkpoint(epoch=10)
+
+            ckpt_dir = Path(tmpdir) / "checkpoints"
+            checkpoint = ckpt_dir / "FakeAlgorithm_epoch10.pt"
+            archive = ckpt_dir / "archive" / "FakeAlgorithm_epoch10.zip"
+            self.assertTrue(checkpoint.is_file())
+            self.assertTrue(archive.is_file())
+            self.assertEqual(list(ckpt_dir.rglob("*.tmp-*")), [])
+
+            with zipfile.ZipFile(archive) as handle:
+                self.assertIsNone(handle.testzip())
+                self.assertEqual(
+                    set(handle.namelist()),
+                    {"checkpoint.pt", "config.json", "meta.json"},
+                )
+                metadata = json.loads(handle.read("meta.json"))
+                self.assertEqual(metadata["epoch"], 10)
+                self.assertEqual(metadata["checkpoint_bytes"], checkpoint.stat().st_size)
+
+    def test_resume_restores_epoch_derived_algorithm_state(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trainer = self._make_minimal_trainer(tmpdir)
+            trainer.algorithm.on_epoch_end = MagicMock()
+            trainer.save_checkpoint(epoch=40)
+            checkpoint = Path(tmpdir) / "checkpoints" / "FakeAlgorithm_epoch40.pt"
+
+            resumed = self._make_minimal_trainer(tmpdir)
+            resumed.cfg.epochs = 100
+            resumed.algorithm.on_epoch_end = MagicMock()
+            loaded_epoch = resumed.load_checkpoint(str(checkpoint))
+
+            self.assertEqual(loaded_epoch, 40)
+            resumed.algorithm.on_epoch_end.assert_called_once_with(40, 100)
 
 
 if __name__ == "__main__":

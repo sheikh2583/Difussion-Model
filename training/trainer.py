@@ -32,6 +32,36 @@ from utils.timing import timer, peak_gpu_memory_mb, reset_peak_gpu_memory
 from utils.checkpoints import load_algorithm_state
 
 
+def _fsync_directory(path: str) -> None:
+    """Best-effort directory sync so an atomic rename survives a hard stop."""
+    try:
+        descriptor = os.open(path, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(descriptor)
+    except OSError:
+        # Some filesystems/platforms do not support syncing directories.
+        pass
+    finally:
+        os.close(descriptor)
+
+
+def _atomic_torch_save(payload: dict, path: str) -> None:
+    """Write a checkpoint completely before exposing its final filename."""
+    temporary = f"{path}.tmp-{os.getpid()}"
+    try:
+        with open(temporary, "wb") as handle:
+            torch.save(payload, handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        _fsync_directory(os.path.dirname(path))
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
 def build_optimizer(modules: List[nn.Module], cfg: ExperimentConfig) -> torch.optim.Optimizer:
     params = itertools.chain.from_iterable(m.parameters() for m in modules)
     if cfg.optim.optimizer == "adamw":
@@ -190,12 +220,11 @@ class Trainer:
         for i, m in enumerate(extra_modules):
             payload[f"extra_module_{i}_state"] = m.state_dict()
 
-        torch.save(payload, path)
         # Embed Codex provenance when available (set by utils/run_lifecycle.py)
         provenance = getattr(self, "checkpoint_provenance", None)
         if provenance is not None:
             payload["provenance"] = provenance
-        torch.save(payload, path)
+        _atomic_torch_save(payload, path)
         self.logger.info(f"Checkpoint saved -> {path}")
         self._zip_checkpoint(epoch, path)
 
@@ -219,6 +248,7 @@ class Trainer:
         algo_name  = self.algorithm.name()
         zip_name   = f"{algo_name}_epoch{epoch}.zip"
         zip_path   = os.path.join(archive_dir, zip_name)
+        temporary  = f"{zip_path}.tmp-{os.getpid()}"
 
         meta = {
             "epoch":      epoch,
@@ -226,16 +256,33 @@ class Trainer:
             "experiment": self.cfg.experiment_name,
             "dataset":    self.cfg.dataset.name,
             "timestamp":  datetime.now(timezone.utc).isoformat(),
+            "checkpoint_file": os.path.basename(ckpt_path),
+            "checkpoint_bytes": os.path.getsize(ckpt_path),
+            "resume_hint": "Extract checkpoint.pt and pass it to train.py --resume.",
         }
 
-        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED) as zf:
-            zf.write(ckpt_path, arcname="checkpoint.pt")
+        try:
+            with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_STORED) as zf:
+                zf.write(ckpt_path, arcname="checkpoint.pt")
 
-            cfg_path = os.path.join(self.run_dir, "config.json")
-            if os.path.exists(cfg_path):
-                zf.write(cfg_path, arcname="config.json")
+                cfg_path = os.path.join(self.run_dir, "config.json")
+                if os.path.exists(cfg_path):
+                    zf.write(cfg_path, arcname="config.json")
 
-            zf.writestr("meta.json", json.dumps(meta, indent=2))
+                zf.writestr("meta.json", json.dumps(meta, indent=2))
+
+            # CRC-check the completed temporary archive before publishing it.
+            with zipfile.ZipFile(temporary, "r") as zf:
+                bad_member = zf.testzip()
+                if bad_member is not None:
+                    raise OSError(f"Corrupt checkpoint archive member: {bad_member}")
+            with open(temporary, "rb") as handle:
+                os.fsync(handle.fileno())
+            os.replace(temporary, zip_path)
+            _fsync_directory(archive_dir)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
 
         self.logger.info(f"Checkpoint archive -> {zip_path}")
 
@@ -260,6 +307,12 @@ class Trainer:
         scaler_state = state.get("scaler_state")
         if scaler_state:
             self.scaler.load_state_dict(scaler_state)
+        # Restore epoch-derived algorithm state before the first resumed batch.
+        # Mean Flow uses this hook to position its finite-difference annealing
+        # schedule; without it, the first resumed epoch would briefly use the
+        # epoch-zero delta even though weights came from a later checkpoint.
+        if epoch and hasattr(self.algorithm, "on_epoch_end"):
+            self.algorithm.on_epoch_end(epoch, self.cfg.epochs)
         self.optimization_steps = state.get(
             "optimization_steps", epoch * len(self.train_loader)
         )
