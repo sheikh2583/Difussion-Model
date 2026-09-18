@@ -269,6 +269,10 @@ class Trainer:
                 if os.path.exists(cfg_path):
                     zf.write(cfg_path, arcname="config.json")
 
+                environment_path = os.path.join(self.run_dir, "run_environment.json")
+                if os.path.exists(environment_path):
+                    zf.write(environment_path, arcname="environment.json")
+
                 zf.writestr("meta.json", json.dumps(meta, indent=2))
 
             # CRC-check the completed temporary archive before publishing it.

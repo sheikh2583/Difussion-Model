@@ -58,6 +58,11 @@ def parse_args():
         help="Save a resumable .pt file and self-contained ZIP every N epochs.",
     )
     parser.add_argument(
+        "--machine-label", default=None,
+        help=("Human-readable machine name stored in manifests and every metric "
+              "row. Defaults to DIFFUSION_MACHINE_LABEL or the hostname."),
+    )
+    parser.add_argument(
         "--train-only", action="store_true",
         help=("Disable FID cache preparation, periodic evaluation, and final "
               "sampling. Intended for a short user-operated diagnostic probe."),
@@ -169,6 +174,7 @@ def main():
         algorithm_cls,
         algorithm_key=args.algorithm,
         checkpoint_run_number=checkpoint_run_number,
+        machine_label=args.machine_label,
     )
     if args.train_only:
         runner.run_train_only(resume_checkpoint=resume_checkpoint)

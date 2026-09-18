@@ -5,6 +5,7 @@
 #                          [--skip-ALGORITHM] [--mode continue|fresh]
 #                          [--batch-size N] [--checkpoint-every N]
 #                          [--train-only] [--dry-run]
+#                          [--machine-label NAME]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,6 +35,7 @@ MODE="continue"
 BATCH_SIZE=""
 CHECKPOINT_EVERY=10
 TRAIN_ONLY=false
+MACHINE_LABEL=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -59,6 +61,9 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || { echo "ERROR: --checkpoint-every requires a value" >&2; exit 2; }
       CHECKPOINT_EVERY="$2"; shift 2 ;;
     --train-only) TRAIN_ONLY=true; shift ;;
+    --machine-label)
+      [[ $# -ge 2 ]] || { echo "ERROR: --machine-label requires a value" >&2; exit 2; }
+      MACHINE_LABEL="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -121,6 +126,7 @@ run_training() {
   )
   [[ -z "$BATCH_SIZE" ]] || command+=(--batch-size "$BATCH_SIZE")
   [[ "$TRAIN_ONLY" == false ]] || command+=(--train-only)
+  [[ -z "$MACHINE_LABEL" ]] || command+=(--machine-label "$MACHINE_LABEL")
   echo "[PLAN] ${command[*]}"
   if [[ "$DRY_RUN" == false ]]; then
     "${command[@]}"

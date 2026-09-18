@@ -48,10 +48,16 @@ class ResultsWriter:
     def __init__(self, output_dir: str, experiment_name: str):
         self.jsonl_path = os.path.join(output_dir, "metrics", f"{experiment_name}.jsonl")
         os.makedirs(os.path.dirname(self.jsonl_path), exist_ok=True)
+        self.environment = {}
+        environment_path = os.path.join(output_dir, "run_environment.json")
+        if os.path.isfile(environment_path):
+            with open(environment_path, "r", encoding="utf-8") as handle:
+                self.environment = json.load(handle)
 
     def write(self, record: ResultRecord) -> None:
-        with open(self.jsonl_path, "a") as f:
-            f.write(json.dumps(asdict(record)) + "\n")
+        row = {**self.environment, **asdict(record)}
+        with open(self.jsonl_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(row) + "\n")
 
     def export_csv(self, csv_path: str) -> None:
         if not os.path.exists(self.jsonl_path):
@@ -63,7 +69,9 @@ class ResultsWriter:
                     rows.append(json.loads(line))
         if not rows:
             return
-        fieldnames = list(rows[0].keys())
+        # A resumed legacy run can contain old rows followed by enriched rows
+        # with environment metadata. Export the union without dropping either.
+        fieldnames = list(dict.fromkeys(key for row in rows for key in row))
         os.makedirs(os.path.dirname(csv_path), exist_ok=True)
         with open(csv_path, "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)

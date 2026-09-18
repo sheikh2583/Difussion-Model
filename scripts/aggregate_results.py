@@ -56,11 +56,19 @@ def load_records(paths: list[Path]) -> list[dict[str, Any]]:
                 if not isinstance(record, dict):
                     raise ValueError(f"Expected an object in {path}:{line_number}")
                 experiment = path.parent.parent.name
+                machine = record.get("machine_label") or record.get("hostname")
+                code_identity = record.get("code_identity") or record.get("git_commit")
+                comparison = experiment
+                if machine:
+                    comparison += f"@{machine}"
+                if code_identity:
+                    comparison += f"@{str(code_identity)[:20]}"
                 record["algorithm_class"] = record.get("algorithm")
                 record["experiment"] = experiment
+                record["comparison"] = comparison
                 # Plotting utilities group on `algorithm`; use the run name so
-                # CIFAR-10 and CelebA measurements cannot be merged silently.
-                record["algorithm"] = experiment
+                # datasets, machines, and code revisions cannot merge silently.
+                record["algorithm"] = comparison
                 records.append(record)
     return records
 
@@ -71,6 +79,8 @@ def deduplicate(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for record in records:
         key = (
             record.get("experiment"),
+            record.get("machine_label") or record.get("hostname"),
+            record.get("code_identity") or record.get("git_commit"),
             record.get("seed"),
             record.get("record_type"),
             record.get("epoch"),
@@ -123,6 +133,35 @@ def build_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         last_training = training[-1] if training else {}
         rows.append({
             "experiment": algorithm,
+            "source_experiment": next(
+                (row.get("experiment") for row in algorithm_records), None
+            ),
+            "machine_label": next(
+                (row.get("machine_label") or row.get("hostname")
+                 for row in algorithm_records
+                 if row.get("machine_label") or row.get("hostname")),
+                None,
+            ),
+            "git_commit": next(
+                (row.get("git_commit") for row in algorithm_records
+                 if row.get("git_commit")),
+                None,
+            ),
+            "code_identity": next(
+                (row.get("code_identity") for row in algorithm_records
+                 if row.get("code_identity")),
+                None,
+            ),
+            "config_sha256": next(
+                (row.get("config_sha256") for row in algorithm_records
+                 if row.get("config_sha256")),
+                None,
+            ),
+            "gpu_name": next(
+                (row.get("gpu_name") for row in algorithm_records
+                 if row.get("gpu_name")),
+                None,
+            ),
             "algorithm_class": next(
                 (row.get("algorithm_class") for row in algorithm_records
                  if row.get("algorithm_class")),
@@ -181,21 +220,31 @@ def plot_fid_subset(
     """Render a controlled FID comparison without unrelated runs."""
     plt.figure()
     for experiment, label in experiments.items():
-        rows = sorted(
-            (
-                row for row in records
-                if row.get("experiment") == experiment
-                and row.get("record_type") == "evaluation"
-                and row.get("fid") is not None
-            ),
-            key=lambda row: row.get("nfe") or -1,
+        matching = [
+            row for row in records
+            if row.get("experiment") == experiment
+            and row.get("record_type") == "evaluation"
+            and row.get("fid") is not None
+        ]
+        comparisons = sorted(
+            {str(row.get("comparison") or experiment) for row in matching}
         )
-        if rows:
+        for comparison in comparisons:
+            rows = sorted(
+                (
+                    row for row in matching
+                    if str(row.get("comparison") or experiment) == comparison
+                ),
+                key=lambda row: row.get("nfe") or -1,
+            )
+            series_label = label
+            if comparison != experiment:
+                series_label = f"{label} [{comparison.removeprefix(experiment + '@')}]"
             plt.plot(
                 [row["nfe"] for row in rows],
                 [row["fid"] for row in rows],
                 marker="o",
-                label=label,
+                label=series_label,
             )
     plt.xlabel("NFE")
     plt.ylabel("FID")
