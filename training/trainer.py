@@ -9,6 +9,7 @@ Change from original: after each epoch, calls algorithm.on_epoch_end(epoch, tota
 if the algorithm defines it (used by MeanFlowAlgorithm for delta annealing).
 """
 import itertools
+import errno
 import json
 import os
 import random
@@ -45,6 +46,28 @@ def _fsync_directory(path: str) -> None:
         pass
     finally:
         os.close(descriptor)
+
+
+def _fsync_completed_file(path: str) -> None:
+    """Durably flush a completed file using a Windows/POSIX-safe handle mode."""
+    with open(path, "r+b") as handle:
+        handle.flush()
+        try:
+            os.fsync(handle.fileno())
+        except OSError as error:
+            unsupported = {
+                errno.EINVAL,
+                getattr(errno, "ENOTSUP", errno.EINVAL),
+                getattr(errno, "EOPNOTSUPP", errno.EINVAL),
+            }
+            if error.errno not in unsupported:
+                raise
+            warnings.warn(
+                f"Filesystem does not support fsync for {path}; atomic rename "
+                "is preserved but power-loss durability cannot be guaranteed.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
 
 def _atomic_torch_save(payload: dict, path: str) -> None:
@@ -280,8 +303,7 @@ class Trainer:
                 bad_member = zf.testzip()
                 if bad_member is not None:
                     raise OSError(f"Corrupt checkpoint archive member: {bad_member}")
-            with open(temporary, "rb") as handle:
-                os.fsync(handle.fileno())
+            _fsync_completed_file(temporary)
             os.replace(temporary, zip_path)
             _fsync_directory(archive_dir)
         finally:

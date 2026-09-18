@@ -10,11 +10,23 @@ import socket
 import subprocess
 import sys
 import uuid
+from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 import torch
+
+
+def add_config_hash(metadata: dict[str, Any], config: Any) -> dict[str, Any]:
+    """Return a copy of ``metadata`` carrying the canonical config digest."""
+    config_value = asdict(config) if is_dataclass(config) else config
+    serialized = json.dumps(
+        config_value, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    enriched = dict(metadata)
+    enriched["config_sha256"] = hashlib.sha256(serialized).hexdigest()
+    return enriched
 
 
 def _git_value(project_root: Path, *args: str) -> Optional[str]:

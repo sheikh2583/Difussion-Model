@@ -3,12 +3,9 @@ Generic experiment runner. Updated to use dataset_registry so any
 registered dataset (cifar10, celeba, ...) works without further changes.
 All other logic identical to original.
 """
-import hashlib
-import json
 import os
-from dataclasses import asdict
 from pathlib import Path
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
 import torch
 
@@ -24,7 +21,11 @@ from utils.device import resolve_device
 from utils.checkpoint_provenance import build_provenance, validate_checkpoint_file
 from utils.checkpoint_runs import checkpoint_run_directory, latest_epoch_checkpoint
 from utils.seed import set_seed
-from utils.run_environment import collect_run_environment, write_run_environment
+from utils.run_environment import (
+    add_config_hash,
+    collect_run_environment,
+    write_run_environment,
+)
 
 
 def assert_no_protected_key_override(cfg: ExperimentConfig) -> None:
@@ -40,7 +41,8 @@ class ExperimentRunner:
     def __init__(self, cfg: ExperimentConfig, algorithm_cls: Type[BaseAlgorithm],
                  algorithm_key: Optional[str] = None,
                  checkpoint_run_number: int = 1,
-                 machine_label: Optional[str] = None):
+                 machine_label: Optional[str] = None,
+                 run_environment: Optional[dict[str, Any]] = None):
         assert_no_protected_key_override(cfg)
 
         self.cfg = cfg
@@ -65,16 +67,14 @@ class ExperimentRunner:
         run_name = f"{cfg.experiment_name}_{cfg.dataset.name}"
         self.run_dir = os.path.join(cfg.output_dir, run_name)
         os.makedirs(self.run_dir, exist_ok=True)
-        self.run_environment = collect_run_environment(
-            Path(__file__).resolve().parent.parent,
-            machine_label=machine_label,
+        base_environment = (
+            run_environment
+            if run_environment is not None
+            else collect_run_environment(
+                Path(__file__).resolve().parent.parent, machine_label=machine_label
+            )
         )
-        serialized_config = json.dumps(
-            asdict(cfg), sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
-        self.run_environment["config_sha256"] = hashlib.sha256(
-            serialized_config
-        ).hexdigest()
+        self.run_environment = add_config_hash(base_environment, cfg)
         write_run_environment(Path(self.run_dir), self.run_environment)
 
         # Dataset registry replaces direct cifar10 import

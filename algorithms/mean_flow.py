@@ -35,7 +35,9 @@ algorithm_kwargs
     jvp_delta_end   (float, 1e-4):  FD perturbation at final epoch.
     p_fd_step       (float, 0.5):   prob of taking the FD path per step.
     use_exact_jvp   (bool, False):  replace FD with exact torch.func.jvp on
-                                    the derivative path (diagnostic only).
+                                    the detached derivative target path.
+    fd_force_fp32   (bool, False):  run the complete finite-difference branch
+                                    in fp32 with autocast disabled.
 """
 
 from typing import Any, Dict, List
@@ -64,10 +66,16 @@ class MeanFlowAlgorithm(BaseAlgorithm):
         self.jvp_delta_start: float = float(self.algorithm_kwargs.get("jvp_delta_start", 1e-2))
         self.jvp_delta_end:   float = float(self.algorithm_kwargs.get("jvp_delta_end",   1e-4))
         self.p_fd_step:       float = float(self.algorithm_kwargs.get("p_fd_step",       0.5))
+        if self.jvp_delta_start <= 0 or self.jvp_delta_end <= 0:
+            raise ValueError("jvp_delta_start and jvp_delta_end must be positive")
         use_exact_jvp = self.algorithm_kwargs.get("use_exact_jvp", False)
         if not isinstance(use_exact_jvp, bool):
             raise TypeError("algorithm_kwargs['use_exact_jvp'] must be a boolean")
         self.use_exact_jvp: bool = use_exact_jvp
+        fd_force_fp32 = self.algorithm_kwargs.get("fd_force_fp32", False)
+        if not isinstance(fd_force_fp32, bool):
+            raise TypeError("algorithm_kwargs['fd_force_fp32'] must be a boolean")
+        self.fd_force_fp32: bool = fd_force_fp32
 
         # epoch progress — updated by Trainer via on_epoch_end()
         self._epoch:        int = 0
@@ -107,18 +115,65 @@ class MeanFlowAlgorithm(BaseAlgorithm):
         r: torch.Tensor,
         t: torch.Tensor,
         v: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Exact JVP via forward-mode AD. Disables AMP (required)."""
+    ) -> torch.Tensor:
+        """Return only the detached fp32 total derivative along ``(v, 0, 1)``."""
         z_f = z_t.float()
         r_f = r.float()
         t_f = t.float()
         v_f = v.float()
-        u_pred, dudt = torch_jvp(
-            lambda z, rv, tv: self._forward(z, rv, tv),
-            (z_f, r_f, t_f),
-            (v_f, torch.zeros_like(r_f), torch.ones_like(t_f)),
+        with torch.no_grad():
+            _, dudt = torch_jvp(
+                lambda z, rv, tv: self._forward(z, rv, tv),
+                (z_f, r_f, t_f),
+                (v_f, torch.zeros_like(r_f), torch.ones_like(t_f)),
+            )
+        return dudt
+
+    def _finite_difference_step(
+        self, r: torch.Tensor, t: torch.Tensor
+    ) -> torch.Tensor:
+        """Choose one stable, per-sample one-sided step for both z and t.
+
+        Forward differences are used away from ``t=1``. Near the upper boundary,
+        a backward step is used when it preserves ``r <= t``. For the degenerate
+        diagonal point ``r=t=1`` there is no ordering-preserving non-zero step;
+        a backward step is still safe because ``(t-r)=0`` removes the derivative
+        from that sample's target.
+        """
+        delta = torch.full_like(t, self.jvp_delta)
+        forward_capacity = (1.0 - t).clamp_min(0.0)
+        backward_capacity = (t - r).clamp_min(0.0)
+        forward = torch.minimum(delta, forward_capacity)
+        backward = -torch.minimum(delta, backward_capacity)
+        threshold = torch.maximum(
+            delta * 0.1,
+            torch.full_like(delta, torch.finfo(t.dtype).eps * 16),
         )
-        return u_pred, dudt
+        can_forward = forward >= threshold
+        can_backward = (-backward) >= threshold
+        fallback = -torch.minimum(delta, t.clamp_min(delta))
+        h = torch.where(can_forward, forward, torch.where(can_backward, backward, fallback))
+        if not torch.isfinite(h).all() or (h == 0).any():
+            raise FloatingPointError("Could not construct a finite non-zero FD step")
+        return h
+
+    def _finite_difference(
+        self,
+        z_t: torch.Tensor,
+        r: torch.Tensor,
+        t: torch.Tensor,
+        v: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Return trainable prediction, detached derivative, and consistent h."""
+        h = self._finite_difference_step(r, t)
+        h_image = h.view(-1, 1, 1, 1)
+        z_pert = z_t + h_image * v
+        t_pert = t + h
+        u_pred = self._forward(z_t, r, t)
+        with torch.no_grad():
+            u_pred_pert = self._forward(z_pert, r, t_pert)
+            dudt = (u_pred_pert - u_pred.detach()) / h_image
+        return u_pred, dudt, h
 
     # ------------------------------------------------------------------
     # Training
@@ -142,26 +197,31 @@ class MeanFlowAlgorithm(BaseAlgorithm):
         # Step 3 — stochastic path routing
         if torch.rand(()).item() < self.p_fd_step:
             if self.use_exact_jvp:
-                # --- Original exact JVP path (forced fp32, AMP disabled) ---
+                # The prediction owns the reverse-mode graph. The exact JVP is
+                # computed separately only for the detached target, avoiding a
+                # reverse-over-forward graph through torch.func.jvp.
                 with torch.autocast(device_type=dev.type, enabled=False):
-                    u_pred, dudt = self._jvp_exact(z_t, r, t, v)
-                    dt = (t - r).view(-1, 1, 1, 1)
-                    u_tgt = (v.float() - dt * dudt).detach().to(z_t.dtype)
-                    loss = F.mse_loss(u_pred.to(z_t.dtype), u_tgt)
+                    z_f, r_f, t_f, v_f = z_t.float(), r.float(), t.float(), v.float()
+                    u_pred = self._forward(z_f, r_f, t_f)
+                    dudt = self._jvp_exact(z_f, r_f, t_f, v_f)
+                    dt = (t_f - r_f).view(-1, 1, 1, 1)
+                    u_tgt = (v_f - dt * dudt).detach()
+                    loss = F.mse_loss(u_pred, u_tgt)
                 return {"loss": loss}
 
-            # --- Finite-difference path (runs under normal AMP) ---
-            delta   = self.jvp_delta
-            # clamp per-sample so t + delta stays in [0, 1]
-            delta_t = torch.clamp(delta * torch.ones_like(t), max=(1.0 - t).clamp(min=0.0))
-            z_pert  = z_t + delta * v
-            t_pert  = t + delta_t
+            if self.fd_force_fp32:
+                with torch.autocast(device_type=dev.type, enabled=False):
+                    z_f, r_f, t_f, v_f = z_t.float(), r.float(), t.float(), v.float()
+                    u_pred, dudt, _ = self._finite_difference(z_f, r_f, t_f, v_f)
+                    dt = (t_f - r_f).view(-1, 1, 1, 1)
+                    u_tgt = (v_f - dt * dudt).detach()
+                    loss = F.mse_loss(u_pred, u_tgt)
+                return {"loss": loss}
 
-            u_pred      = self._forward(z_t, r, t)
-            u_pred_pert = self._forward(z_pert, r, t_pert)
-            dudt        = (u_pred_pert - u_pred) / delta
-
-            dt    = (t - r).view(-1, 1, 1, 1)
+            # Historical AMP behavior remains the default, but the same h is
+            # now used for z, t, and the divisor, including at t=1.
+            u_pred, dudt, _ = self._finite_difference(z_t, r, t, v)
+            dt = (t - r).view(-1, 1, 1, 1)
             u_tgt = (v - dt * dudt).detach()
         else:
             # --- Cheap exact diagonal path ---

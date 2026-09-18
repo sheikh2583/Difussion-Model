@@ -15,6 +15,7 @@ All tensors stay on CPU.
 """
 from __future__ import annotations
 
+import errno
 import itertools
 import json
 import os
@@ -475,6 +476,51 @@ class TestCheckpointProvenanceSerialization(unittest.TestCase):
                 metadata = json.loads(handle.read("meta.json"))
                 self.assertEqual(metadata["epoch"], 10)
                 self.assertEqual(metadata["checkpoint_bytes"], checkpoint.stat().st_size)
+
+    def test_corrupt_archive_is_not_published_and_temp_is_removed(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trainer = self._make_minimal_trainer(tmpdir)
+            checkpoint = Path(tmpdir) / "checkpoints" / "source.pt"
+            checkpoint.write_bytes(b"checkpoint")
+
+            with patch("training.trainer.zipfile.ZipFile.testzip", return_value="checkpoint.pt"):
+                with self.assertRaisesRegex(OSError, "Corrupt checkpoint archive"):
+                    trainer._zip_checkpoint(10, str(checkpoint))
+
+            archive_dir = Path(tmpdir) / "checkpoints" / "archive"
+            self.assertFalse((archive_dir / "FakeAlgorithm_epoch10.zip").exists())
+            self.assertEqual(list(archive_dir.glob("*.tmp-*")), [])
+
+    def test_archive_sync_failure_is_not_suppressed_and_temp_is_removed(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trainer = self._make_minimal_trainer(tmpdir)
+            checkpoint = Path(tmpdir) / "checkpoints" / "source.pt"
+            checkpoint.write_bytes(b"checkpoint")
+
+            with patch(
+                "training.trainer._fsync_completed_file",
+                side_effect=OSError(5, "simulated I/O failure"),
+            ):
+                with self.assertRaisesRegex(OSError, "simulated I/O failure"):
+                    trainer._zip_checkpoint(10, str(checkpoint))
+
+            archive_dir = Path(tmpdir) / "checkpoints" / "archive"
+            self.assertFalse((archive_dir / "FakeAlgorithm_epoch10.zip").exists())
+            self.assertEqual(list(archive_dir.glob("*.tmp-*")), [])
+
+    def test_unsupported_file_sync_is_a_scoped_best_effort_fallback(self):
+        from training.trainer import _fsync_completed_file
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            completed = Path(tmpdir) / "completed.zip"
+            completed.write_bytes(b"complete")
+            with patch(
+                "training.trainer.os.fsync",
+                side_effect=OSError(errno.EINVAL, "unsupported filesystem"),
+            ):
+                with self.assertWarnsRegex(RuntimeWarning, "does not support fsync"):
+                    _fsync_completed_file(str(completed))
+            self.assertEqual(completed.read_bytes(), b"complete")
 
     def test_resume_restores_epoch_derived_algorithm_state(self):
         with tempfile.TemporaryDirectory() as tmpdir:

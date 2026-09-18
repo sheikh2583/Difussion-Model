@@ -31,6 +31,50 @@ from utils.checkpoint_runs import (
     migrate_legacy_checkpoint_layout,
     next_checkpoint_run_number,
 )
+from utils.run_environment import add_config_hash, collect_run_environment
+
+
+def print_startup_summary(
+    *,
+    config_path: str | None,
+    algorithm_key: str,
+    cfg: ExperimentConfig,
+    result_dir: Path,
+    run_environment: dict,
+) -> None:
+    """Print the complete run identity before device or dataset construction."""
+    kwargs = cfg.algorithm_kwargs
+    resolved_config = (
+        str(Path(config_path).expanduser().resolve())
+        if config_path
+        else "<ExperimentConfig defaults>"
+    )
+    lines = (
+        ("config", resolved_config),
+        ("algorithm", algorithm_key),
+        ("experiment", cfg.experiment_name),
+        ("result_dir", str(result_dir.resolve())),
+        ("batch_size", cfg.batch_size),
+        ("epochs", cfg.epochs),
+        ("seed", cfg.seed),
+        ("learning_rate", cfg.optim.learning_rate),
+        ("scheduler", cfg.optim.scheduler),
+        ("gradient_clip_norm", cfg.optim.gradient_clip_norm),
+        ("use_exact_jvp", kwargs.get("use_exact_jvp", False)),
+        ("fd_force_fp32", kwargs.get("fd_force_fp32", False)),
+        ("p_same", kwargs.get("p_same", 0.25)),
+        ("p_fd_step", kwargs.get("p_fd_step", 0.5)),
+        (
+            "jvp_delta_range",
+            f"{kwargs.get('jvp_delta_start', 1e-2)} -> "
+            f"{kwargs.get('jvp_delta_end', 1e-4)}",
+        ),
+        ("machine_label", run_environment.get("machine_label")),
+        ("code_identity", run_environment.get("code_identity")),
+    )
+    print("[startup] Resolved experiment configuration (before dataset loading):")
+    for key, value in lines:
+        print(f"[startup] {key}: {value}")
 
 
 def parse_args():
@@ -168,6 +212,19 @@ def main():
         checkpoint_run_number = next_checkpoint_run_number(canonical_run_dir)
     print(f"[checkpoints] Active checkpoint series: run_{checkpoint_run_number}")
 
+    # Collect this once and pass the same authoritative record into the runner.
+    # This happens before ExperimentRunner resolves CUDA or constructs a dataset.
+    run_environment = add_config_hash(
+        collect_run_environment(project_root, machine_label=args.machine_label), cfg
+    )
+    print_startup_summary(
+        config_path=args.config,
+        algorithm_key=args.algorithm,
+        cfg=cfg,
+        result_dir=canonical_run_dir,
+        run_environment=run_environment,
+    )
+
     algorithm_cls = ALGORITHM_REGISTRY[args.algorithm]
     runner = ExperimentRunner(
         cfg,
@@ -175,6 +232,7 @@ def main():
         algorithm_key=args.algorithm,
         checkpoint_run_number=checkpoint_run_number,
         machine_label=args.machine_label,
+        run_environment=run_environment,
     )
     if args.train_only:
         runner.run_train_only(resume_checkpoint=resume_checkpoint)
