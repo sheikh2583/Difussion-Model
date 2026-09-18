@@ -8,10 +8,9 @@ Learns the average velocity u(z_t, r, t) over an interval [r, t]:
     u_tgt = v - (t - r) * d/dt[u(z_t, r, t)]
 
 where d/dt[u] is the total time derivative along the trajectory,
-approximated here by a finite-difference (FD) rather than the exact
-torch.func.jvp call used in the original implementation.  This removes
-the forced-fp32 / disabled-AMP constraint and roughly halves training
-time per epoch at the cost of O(delta) bias in the target.
+approximated by default with a finite difference (FD).  A diagnostic
+``use_exact_jvp`` switch restores the original forward-mode AD calculation;
+that path runs in fp32 with autocast disabled.
 
 Two-path stochastic training
 -----------------------------
@@ -35,6 +34,8 @@ algorithm_kwargs
     jvp_delta_start (float, 1e-2):  FD perturbation at epoch 0.
     jvp_delta_end   (float, 1e-4):  FD perturbation at final epoch.
     p_fd_step       (float, 0.5):   prob of taking the FD path per step.
+    use_exact_jvp   (bool, False):  replace FD with exact torch.func.jvp on
+                                    the derivative path (diagnostic only).
 """
 
 from typing import Any, Dict, List
@@ -42,6 +43,7 @@ from typing import Any, Dict, List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.func import jvp as torch_jvp
 
 from algorithms.base import BaseAlgorithm
 from algorithms.r_embed import REmbed
@@ -62,6 +64,10 @@ class MeanFlowAlgorithm(BaseAlgorithm):
         self.jvp_delta_start: float = float(self.algorithm_kwargs.get("jvp_delta_start", 1e-2))
         self.jvp_delta_end:   float = float(self.algorithm_kwargs.get("jvp_delta_end",   1e-4))
         self.p_fd_step:       float = float(self.algorithm_kwargs.get("p_fd_step",       0.5))
+        use_exact_jvp = self.algorithm_kwargs.get("use_exact_jvp", False)
+        if not isinstance(use_exact_jvp, bool):
+            raise TypeError("algorithm_kwargs['use_exact_jvp'] must be a boolean")
+        self.use_exact_jvp: bool = use_exact_jvp
 
         # epoch progress — updated by Trainer via on_epoch_end()
         self._epoch:        int = 0
@@ -95,6 +101,25 @@ class MeanFlowAlgorithm(BaseAlgorithm):
     def _forward(self, z: torch.Tensor, r: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         return self.model(self.r_embed(z, r), t)
 
+    def _jvp_exact(
+        self,
+        z_t: torch.Tensor,
+        r: torch.Tensor,
+        t: torch.Tensor,
+        v: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Exact JVP via forward-mode AD. Disables AMP (required)."""
+        z_f = z_t.float()
+        r_f = r.float()
+        t_f = t.float()
+        v_f = v.float()
+        u_pred, dudt = torch_jvp(
+            lambda z, rv, tv: self._forward(z, rv, tv),
+            (z_f, r_f, t_f),
+            (v_f, torch.zeros_like(r_f), torch.ones_like(t_f)),
+        )
+        return u_pred, dudt
+
     # ------------------------------------------------------------------
     # Training
     # ------------------------------------------------------------------
@@ -116,6 +141,15 @@ class MeanFlowAlgorithm(BaseAlgorithm):
 
         # Step 3 — stochastic path routing
         if torch.rand(()).item() < self.p_fd_step:
+            if self.use_exact_jvp:
+                # --- Original exact JVP path (forced fp32, AMP disabled) ---
+                with torch.autocast(device_type=dev.type, enabled=False):
+                    u_pred, dudt = self._jvp_exact(z_t, r, t, v)
+                    dt = (t - r).view(-1, 1, 1, 1)
+                    u_tgt = (v.float() - dt * dudt).detach().to(z_t.dtype)
+                    loss = F.mse_loss(u_pred.to(z_t.dtype), u_tgt)
+                return {"loss": loss}
+
             # --- Finite-difference path (runs under normal AMP) ---
             delta   = self.jvp_delta
             # clamp per-sample so t + delta stays in [0, 1]
