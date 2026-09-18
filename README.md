@@ -47,8 +47,30 @@ local browser UI for inspecting trained models.
 **Linux:**
 
 ```bash
+chmod +x init_all.sh train_interactive.sh scripts/*.sh
 ./init_all.sh
 ./train_interactive.sh
+```
+
+If the project came from an archive that discarded executable bits, the same
+entry points can be launched explicitly through the POSIX shell:
+
+```bash
+sh init_all.sh
+sh train_interactive.sh
+```
+
+`init_all.sh` detects Python 3.9+, installs `python3-venv`/pip through the
+available Linux package manager when necessary, creates `venv/`, selects the
+CUDA, ROCm, or CPU PyTorch build, installs dependencies, and downloads CIFAR-10.
+The training menu then uses only `venv/bin/python` and recognizes both legacy
+and numbered (`checkpoints/run_N/`) prerequisite checkpoints.
+
+To verify the menu and a complete training plan without starting a model:
+
+```bash
+./train_interactive.sh --list
+./train_interactive.sh --choice cifar10:fm --mode fresh --dry-run
 ```
 
 To initialize both datasets explicitly, run `INIT_ALL.cmd -Datasets all` on
@@ -840,8 +862,133 @@ Double-click INIT_ALL.cmd
 **Linux (automatic):**
 
 ```bash
+# 1. Clone and enter the repository
+git clone https://github.com/sheikh2583/Difussion-Model.git
+cd Difussion-Model
+
+# 2. Restore executable bits (normally preserved by Git)
+chmod +x init_all.sh train_interactive.sh scripts/*.sh
+
+# 3. Create venv/, install the correct PyTorch build and dependencies,
+#    then download CIFAR-10
 ./init_all.sh
+
+# 4. Open the model-selection menu
+./train_interactive.sh
 ```
+
+On minimal Debian/Ubuntu, Fedora/RHEL, Arch, openSUSE, or Alpine installations,
+the setup wrapper installs Python, pip, and virtual-environment support when
+they are missing. Use `sh init_all.sh` if executable permissions were lost.
+
+### Linux initialization options
+
+The initializer is non-interactive and defaults to CIFAR-10 with automatic GPU
+detection:
+
+```bash
+# Default: auto-detect CUDA/ROCm/CPU and download CIFAR-10
+./init_all.sh
+
+# Install the environment without downloading a dataset
+./init_all.sh --datasets none
+
+# Download CIFAR-10 and CelebA
+./init_all.sh --datasets all
+
+# Select one dataset explicitly
+./init_all.sh --datasets celeba
+
+# Override hardware detection when necessary
+./init_all.sh --gpu cuda128 --datasets cifar10
+./init_all.sh --gpu cuda121 --datasets cifar10
+./init_all.sh --gpu cuda118 --datasets cifar10
+./init_all.sh --gpu rocm --datasets cifar10
+./init_all.sh --gpu cpu --datasets cifar10
+```
+
+The virtual environment does not have to be activated when using the launch
+scripts. To run Python commands manually, either activate it or call its Python
+executable directly:
+
+```bash
+source venv/bin/activate
+python --version
+
+# Equivalent without activation
+venv/bin/python --version
+```
+
+### Linux training commands
+
+The interactive launcher lists every supported dataset/algorithm combination
+and automatically handles FM-teacher and Reflow-pair prerequisites:
+
+```bash
+# Show accepted choice names without training
+./train_interactive.sh --list
+
+# Open the interactive menu
+./train_interactive.sh
+
+# Preview a complete command plan without training
+./train_interactive.sh \
+  --choice cifar10:fm --mode fresh --dry-run
+
+# Start a new FM run; an existing run is preserved under results/history/
+./train_interactive.sh \
+  --choice cifar10:fm --mode fresh --yes
+
+# Continue the latest numbered checkpoint
+./train_interactive.sh \
+  --choice cifar10:fm --mode continue --yes
+
+# Continue to a new total epoch target (not "additional epochs")
+./train_interactive.sh \
+  --choice cifar10:fm --mode continue --epochs 120 --yes
+```
+
+Choice names follow `<dataset>:<algorithm>`, for example `cifar10:mf`,
+`cifar10:consistency`, `cifar10:reflow`, `celeba:fm`, and `celeba:mf_distill`.
+The special `smoke` choice runs the small workflow test.
+
+Direct CLI training is also supported:
+
+```bash
+venv/bin/python train.py \
+  --algorithm fm --config config/fm_full.json --mode fresh
+```
+
+To preview or launch the complete dependency-ordered CIFAR-10 tournament:
+
+```bash
+# No model execution
+./scripts/run_full_tournament.sh \
+  --dataset cifar10 --mode fresh --dry-run
+
+# Actual run
+./scripts/run_full_tournament.sh \
+  --dataset cifar10 --mode fresh
+```
+
+Run artifacts are written under `results/<experiment>_<dataset>/`. Checkpoints
+use `checkpoints/run_N/`; metrics use append-only JSONL files under `metrics/`.
+The launchers refuse ambiguous resume/fresh behavior and the tournament uses
+`results/.lock` to prevent overlapping GPU jobs.
+
+### Linux troubleshooting
+
+- **Permission denied:** restore executable bits with the `chmod` command shown
+  above, or invoke the entry point as `sh init_all.sh`.
+- **No `venv`/`ensurepip`:** rerun `./init_all.sh`; the wrapper installs the
+  appropriate virtual-environment and pip packages through the detected package
+  manager. Root access or `sudo` is required only for missing system packages.
+- **GPU not detected:** check `nvidia-smi` for NVIDIA or `rocm-smi` for AMD,
+  then use an explicit `--gpu` option if auto-detection is unsuitable.
+- **DataLoader workers hang:** set `dataset.num_workers` to `0` in the selected
+  config and retry.
+- **Inspect before a long run:** use `--dry-run`, then run
+  `venv/bin/python scripts/verify_workflow.py --dataset cifar10`.
 
 **Manual / selective:**
 

@@ -8,26 +8,26 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 VENV_PYTHON="$PROJECT_ROOT/venv/bin/python"
 
-if [ -x "$VENV_PYTHON" ] && \
-   "$VENV_PYTHON" -c 'import sys; raise SystemExit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
-  exec "$VENV_PYTHON" bootstrap.py "$@"
-elif command -v python >/dev/null 2>&1 && \
-   python -c 'import sys; raise SystemExit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
-  exec python bootstrap.py "$@"
-elif command -v python3 >/dev/null 2>&1 && \
-     python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
-  exec python3 bootstrap.py "$@"
-else
+python_is_supported() {
+  "$1" -c 'import sys; raise SystemExit(sys.version_info < (3, 9))' \
+    >/dev/null 2>&1
+}
+
+python_can_create_venv() {
+  "$1" -c 'import ensurepip, venv' >/dev/null 2>&1
+}
+
+install_python_support() {
   if [ "$(id -u)" -eq 0 ]; then
     SUDO=""
   elif command -v sudo >/dev/null 2>&1; then
     SUDO="sudo"
   else
-    echo "ERROR: Python is missing and sudo is unavailable for package installation." >&2
+    echo "ERROR: Python 3.9+ with venv support is required, and sudo is unavailable." >&2
     exit 1
   fi
 
-  echo "Python 3.9+ was not found; installing it with the system package manager..."
+  echo "Installing Python 3, pip, and virtual-environment support..."
   if command -v apt-get >/dev/null 2>&1; then
     $SUDO apt-get update
     $SUDO apt-get install -y python3 python3-venv python3-pip
@@ -45,10 +45,34 @@ else
     echo "ERROR: no supported package manager found. Install Python 3.9+ and rerun." >&2
     exit 1
   fi
+}
 
-  if ! python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
-    echo "ERROR: the package manager installed Python older than 3.9." >&2
-    exit 1
-  fi
-  exec python3 bootstrap.py "$@"
+find_bootstrap_python() {
+  for candidate in python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1 && \
+       python_is_supported "$candidate" && \
+       python_can_create_venv "$candidate"; then
+      command -v "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if [ -x "$VENV_PYTHON" ] && python_is_supported "$VENV_PYTHON"; then
+  exec "$VENV_PYTHON" bootstrap.py "$@"
 fi
+
+BOOTSTRAP_PYTHON="$(find_bootstrap_python || true)"
+if [ -z "$BOOTSTRAP_PYTHON" ]; then
+  install_python_support
+  BOOTSTRAP_PYTHON="$(find_bootstrap_python || true)"
+fi
+
+if [ -z "$BOOTSTRAP_PYTHON" ]; then
+  echo "ERROR: Python 3.9+ with venv/ensurepip support is still unavailable." >&2
+  echo "Install those packages for your distribution and rerun ./init_all.sh." >&2
+  exit 1
+fi
+
+exec "$BOOTSTRAP_PYTHON" bootstrap.py "$@"

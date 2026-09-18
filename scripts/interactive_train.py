@@ -16,6 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from utils.run_lifecycle import has_run_artifacts, latest_checkpoint
+from utils.checkpoints import resolve_checkpoint_reference
 
 
 @dataclass(frozen=True)
@@ -107,17 +108,24 @@ def train(
 
 def ensure_teacher(choice: TrainingChoice, dry_run: bool) -> Path:
     selected = load_config(choice.config)
-    teacher = Path(selected["algorithm_kwargs"]["teacher_checkpoint"])
-    if (PROJECT_ROOT / teacher).is_file():
-        print(f"[ready] FM teacher: {teacher}")
+    teacher_reference = PROJECT_ROOT / selected["algorithm_kwargs"]["teacher_checkpoint"]
+    teacher = resolve_checkpoint_reference(teacher_reference)
+    if teacher.is_file():
+        print(f"[ready] FM teacher: {teacher.relative_to(PROJECT_ROOT)}")
         return teacher
 
     dataset = selected["dataset"]["name"]
     teacher_config = "config/fm_celeba64.json" if dataset == "celeba" else "config/fm_full.json"
-    print(f"[prerequisite] FM teacher is missing; it will be trained first: {teacher}")
+    print(
+        "[prerequisite] FM teacher is missing; it will be trained first: "
+        f"{teacher_reference.relative_to(PROJECT_ROOT)}"
+    )
     train("fm", teacher_config, dry_run)
-    if not dry_run and not (PROJECT_ROOT / teacher).is_file():
-        raise FileNotFoundError(f"FM training completed but expected checkpoint is missing: {teacher}")
+    teacher = resolve_checkpoint_reference(teacher_reference)
+    if not dry_run and not teacher.is_file():
+        raise FileNotFoundError(
+            f"FM training completed but expected checkpoint is missing: {teacher_reference}"
+        )
     return teacher
 
 
