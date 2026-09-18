@@ -33,10 +33,14 @@ done
 AVAILABLE=0
 evaluate_one() {
   local algorithm=$1
-  local checkpoint=$2
-  local config=$3
+  local run_dir=$2
+  local class_name=$3
+  local config=$4
+  local checkpoint
+  checkpoint="$("$PYTHON" scripts/checkpoint_path.py --run-dir "$run_dir" \
+    --class-name "$class_name" --epoch "$EPOCH" 2>/dev/null || true)"
   if [[ ! -f "$checkpoint" ]]; then
-    echo "[SKIP] $algorithm checkpoint not found: $checkpoint"
+    echo "[SKIP] $algorithm epoch-$EPOCH checkpoint not found in: $run_dir/checkpoints"
     return
   fi
   AVAILABLE=$((AVAILABLE + 1))
@@ -54,12 +58,12 @@ else
   CONFIG_SUFFIX="full"
 fi
 
-evaluate_one fm "results/fm_${SUFFIX}/checkpoints/FlowMatchingAlgorithm_epoch${EPOCH}.pt" "config/fm_${CONFIG_SUFFIX}.json"
-evaluate_one fm_lognorm "results/fm_lognorm_${SUFFIX}/checkpoints/FlowMatchingLognormAlgorithm_epoch${EPOCH}.pt" "config/fm_lognorm_${CONFIG_SUFFIX}.json"
-evaluate_one mf "results/mf_${SUFFIX}/checkpoints/MeanFlowAlgorithm_epoch${EPOCH}.pt" "config/mf_${CONFIG_SUFFIX}.json"
-evaluate_one mf_distill "results/mf_distill_${SUFFIX}/checkpoints/MeanFlowDistillAlgorithm_epoch${EPOCH}.pt" "config/mf_distill_${CONFIG_SUFFIX}.json"
-evaluate_one consistency "results/consistency_${SUFFIX}/checkpoints/ConsistencyAlgorithm_epoch${EPOCH}.pt" "config/consistency_${CONFIG_SUFFIX}.json"
-evaluate_one reflow "results/reflow_${SUFFIX}/checkpoints/ReflowAlgorithm_epoch${EPOCH}.pt" "config/reflow_${CONFIG_SUFFIX}.json"
+evaluate_one fm "results/fm_${SUFFIX}" FlowMatchingAlgorithm "config/fm_${CONFIG_SUFFIX}.json"
+evaluate_one fm_lognorm "results/fm_lognorm_${SUFFIX}" FlowMatchingLognormAlgorithm "config/fm_lognorm_${CONFIG_SUFFIX}.json"
+evaluate_one mf "results/mf_${SUFFIX}" MeanFlowAlgorithm "config/mf_${CONFIG_SUFFIX}.json"
+evaluate_one mf_distill "results/mf_distill_${SUFFIX}" MeanFlowDistillAlgorithm "config/mf_distill_${CONFIG_SUFFIX}.json"
+evaluate_one consistency "results/consistency_${SUFFIX}" ConsistencyAlgorithm "config/consistency_${CONFIG_SUFFIX}.json"
+evaluate_one reflow "results/reflow_${SUFFIX}" ReflowAlgorithm "config/reflow_${CONFIG_SUFFIX}.json"
 
 if [[ "$AVAILABLE" -eq 0 ]]; then
   echo "ERROR: no epoch-$EPOCH checkpoints were found." >&2

@@ -131,9 +131,17 @@ require_file() {
   exit 1
 }
 
+resolve_checkpoint() {
+  local run_name=$1 class_name=$2
+  "$PYTHON" scripts/checkpoint_path.py \
+    --run-dir "results/$run_name" --class-name "$class_name" --epoch "$EPOCH" \
+    --planned-mode "$MODE"
+}
+
 run_algorithm() {
   local algorithm=$1 config=$2 run_name=$3 class_name=$4 description=$5
-  local checkpoint="results/${run_name}/checkpoints/${class_name}_epoch${EPOCH}.pt"
+  local checkpoint
+  checkpoint="$(resolve_checkpoint "$run_name" "$class_name")"
   if [[ "$MODE" == "continue" && -f "$checkpoint" ]]; then
     echo ""
     echo "[skip] $description - checkpoint already exists: $checkpoint"
@@ -170,7 +178,7 @@ run_dataset() {
     reflow_config="config/reflow_full.json"
   fi
 
-  local teacher="results/fm_${name}/checkpoints/FlowMatchingAlgorithm_epoch${EPOCH}.pt"
+  local teacher
   local pairs="data/reflow_pairs_${name}.pt"
 
   echo ""
@@ -185,6 +193,7 @@ run_dataset() {
   run_algorithm mf "$mf_config" "mf_${name}" MeanFlowAlgorithm \
     "[3/7] Mean Flow - $name"
 
+  teacher="$(resolve_checkpoint "fm_${name}" FlowMatchingAlgorithm)"
   require_file "$teacher" "FM teacher checkpoint"
   run_algorithm consistency "$consistency_config" "consistency_${name}" \
     ConsistencyAlgorithm "[4/7] Consistency Models - $name"

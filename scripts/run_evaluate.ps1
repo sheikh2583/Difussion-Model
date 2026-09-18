@@ -14,7 +14,7 @@
 
 .PARAMETER Checkpoint
     Path to the .pt checkpoint file, e.g.:
-        results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt
+        results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt
 
 .PARAMETER Config
     Path to the config.json saved alongside the checkpoint, e.g.:
@@ -27,13 +27,13 @@
 .EXAMPLE
     .\scripts\run_evaluate.ps1 `
         -Algorithm fm `
-        -Checkpoint results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt `
+        -Checkpoint results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt `
         -Config     results/fm_cifar10/config.json
 
 .EXAMPLE
     .\scripts\run_evaluate.ps1 `
         -Algorithm mf `
-        -Checkpoint results/mf_cifar10/checkpoints/MeanFlowAlgorithm_epoch100.pt `
+        -Checkpoint results/mf_cifar10/checkpoints/run_1/MeanFlowAlgorithm_epoch100.pt `
         -Config     results/mf_cifar10/config.json `
         -MakePlots
 #>

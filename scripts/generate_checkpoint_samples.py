@@ -38,6 +38,7 @@ from algorithms import ALGORITHM_REGISTRY
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
 from utils.checkpoints import load_algorithm_state
+from utils.checkpoint_runs import latest_checkpoint_run_directory
 
 RESULTS_ROOT = "./results"
 OUT_ROOT     = "./results/checkpoint_samples"
@@ -121,15 +122,21 @@ def infer_algorithm_cls(ckpt_dir: str):
 def process_run(experiment_name, results_root, out_root, nfe_values, n_samples, device):
     run_dir  = os.path.join(results_root, experiment_name)
     cfg_path = os.path.join(run_dir, "config.json")
-    ckpt_dir = os.path.join(run_dir, "checkpoints")
+    checkpoint_root = os.path.join(run_dir, "checkpoints")
     out_dir  = os.path.join(out_root, experiment_name)
 
     if not os.path.exists(cfg_path):
         print(f"[SKIP] No config.json in {run_dir}")
         return
-    if not os.path.isdir(ckpt_dir):
+    if not os.path.isdir(checkpoint_root):
         print(f"[SKIP] No checkpoints/ dir in {run_dir}")
         return
+
+    active_checkpoint_dir = latest_checkpoint_run_directory(Path(run_dir))
+    if active_checkpoint_dir is None:
+        print(f"[SKIP] No checkpoint run found in {checkpoint_root}")
+        return
+    ckpt_dir = str(active_checkpoint_dir)
 
     algo_cls, cls_name = infer_algorithm_cls(ckpt_dir)
     if algo_cls is None:

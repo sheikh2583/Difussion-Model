@@ -36,6 +36,7 @@ from algorithms import ALGORITHM_REGISTRY
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
 from utils.checkpoints import load_algorithm_state
+from utils.checkpoint_runs import latest_checkpoint_run_directory
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -120,7 +121,10 @@ def build_model_specs(results_root: Path) -> dict[str, "ModelSpec"]:
         if not cfg_path.exists() or not ckpt_dir.is_dir():
             continue
 
-        algo_cls, ckpt_prefix = _infer_algo_cls_from_ckpt_dir(ckpt_dir)
+        active_ckpt_dir = latest_checkpoint_run_directory(run_dir)
+        if active_ckpt_dir is None:
+            continue
+        algo_cls, ckpt_prefix = _infer_algo_cls_from_ckpt_dir(active_ckpt_dir)
         if algo_cls is None:
             continue  # no recognised .pt files yet
 
@@ -148,8 +152,8 @@ MODEL_SPECS: dict[str, ModelSpec] = {}
 
 
 def checkpoint_map(spec: ModelSpec) -> dict[int, Path]:
-    directory = spec.run_directory / "checkpoints"
-    if not directory.is_dir():
+    directory = latest_checkpoint_run_directory(spec.run_directory)
+    if directory is None:
         return {}
     pattern = re.compile(rf"^{re.escape(spec.checkpoint_prefix)}(\d+)\.pt$")
     checkpoints: dict[int, Path] = {}

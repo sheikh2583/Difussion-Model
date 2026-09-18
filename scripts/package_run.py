@@ -6,11 +6,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from utils.checkpoint_runs import latest_checkpoint_run_directory
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,10 +34,15 @@ def package_run(run_dir: Path, output: Path) -> Path:
     if not run_dir.is_dir():
         raise FileNotFoundError(f"Run directory does not exist: {run_dir}")
 
-    checkpoint_archives = sorted((run_dir / "checkpoints" / "archive").glob("*.zip"))
+    checkpoint_dir = latest_checkpoint_run_directory(run_dir)
+    checkpoint_archives = (
+        sorted((checkpoint_dir / "archive").glob("*.zip"))
+        if checkpoint_dir is not None else []
+    )
     if not checkpoint_archives:
         raise FileNotFoundError(
-            f"No checkpoint archives found in {run_dir / 'checkpoints' / 'archive'}"
+            f"No checkpoint archives found in the latest checkpoint run under "
+            f"{run_dir / 'checkpoints'}"
         )
 
     output.parent.mkdir(parents=True, exist_ok=True)

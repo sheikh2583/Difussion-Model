@@ -61,6 +61,7 @@ def main() -> int:
     from algorithms import ALGORITHM_REGISTRY
     from config.config import ExperimentConfig
     from data.dataset_registry import DATASET_REGISTRY, get_dataloaders_for_config
+    from utils.checkpoints import resolve_checkpoint_reference
 
     missing_algorithms = REQUIRED_ALGORITHMS - set(ALGORITHM_REGISTRY)
     if missing_algorithms:
@@ -107,8 +108,10 @@ def main() -> int:
             failures.append(f"{config_path} has no algorithm_kwargs.{field}")
             continue
         target = PROJECT_ROOT / relative_target
+        if field == "teacher_checkpoint":
+            target = resolve_checkpoint_reference(target)
         if target.is_file():
-            print(f"[OK] {label}: {relative_target}")
+            print(f"[OK] {label}: {target.relative_to(PROJECT_ROOT)}")
         else:
             blockers.append(f"{label} missing: {relative_target}")
             print(f"[BLOCKED] {label}: {relative_target}")

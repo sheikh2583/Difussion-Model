@@ -20,9 +20,12 @@ if (-not (Test-Path -LiteralPath $Python)) {
 
 $script:Available = 0
 function Invoke-Evaluation {
-    param([string]$Algorithm, [string]$Checkpoint, [string]$Config)
-    if (-not (Test-Path -LiteralPath $Checkpoint)) {
-        Write-Host "[SKIP] $Algorithm checkpoint not found: $Checkpoint"
+    param([string]$Algorithm, [string]$RunDir, [string]$ClassName, [string]$Config)
+    $Checkpoint = & $Python scripts/checkpoint_path.py --run-dir $RunDir `
+        --class-name $ClassName --epoch $Epoch 2>$null
+    if ($LASTEXITCODE -ne 0) { $Checkpoint = $null }
+    if (-not $Checkpoint -or -not (Test-Path -LiteralPath $Checkpoint)) {
+        Write-Host "[SKIP] $Algorithm epoch-$Epoch checkpoint not found in: $RunDir/checkpoints"
         return
     }
     $script:Available += 1
@@ -41,12 +44,12 @@ if ($Dataset -eq "celeba") {
     $ConfigSuffix = "full"
 }
 
-Invoke-Evaluation "fm" "results/fm_$Suffix/checkpoints/FlowMatchingAlgorithm_epoch$Epoch.pt" "config/fm_$ConfigSuffix.json"
-Invoke-Evaluation "fm_lognorm" "results/fm_lognorm_$Suffix/checkpoints/FlowMatchingLognormAlgorithm_epoch$Epoch.pt" "config/fm_lognorm_$ConfigSuffix.json"
-Invoke-Evaluation "mf" "results/mf_$Suffix/checkpoints/MeanFlowAlgorithm_epoch$Epoch.pt" "config/mf_$ConfigSuffix.json"
-Invoke-Evaluation "mf_distill" "results/mf_distill_$Suffix/checkpoints/MeanFlowDistillAlgorithm_epoch$Epoch.pt" "config/mf_distill_$ConfigSuffix.json"
-Invoke-Evaluation "consistency" "results/consistency_$Suffix/checkpoints/ConsistencyAlgorithm_epoch$Epoch.pt" "config/consistency_$ConfigSuffix.json"
-Invoke-Evaluation "reflow" "results/reflow_$Suffix/checkpoints/ReflowAlgorithm_epoch$Epoch.pt" "config/reflow_$ConfigSuffix.json"
+Invoke-Evaluation "fm" "results/fm_$Suffix" "FlowMatchingAlgorithm" "config/fm_$ConfigSuffix.json"
+Invoke-Evaluation "fm_lognorm" "results/fm_lognorm_$Suffix" "FlowMatchingLognormAlgorithm" "config/fm_lognorm_$ConfigSuffix.json"
+Invoke-Evaluation "mf" "results/mf_$Suffix" "MeanFlowAlgorithm" "config/mf_$ConfigSuffix.json"
+Invoke-Evaluation "mf_distill" "results/mf_distill_$Suffix" "MeanFlowDistillAlgorithm" "config/mf_distill_$ConfigSuffix.json"
+Invoke-Evaluation "consistency" "results/consistency_$Suffix" "ConsistencyAlgorithm" "config/consistency_$ConfigSuffix.json"
+Invoke-Evaluation "reflow" "results/reflow_$Suffix" "ReflowAlgorithm" "config/reflow_$ConfigSuffix.json"
 
 if ($script:Available -eq 0) {
     throw "No epoch-$Epoch checkpoints were found."

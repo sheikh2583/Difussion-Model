@@ -44,7 +44,7 @@ import torch.nn.functional as F
 
 from algorithms.base import BaseAlgorithm
 from models.backbone import build_backbone
-from utils.checkpoints import extract_model_state
+from utils.checkpoints import extract_model_state, resolve_checkpoint_reference
 
 
 class ConsistencyAlgorithm(BaseAlgorithm):
@@ -72,7 +72,7 @@ class ConsistencyAlgorithm(BaseAlgorithm):
                 "ConsistencyAlgorithm requires algorithm_kwargs['teacher_checkpoint'] "
                 "pointing to a trained FlowMatchingAlgorithm checkpoint."
             )
-        self.teacher_checkpoint = ckpt_path
+        self.teacher_checkpoint = str(resolve_checkpoint_reference(ckpt_path))
         self.teacher = None
 
         # Discrete time schedule: n_timesteps points in (0, 1]

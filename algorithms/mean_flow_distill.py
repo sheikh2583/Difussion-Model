@@ -26,7 +26,7 @@ algorithm_kwargs
 ----------------
     teacher_checkpoint (str, required):
         Path to a trained FlowMatchingAlgorithm checkpoint, e.g.
-        "results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
+        "results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt"
     teacher_nfe (int, 4):
         Euler steps for teacher rollout per training step.
     p_same (float, 0.25):
@@ -42,7 +42,7 @@ import torch.nn.functional as F
 from algorithms.base import BaseAlgorithm
 from algorithms.r_embed import REmbed
 from models.backbone import build_backbone
-from utils.checkpoints import extract_model_state
+from utils.checkpoints import extract_model_state, resolve_checkpoint_reference
 
 
 class MeanFlowDistillAlgorithm(BaseAlgorithm):
@@ -65,7 +65,7 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
                 "MeanFlowDistillAlgorithm requires algorithm_kwargs['teacher_checkpoint'] "
                 "pointing to a trained FlowMatchingAlgorithm checkpoint."
             )
-        self.teacher_checkpoint = ckpt_path
+        self.teacher_checkpoint = str(resolve_checkpoint_reference(ckpt_path))
         self.teacher = None
 
     # ------------------------------------------------------------------

@@ -64,6 +64,25 @@ class RunLifecycleTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 run_directory(config, Path(temporary))
 
+    def test_fresh_can_preserve_numbered_checkpoints_in_canonical_run(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary) / "results" / "fm_cifar10"
+            checkpoint = run_dir / "checkpoints" / "run_1" / "Algo_epoch100.pt"
+            checkpoint.parent.mkdir(parents=True)
+            checkpoint.write_bytes(b"keep")
+            (run_dir / "config.json").write_text("{}", encoding="utf-8")
+
+            archived = archive_existing_run(
+                run_dir,
+                timestamp="20260918_120000",
+                preserve_checkpoints=True,
+            )
+
+            self.assertEqual(checkpoint.read_bytes(), b"keep")
+            self.assertFalse((run_dir / "config.json").exists())
+            self.assertTrue((archived / "config.json").is_file())
+            self.assertFalse((archived / "checkpoints").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

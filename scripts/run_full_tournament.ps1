@@ -115,6 +115,17 @@ function Assert-FileReady {
     }
 }
 
+function Resolve-Checkpoint {
+    param([string]$RunName, [string]$ClassName)
+    $Resolved = & $Python scripts/checkpoint_path.py `
+        --run-dir "results/$RunName" --class-name $ClassName --epoch $Epoch `
+        --planned-mode $Mode
+    if ($LASTEXITCODE -ne 0 -or -not $Resolved) {
+        throw "Could not resolve checkpoint path for $RunName ($ClassName)."
+    }
+    return "$Resolved".Trim()
+}
+
 function Invoke-Algorithm {
     param(
         [string]$Algorithm,
@@ -123,7 +134,7 @@ function Invoke-Algorithm {
         [string]$ClassName,
         [string]$Description
     )
-    $Checkpoint = "results/$RunName/checkpoints/${ClassName}_epoch$Epoch.pt"
+    $Checkpoint = Resolve-Checkpoint -RunName $RunName -ClassName $ClassName
     if ($Mode -eq "continue" -and (Test-Path -LiteralPath $Checkpoint)) {
         Write-Host ""
         Write-Host "[skip] $Description - checkpoint already exists: $Checkpoint"
@@ -164,7 +175,6 @@ function Invoke-DatasetTournament {
         }
     }
 
-    $Teacher = "results/fm_$Name/checkpoints/FlowMatchingAlgorithm_epoch$Epoch.pt"
     $Pairs = "data/reflow_pairs_$Name.pt"
 
     Write-Host ""
@@ -179,6 +189,7 @@ function Invoke-DatasetTournament {
     Invoke-Algorithm "mf" $Configs.mf "mf_$Name" "MeanFlowAlgorithm" `
         "[3/7] Mean Flow - $Name"
 
+    $Teacher = Resolve-Checkpoint -RunName "fm_$Name" -ClassName "FlowMatchingAlgorithm"
     Assert-FileReady -Path $Teacher -Purpose "FM teacher checkpoint"
     Invoke-Algorithm "consistency" $Configs.consistency "consistency_$Name" `
         "ConsistencyAlgorithm" "[4/7] Consistency Models - $Name"

@@ -4,7 +4,6 @@ registered dataset (cifar10, celeba, ...) works without further changes.
 All other logic identical to original.
 """
 import os
-import re
 from pathlib import Path
 from typing import Optional, Type
 
@@ -20,6 +19,7 @@ from sampling.sampler import Sampler
 from training.trainer import Trainer
 from utils.device import resolve_device
 from utils.checkpoint_provenance import build_provenance, validate_checkpoint_file
+from utils.checkpoint_runs import checkpoint_run_directory, latest_epoch_checkpoint
 from utils.seed import set_seed
 
 
@@ -34,7 +34,8 @@ def assert_no_protected_key_override(cfg: ExperimentConfig) -> None:
 
 class ExperimentRunner:
     def __init__(self, cfg: ExperimentConfig, algorithm_cls: Type[BaseAlgorithm],
-                 algorithm_key: Optional[str] = None):
+                 algorithm_key: Optional[str] = None,
+                 checkpoint_run_number: int = 1):
         assert_no_protected_key_override(cfg)
 
         self.cfg = cfg
@@ -46,6 +47,7 @@ class ExperimentRunner:
         self.checkpoint_provenance = build_provenance(
             cfg, algorithm_cls, self.algorithm_key
         )
+        self.checkpoint_run_number = checkpoint_run_number
         self.device = resolve_device(cfg)
 
         # Seed before constructing the backbone so independent algorithm runs
@@ -79,22 +81,20 @@ class ExperimentRunner:
                 raise FileNotFoundError(f"Resume checkpoint not found: {path}")
             return str(path)
 
-        checkpoint_dir = Path(self.run_dir) / "checkpoints"
-        prefix = re.escape(self.algorithm.name())
-        pattern = re.compile(rf"^{prefix}_epoch(\d+)\.pt$")
-        candidates = []
-        if checkpoint_dir.is_dir():
-            for path in checkpoint_dir.glob(f"{self.algorithm.name()}_epoch*.pt"):
-                match = pattern.match(path.name)
-                if match and int(match.group(1)) <= self.cfg.epochs:
-                    candidates.append((int(match.group(1)), path))
-        if not candidates:
+        latest = latest_epoch_checkpoint(
+            Path(self.run_dir),
+            class_name=self.algorithm.name(),
+            maximum_epoch=self.cfg.epochs,
+            run_number=self.checkpoint_run_number,
+        )
+        if latest is None:
             raise FileNotFoundError(
                 f"Cannot continue {self.run_dir}: no checkpoint matching "
+                f"checkpoints/run_{self.checkpoint_run_number}/"
                 f"{self.algorithm.name()}_epoch<N>.pt was found. Use --mode fresh "
                 "to preserve the directory and restart safely."
             )
-        return str(max(candidates, key=lambda item: item[0])[1])
+        return str(latest[1])
 
     def train(self, resume_checkpoint: Optional[str] = None,
               evaluation_enabled: bool = True) -> Trainer:
@@ -119,6 +119,10 @@ class ExperimentRunner:
             device=self.device,
             eval_hook=self._eval_hook if evaluation_enabled else None,
         )
+        trainer.checkpoint_dir = str(
+            checkpoint_run_directory(Path(self.run_dir), self.checkpoint_run_number)
+        )
+        os.makedirs(trainer.checkpoint_dir, exist_ok=True)
         # Antigravity's trainer-owned checkpoint writer consumes this attribute
         # when serializing future payloads. Keeping it on Trainer also avoids a
         # required constructor change for older callers.

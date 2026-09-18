@@ -17,12 +17,12 @@
 # Examples:
 #   bash scripts/run_evaluate.sh \
 #       -a fm \
-#       -k results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt \
+#       -k results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt \
 #       -c results/fm_cifar10/config.json
 #
 #   bash scripts/run_evaluate.sh \
 #       -a mf \
-#       -k results/mf_cifar10/checkpoints/MeanFlowAlgorithm_epoch100.pt \
+#       -k results/mf_cifar10/checkpoints/run_1/MeanFlowAlgorithm_epoch100.pt \
 #       -c results/mf_cifar10/config.json \
 #       --make-plots
 # =============================================================================

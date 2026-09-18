@@ -34,7 +34,7 @@ if ($Dataset -eq "celeba") {
     $MfDistillConfig = "config/mf_distill_celeba64.json"
     $ConsistencyConfig = "config/consistency_celeba64.json"
     $ReflowConfig = "config/reflow_celeba64.json"
-    $FmCheckpoint = "results/fm_celeba/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
+    $FmRunDir = "results/fm_celeba"
     $ReflowPairs = "data/reflow_pairs_celeba.pt"
 } else {
     $FmConfig = "config/fm_full.json"
@@ -43,7 +43,7 @@ if ($Dataset -eq "celeba") {
     $MfDistillConfig = "config/mf_distill_full.json"
     $ConsistencyConfig = "config/consistency_full.json"
     $ReflowConfig = "config/reflow_full.json"
-    $FmCheckpoint = "results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
+    $FmRunDir = "results/fm_cifar10"
     $ReflowPairs = "data/reflow_pairs_cifar10.pt"
 }
 
@@ -82,6 +82,12 @@ function Test-Prerequisite {
 Invoke-Training "fm" $FmConfig $SkipFm
 Invoke-Training "fm_lognorm" $FmLognormConfig $SkipFmLognorm
 Invoke-Training "mf" $MfConfig $SkipMf
+$FmCheckpoint = & $Python scripts/checkpoint_path.py --run-dir $FmRunDir `
+    --class-name FlowMatchingAlgorithm --epoch 100 --planned-mode $Mode
+if ($LASTEXITCODE -ne 0 -or -not $FmCheckpoint) {
+    throw "Could not resolve the FM teacher checkpoint path."
+}
+$FmCheckpoint = "$FmCheckpoint".Trim()
 
 if (-not $SkipMfDistill -and (-not $Only -or $Only -eq "mf_distill")) {
     $Ready = Test-Prerequisite $FmCheckpoint "FM teacher checkpoint"

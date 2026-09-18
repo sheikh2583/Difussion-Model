@@ -12,11 +12,12 @@ from experiments.runner import ExperimentRunner
 class RunnerLifecycleTests(unittest.TestCase):
     def test_auto_resume_without_matching_algorithm_is_an_error(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            checkpoint_dir = Path(temporary) / "checkpoints"
-            checkpoint_dir.mkdir()
+            checkpoint_dir = Path(temporary) / "checkpoints" / "run_1"
+            checkpoint_dir.mkdir(parents=True)
             (checkpoint_dir / "OtherAlgorithm_epoch100.pt").touch()
             runner = ExperimentRunner.__new__(ExperimentRunner)
             runner.run_dir = temporary
+            runner.checkpoint_run_number = 1
             runner.cfg = SimpleNamespace(epochs=100)
             runner.algorithm = SimpleNamespace(name=lambda: "MeanFlowAlgorithm")
             with self.assertRaisesRegex(FileNotFoundError, "no checkpoint matching"):
@@ -39,6 +40,7 @@ class RunnerLifecycleTests(unittest.TestCase):
         runner.device = object()
         runner.algorithm = object()
         runner.run_dir = "unused"
+        runner.checkpoint_run_number = 1
         runner.checkpoint_provenance = {"version": 1}
         runner._eval_hook = Mock()
 

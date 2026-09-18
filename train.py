@@ -24,6 +24,12 @@ from utils.run_lifecycle import (
     has_run_artifacts,
     run_directory,
 )
+from utils.checkpoint_runs import (
+    checkpoint_run_number_from_path,
+    latest_checkpoint_run_number,
+    migrate_legacy_checkpoint_layout,
+    next_checkpoint_run_number,
+)
 
 
 def parse_args():
@@ -82,11 +88,19 @@ def main():
 
     project_root = Path(__file__).resolve().parent
     canonical_run_dir = run_directory(cfg, project_root)
+    migrated = migrate_legacy_checkpoint_layout(canonical_run_dir)
+    if migrated:
+        print(
+            f"[checkpoints] Organized {len(migrated)} legacy files under "
+            "checkpoints/run_1/."
+        )
     existing = has_run_artifacts(canonical_run_dir)
 
     resume_checkpoint = args.resume
     if args.mode == "fresh":
-        archived = archive_existing_run(canonical_run_dir)
+        archived = archive_existing_run(
+            canonical_run_dir, preserve_checkpoints=True
+        )
         if archived is not None:
             print(f"[fresh] Previous run preserved at: {archived}")
         else:
@@ -110,8 +124,29 @@ def main():
         if not requested_checkpoint.is_file():
             raise FileNotFoundError(f"Resume checkpoint not found: {requested_checkpoint}")
 
+    explicit_run_number = (
+        checkpoint_run_number_from_path(Path(args.resume))
+        if args.resume and args.resume != "auto" else None
+    )
+    if explicit_run_number is not None:
+        checkpoint_run_number = explicit_run_number
+    elif (args.mode == "continue" or args.resume) and existing:
+        checkpoint_run_number = latest_checkpoint_run_number(canonical_run_dir)
+        if checkpoint_run_number is None:
+            raise SystemExit(
+                f"Cannot continue {canonical_run_dir}: no numbered checkpoint run exists."
+            )
+    else:
+        checkpoint_run_number = next_checkpoint_run_number(canonical_run_dir)
+    print(f"[checkpoints] Active checkpoint series: run_{checkpoint_run_number}")
+
     algorithm_cls = ALGORITHM_REGISTRY[args.algorithm]
-    runner = ExperimentRunner(cfg, algorithm_cls, algorithm_key=args.algorithm)
+    runner = ExperimentRunner(
+        cfg,
+        algorithm_cls,
+        algorithm_key=args.algorithm,
+        checkpoint_run_number=checkpoint_run_number,
+    )
     if args.train_only:
         runner.run_train_only(resume_checkpoint=resume_checkpoint)
     else:

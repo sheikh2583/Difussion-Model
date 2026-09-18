@@ -704,15 +704,29 @@ python train.py --algorithm mf --config config/mf_full.json --mode continue --ep
 
 # Manual Reflow pair generation (required before training reflow)
 python scripts/generate_reflow_pairs.py ^
-  --checkpoint results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt ^
+  --checkpoint results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt ^
   --config config/fm_full.json ^
   --n-pairs 50000 ^
   --output data/reflow_pairs_cifar10.pt
 ```
 
-Checkpoints are saved under `results/<experiment>_<dataset>/checkpoints/` at the
-configured frequency and at the final epoch. Each `.pt` file is also packaged as
-a self-contained ZIP with weights, config, and metadata. Resumption restores
+Checkpoints are grouped by attempt under
+`results/<experiment>_<dataset>/checkpoints/run_1/`, `run_2/`, and so on. Each
+run directory contains its `.pt` files plus `archive/` with the self-contained
+ZIP files. The underscore avoids quoting problems on Windows and Linux. Run:
+
+```bash
+python scripts/organize_checkpoints.py          # preview legacy migration
+python scripts/organize_checkpoints.py --apply  # move flat files into run_1
+```
+
+Migration refuses name collisions and never overwrites a checkpoint. A fresh
+run archives the previous logs/config/metrics under `results/history/` but keeps
+the complete numbered checkpoint tree in the canonical experiment directory,
+then writes into the next number. Resumption uses only the latest numbered run,
+preventing checkpoints from separate attempts from being mixed.
+Each `.pt` file is also packaged as a self-contained ZIP with weights, config,
+and metadata. Resumption restores
 model state, optimizer, scheduler, AMP scaler, counters, and RNG state.
 If a canonical run directory is non-empty, direct `train.py` calls require an
 explicit `--mode continue` or `--mode fresh`; this prevents accidental metric
@@ -760,7 +774,7 @@ an active analysis item in `PLAN.md`.
 ```bash
 # Re-evaluate a checkpoint at all configured NFE values
 python evaluate.py --algorithm fm \
-  --checkpoint results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt \
+  --checkpoint results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt \
   --config results/fm_cifar10/config.json --make-plots
 
 # Evaluate all available epoch-100 checkpoints
@@ -803,7 +817,7 @@ python scripts/generate_checkpoint_samples.py
 
 # Adaptive Mean Flow inference (per-sample NFE allocation)
 python scripts/sample_mean_flow_extensions.py adaptive \
-  --checkpoint results/mf_cifar10/checkpoints/MeanFlowAlgorithm_epoch100.pt \
+  --checkpoint results/mf_cifar10/checkpoints/run_1/MeanFlowAlgorithm_epoch100.pt \
   --config results/mf_cifar10/config.json
 
 # Coarse-to-fine cascade

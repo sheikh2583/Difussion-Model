@@ -3,12 +3,8 @@ CLI entry point: evaluate a checkpoint without retraining.
 
 Usage
 -----
-    python evaluate.py --algorithm fm         --checkpoint results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt --config config/fm_full.json
-    python evaluate.py --algorithm fm_lognorm  --checkpoint results/fm_lognorm_cifar10/checkpoints/FlowMatchingLognormAlgorithm_epoch100.pt --config config/fm_lognorm_full.json
-    python evaluate.py --algorithm mf           --checkpoint results/mf_cifar10/checkpoints/MeanFlowAlgorithm_epoch100.pt --config config/mf_full.json
-    python evaluate.py --algorithm mf_distill   --checkpoint results/mf_distill_cifar10/checkpoints/MeanFlowDistillAlgorithm_epoch100.pt --config config/mf_distill_full.json
-    python evaluate.py --algorithm consistency  --checkpoint results/consistency_cifar10/checkpoints/ConsistencyAlgorithm_epoch100.pt --config config/consistency_full.json
-    python evaluate.py --algorithm reflow       --checkpoint results/reflow_cifar10/checkpoints/ReflowAlgorithm_epoch100.pt --config config/reflow_full.json
+    python evaluate.py --algorithm fm --checkpoint results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt --config config/fm_full.json
+    python evaluate.py --algorithm mf --checkpoint results/mf_cifar10/checkpoints/run_1/MeanFlowAlgorithm_epoch100.pt --config config/mf_full.json
 
 Add --make-plots to regenerate FID/IS vs NFE curves into results/<experiment>/metrics/plots/.
 """
@@ -24,7 +20,8 @@ from data.dataset_registry import get_dataloaders_for_config
 from evaluation.evaluator import Evaluator, ensure_fid_reference
 from models.backbone import build_backbone
 from sampling.sampler import Sampler
-from utils.checkpoints import load_algorithm_state
+from utils.checkpoints import load_algorithm_state, resolve_checkpoint_reference
+from utils.checkpoint_runs import run_directory_from_checkpoint
 from utils.device import resolve_device
 
 
@@ -47,9 +44,12 @@ def main():
         cfg.experiment_name = args.experiment_name
 
     device = resolve_device(cfg)
-    checkpoint_path = Path(args.checkpoint).resolve()
-    if checkpoint_path.parent.name == "checkpoints":
-        run_dir = str(checkpoint_path.parent.parent)
+    checkpoint_path = resolve_checkpoint_reference(args.checkpoint).resolve()
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    checkpoint_run_dir = run_directory_from_checkpoint(checkpoint_path)
+    if checkpoint_run_dir is not None:
+        run_dir = str(checkpoint_run_dir)
     else:
         suffix = f"_{cfg.dataset.name}"
         run_name = (
@@ -68,7 +68,7 @@ def main():
     algorithm = algorithm_cls(model, algorithm_kwargs=cfg.algorithm_kwargs)
 
     # Load checkpoint — handles both raw state-dicts and trainer payloads
-    state = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    state = torch.load(checkpoint_path, map_location=device, weights_only=False)
     load_algorithm_state(algorithm, state)
 
     for m in algorithm.trainable_modules():

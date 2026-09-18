@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import re
 import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Protocol, Tuple
+
+from utils.checkpoint_runs import latest_epoch_checkpoint
 
 
 class _DatasetConfig(Protocol):
@@ -17,9 +18,6 @@ class _ExperimentConfig(Protocol):
     experiment_name: str
     output_dir: str
     dataset: _DatasetConfig
-
-
-_CHECKPOINT_EPOCH = re.compile(r"_epoch(\d+)\.pt$")
 
 
 def _validate_component(value: str, label: str) -> str:
@@ -47,18 +45,15 @@ def has_run_artifacts(run_dir: Path) -> bool:
 
 
 def latest_checkpoint(run_dir: Path) -> Optional[Tuple[int, Path]]:
-    """Find the numerically latest epoch checkpoint in a run directory."""
-    checkpoint_dir = run_dir / "checkpoints"
-    candidates: list[Tuple[int, Path]] = []
-    if checkpoint_dir.is_dir():
-        for path in checkpoint_dir.glob("*.pt"):
-            match = _CHECKPOINT_EPOCH.search(path.name)
-            if match:
-                candidates.append((int(match.group(1)), path))
-    return max(candidates, key=lambda item: item[0]) if candidates else None
+    """Find the latest epoch in the latest numbered run (legacy-compatible)."""
+    return latest_epoch_checkpoint(run_dir)
 
 
-def archive_existing_run(run_dir: Path, timestamp: Optional[str] = None) -> Optional[Path]:
+def archive_existing_run(
+    run_dir: Path,
+    timestamp: Optional[str] = None,
+    preserve_checkpoints: bool = False,
+) -> Optional[Path]:
     """Move an existing run into timestamped history and return its new path.
 
     This is intentionally recoverable: fresh training never deletes or overwrites
@@ -77,4 +72,9 @@ def archive_existing_run(run_dir: Path, timestamp: Optional[str] = None) -> Opti
         counter += 1
 
     shutil.move(str(run_dir), str(destination))
+    if preserve_checkpoints:
+        archived_checkpoints = destination / "checkpoints"
+        if archived_checkpoints.is_dir():
+            run_dir.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(archived_checkpoints), str(run_dir / "checkpoints"))
     return destination

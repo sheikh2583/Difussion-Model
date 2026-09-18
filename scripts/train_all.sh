@@ -77,7 +77,7 @@ if [[ "$DATASET" == "celeba" ]]; then
   MF_DISTILL_CONFIG="config/mf_distill_celeba64.json"
   CONSISTENCY_CONFIG="config/consistency_celeba64.json"
   REFLOW_CONFIG="config/reflow_celeba64.json"
-  FM_CKPT="results/fm_celeba/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
+  FM_RUN_DIR="results/fm_celeba"
   REFLOW_PAIRS="data/reflow_pairs_celeba.pt"
 else
   FM_CONFIG="config/fm_full.json"
@@ -86,7 +86,7 @@ else
   MF_DISTILL_CONFIG="config/mf_distill_full.json"
   CONSISTENCY_CONFIG="config/consistency_full.json"
   REFLOW_CONFIG="config/reflow_full.json"
-  FM_CKPT="results/fm_cifar10/checkpoints/FlowMatchingAlgorithm_epoch100.pt"
+  FM_RUN_DIR="results/fm_cifar10"
   REFLOW_PAIRS="data/reflow_pairs_cifar10.pt"
 fi
 
@@ -127,6 +127,8 @@ require_file() {
 run_training fm "$FM_CONFIG" "$SKIP_FM"
 run_training fm_lognorm "$FM_LOGNORM_CONFIG" "$SKIP_FM_LOGNORM"
 run_training mf "$MF_CONFIG" "$SKIP_MF"
+FM_CKPT="$("$PYTHON" scripts/checkpoint_path.py --run-dir "$FM_RUN_DIR" \
+  --class-name FlowMatchingAlgorithm --epoch 100 --planned-mode "$MODE")"
 
 if [[ "$SKIP_MF_DISTILL" == false && ( -z "$ONLY" || "$ONLY" == "mf_distill" ) ]]; then
   READY=true

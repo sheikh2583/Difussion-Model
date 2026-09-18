@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import re
 from typing import Any
+from pathlib import Path
+
+from utils.checkpoint_runs import find_checkpoint
 
 
 def _load_module_state(module: Any, state: Mapping[str, Any]) -> None:
@@ -61,3 +65,24 @@ def load_algorithm_state(algorithm: Any, checkpoint: Mapping[str, Any]) -> None:
                 _load_module_state(module, checkpoint[key])
 
     algorithm.load_checkpoint_state(checkpoint.get("algorithm_state"))
+
+
+def resolve_checkpoint_reference(path: str | Path) -> Path:
+    """Resolve a legacy flat checkpoint reference to the latest numbered run.
+
+    Config files keep their stable logical path, while new physical files live
+    under ``checkpoints/run_N``. Existing paths always win.
+    """
+    requested = Path(path)
+    if requested.is_file() or requested.parent.name != "checkpoints":
+        return requested
+    match = re.fullmatch(r"(.+)_epoch(\d+)\.pt", requested.name)
+    if match:
+        resolved = find_checkpoint(
+            requested.parent.parent,
+            class_name=match.group(1),
+            epoch=int(match.group(2)),
+        )
+        if resolved is not None:
+            return resolved
+    return requested

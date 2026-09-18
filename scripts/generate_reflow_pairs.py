@@ -11,7 +11,7 @@ This script:
 
 Usage:
     python scripts/generate_reflow_pairs.py \\
-        --checkpoint results/fm_<dataset>/checkpoints/FlowMatchingAlgorithm_epoch100.pt \\
+        --checkpoint results/fm_<dataset>/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt \\
         --config config/<fm-preset>.json \\
         --n-pairs 50000 \\
         --nfe 50 \\
