@@ -37,6 +37,12 @@ class ResultRecord:
     is_mean: Optional[float] = None
     is_std: Optional[float] = None
 
+    # Traceability fields added 2026-09-18: present in all future evaluation
+    # records so they are self-describing without cross-referencing the
+    # training log.  Legacy records that predate this change will have None.
+    checkpoint_path: Optional[str] = None
+    num_generated_samples: Optional[int] = None
+
 
 class ResultsWriter:
     def __init__(self, output_dir: str, experiment_name: str):

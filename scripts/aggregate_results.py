@@ -167,11 +167,32 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     combined_path = output_dir / "combined_metrics.jsonl"
 
-    inputs = sorted(
+    # Select only the canonical JSONL for each run directory: the file whose
+    # stem matches the run directory name.  This prevents auxiliary files
+    # (e.g. smoke_lognorm.jsonl inside fm_lognorm_rtx3060/metrics/) from
+    # overwriting the real run's evaluation records during deduplication.
+    all_jsonl = sorted(
         path for path in results_root.glob("*/metrics/*.jsonl")
         if path.resolve() != combined_path
         and output_dir not in path.resolve().parents
     )
+    inputs: list[Path] = []
+    seen_run_dirs: set[Path] = set()
+    for path in all_jsonl:
+        run_dir = path.parent.parent
+        if path.stem == run_dir.name:
+            inputs.append(path)
+            seen_run_dirs.add(run_dir)
+    # Warn for any run directory that has metrics files but no canonical one
+    for path in all_jsonl:
+        run_dir = path.parent.parent
+        if run_dir not in seen_run_dirs:
+            print(
+                f"  [WARN] {run_dir.name}: no canonical JSONL found "
+                f"(stem must equal run dir name); skipped {path.name}",
+                file=sys.stderr,
+            )
+            seen_run_dirs.add(run_dir)  # only warn once per dir
     if not inputs:
         print(f"No metric JSONL files found under {results_root}", file=sys.stderr)
         return 1

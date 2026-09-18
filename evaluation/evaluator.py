@@ -113,7 +113,8 @@ class Evaluator:
         self.results = ResultsWriter(run_dir, run_name)
 
     def evaluate(self, sampler: Sampler, nfe_values: List[int],
-                 make_plots: bool = False) -> None:
+                 make_plots: bool = False,
+                 checkpoint_path: str = None) -> None:
         real_images = None
         fid_metric = None
         if "fid" in self.cfg.evaluation.metrics:
@@ -156,6 +157,8 @@ class Evaluator:
                 fid=fid_score,
                 is_mean=is_mean,
                 is_std=is_std,
+                checkpoint_path=checkpoint_path,
+                num_generated_samples=sample_count,
             ))
 
         if make_plots:
