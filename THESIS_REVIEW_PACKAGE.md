@@ -80,6 +80,27 @@ This document is a self-contained technical review dossier intended for a review
 
 ---
 
+### `0ebb766` — 2026-09-18 — `fix(chunk-0): aggregator glob, MF JSONL split, eval traceability` — **Antigravity**
+
+| File | Owner | Change |
+|------|-------|--------|
+| `scripts/aggregate_results.py` | Antigravity | **Fix 0.1** — Canonical JSONL selection: aggregator now only loads the file whose stem matches the run directory name, excluding smoke/auxiliary files. Corrects `fm_lognorm_rtx3060` FID@5: **310.43 → 96.45** |
+| `scripts/forensic_mf_split.py` | Antigravity | **[NEW] Fix 0.2** — Forensic split of `mf_cifar10.jsonl` into run1 (epochs 1–30, batch=32, diverged) and run2 (epochs 31–100, batch=64, stable ~0.40 then late divergence). Original file untouched. |
+| `utils/results.py` | Antigravity | **Fix 0.3** — Added `checkpoint_path` and `num_generated_samples` to `ResultRecord` schema. Legacy records retain `None`. |
+| `evaluation/evaluator.py` | Antigravity | **Fix 0.3** — `evaluate()` now accepts `checkpoint_path=` and writes both traceability fields into every future evaluation record. |
+
+**`summary.csv` diff (values that changed):**
+
+| Run | Field | Before (buggy) | After (correct) |
+|-----|-------|-----------------|-----------------|
+| `fm_lognorm_rtx3060` | `fid_at_5` | 310.43 (from smoke file) | **96.45** (from real run) |
+
+All other rows unchanged. Aggregator now processes 9 files (was 11, excluding `smoke_lognorm.jsonl` and `smoke.jsonl`).
+
+**MF JSONL split finding:** `mf_cifar10.jsonl` contained two concatenated runs. Run 2 (epochs 31–100, batch=64) reached stable loss ~0.40 — the report's claim "abandoned at epoch 30, loss never improved" is factually wrong. Forensic files written to `results/aggregate/forensic/` (gitignored).
+
+---
+
 ### Pending (awaiting user approval to run)
 
 | Gate | What | Status |
