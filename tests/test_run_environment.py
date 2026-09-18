@@ -13,6 +13,10 @@ def test_environment_manifest_and_metrics_share_comparison_identity(tmp_path: Pa
     with (
         patch("utils.run_environment.torch.cuda.is_available", return_value=True),
         patch("utils.run_environment.torch.cuda.get_device_name", return_value="Test GPU"),
+        patch(
+            "utils.run_environment.torch.cuda.get_device_properties",
+            return_value=type("GPU", (), {"total_memory": 24 * 1024 ** 3})(),
+        ),
         patch("utils.run_environment.torch.cuda.device_count", return_value=1),
         patch("utils.run_environment._git_value", side_effect=["abc123", "", ""]),
     ):
@@ -27,9 +31,46 @@ def test_environment_manifest_and_metrics_share_comparison_identity(tmp_path: Pa
     assert latest["session_id"] == metric["session_id"]
     assert metric["machine_label"] == "linux-lab"
     assert metric["gpu_name"] == "Test GPU"
+    assert metric["gpu_memory_gb"] == 24
     assert metric["git_commit"] == "abc123"
     assert metric["git_dirty"] is False
     assert metric["code_identity"] == "abc123"
+
+
+def test_machine_label_is_automatically_derived_from_host_and_gpu(tmp_path: Path) -> None:
+    with (
+        patch.dict("os.environ", {}, clear=True),
+        patch("utils.run_environment.platform.system", return_value="Linux"),
+        patch("utils.run_environment.socket.gethostname", return_value="NDAG-M-Lab"),
+        patch("utils.run_environment.torch.cuda.is_available", return_value=True),
+        patch(
+            "utils.run_environment.torch.cuda.get_device_name",
+            return_value="NVIDIA GeForce RTX 3090",
+        ),
+        patch(
+            "utils.run_environment.torch.cuda.get_device_properties",
+            return_value=type("GPU", (), {"total_memory": 24 * 1024 ** 3})(),
+        ),
+        patch("utils.run_environment.torch.cuda.device_count", return_value=1),
+        patch("utils.run_environment._git_value", side_effect=["abc123", "", ""]),
+    ):
+        metadata = collect_run_environment(tmp_path)
+
+    assert metadata["machine_label"] == (
+        "linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb"
+    )
+
+
+def test_environment_machine_label_override_takes_precedence(tmp_path: Path) -> None:
+    with (
+        patch.dict("os.environ", {"DIFFUSION_MACHINE_LABEL": "my-linux-run"}, clear=True),
+        patch("utils.run_environment.torch.cuda.is_available", return_value=False),
+        patch("utils.run_environment.torch.cuda.device_count", return_value=0),
+        patch("utils.run_environment._git_value", side_effect=["abc123", "", ""]),
+    ):
+        metadata = collect_run_environment(tmp_path)
+
+    assert metadata["machine_label"] == "my-linux-run"
 
 
 def test_environment_history_appends_sessions(tmp_path: Path) -> None:

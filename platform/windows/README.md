@@ -7,7 +7,9 @@ platform\windows\init.cmd
 platform\windows\train_cifar.cmd
 ```
 
-For cross-machine comparisons, label this machine first:
+The machine label is generated automatically from the OS, hostname, GPU, and
+VRAM. No setup is required. To use a shorter custom label instead, optionally
+run:
 
 ```bat
 set DIFFUSION_MACHINE_LABEL=windows-rtx3090

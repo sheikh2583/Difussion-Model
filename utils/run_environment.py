@@ -6,6 +6,7 @@ import json
 import hashlib
 import os
 import platform
+import re
 import socket
 import subprocess
 import sys
@@ -16,6 +17,28 @@ from pathlib import Path
 from typing import Any, Optional
 
 import torch
+
+
+def _machine_label_token(value: str) -> str:
+    """Normalize hardware/host text into a readable label component."""
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", value.lower())).strip("-")
+
+
+def _automatic_machine_label(
+    os_name: str,
+    hostname: str,
+    gpu_name: Optional[str],
+    gpu_memory_gb: Optional[int],
+) -> str:
+    """Build a stable, descriptive label without requiring user setup."""
+    parts = [_machine_label_token(os_name), _machine_label_token(hostname)]
+    if gpu_name:
+        parts.append(_machine_label_token(gpu_name))
+        if gpu_memory_gb is not None:
+            parts.append(f"{gpu_memory_gb}gb")
+    else:
+        parts.append("cpu")
+    return "-".join(part for part in parts if part)
 
 
 def add_config_hash(metadata: dict[str, Any], config: Any) -> dict[str, Any]:
@@ -50,7 +73,7 @@ def collect_run_environment(
 ) -> dict[str, Any]:
     """Return flat, JSON-safe metadata suitable for every result record."""
     hostname = socket.gethostname()
-    label = machine_label or os.environ.get("DIFFUSION_MACHINE_LABEL") or hostname
+    os_name = platform.system()
     commit = _git_value(project_root, "rev-parse", "HEAD")
     dirty_output = _git_value(
         project_root, "status", "--porcelain", "--untracked-files=no"
@@ -64,18 +87,30 @@ def collect_run_environment(
     if commit and diff_sha256:
         code_identity = f"{commit}+dirty:{diff_sha256[:12]}"
     cuda_available = torch.cuda.is_available()
+    gpu_name = torch.cuda.get_device_name(0) if cuda_available else None
+    gpu_memory_gb = (
+        round(torch.cuda.get_device_properties(0).total_memory / (1024 ** 3))
+        if cuda_available
+        else None
+    )
+    label = (
+        machine_label
+        or os.environ.get("DIFFUSION_MACHINE_LABEL")
+        or _automatic_machine_label(os_name, hostname, gpu_name, gpu_memory_gb)
+    )
     return {
         "session_id": uuid.uuid4().hex,
         "session_started_utc": datetime.now(timezone.utc).isoformat(),
         "machine_label": label,
         "hostname": hostname,
-        "os_name": platform.system(),
+        "os_name": os_name,
         "os_release": platform.release(),
         "architecture": platform.machine(),
         "python_version": platform.python_version(),
         "torch_version": torch.__version__,
         "cuda_version": torch.version.cuda,
-        "gpu_name": torch.cuda.get_device_name(0) if cuda_available else None,
+        "gpu_name": gpu_name,
+        "gpu_memory_gb": gpu_memory_gb,
         "gpu_count": torch.cuda.device_count() if cuda_available else 0,
         "git_commit": commit,
         "git_dirty": bool(dirty_output) if dirty_output is not None else None,

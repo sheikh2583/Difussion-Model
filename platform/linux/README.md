@@ -8,7 +8,9 @@ chmod +x platform/linux/*.sh
 ./platform/linux/train_cifar.sh
 ```
 
-For cross-machine comparisons, label this machine first:
+The machine label is generated automatically from the OS, hostname, GPU, and
+VRAM (for example, `linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb`). No setup
+is required. To use a shorter custom label instead, optionally run:
 
 ```bash
 export DIFFUSION_MACHINE_LABEL=linux-rtx3090
