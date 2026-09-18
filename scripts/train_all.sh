@@ -5,7 +5,7 @@
 #                          [--skip-ALGORITHM] [--mode continue|fresh]
 #                          [--batch-size N] [--checkpoint-every N]
 #                          [--train-only] [--dry-run]
-#                          [--machine-label NAME]
+#                          [--machine-label NAME] [--mf-config FILE]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,6 +36,7 @@ BATCH_SIZE=""
 CHECKPOINT_EVERY=10
 TRAIN_ONLY=false
 MACHINE_LABEL=""
+MF_CONFIG_OVERRIDE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -64,6 +65,9 @@ while [[ $# -gt 0 ]]; do
     --machine-label)
       [[ $# -ge 2 ]] || { echo "ERROR: --machine-label requires a value" >&2; exit 2; }
       MACHINE_LABEL="$2"; shift 2 ;;
+    --mf-config)
+      [[ $# -ge 2 ]] || { echo "ERROR: --mf-config requires a value" >&2; exit 2; }
+      MF_CONFIG_OVERRIDE="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -105,6 +109,10 @@ else
   REFLOW_CONFIG="config/reflow_full.json"
   FM_RUN_DIR="results/fm_cifar10"
   REFLOW_PAIRS="data/reflow_pairs_cifar10.pt"
+fi
+
+if [[ -n "$MF_CONFIG_OVERRIDE" ]]; then
+  MF_CONFIG="$MF_CONFIG_OVERRIDE"
 fi
 
 FAILED=0

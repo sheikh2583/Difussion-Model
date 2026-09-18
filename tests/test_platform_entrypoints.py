@@ -40,6 +40,15 @@ def test_platform_wrappers_reference_preserved_entrypoints() -> None:
     ).read_text(encoding="utf-8")
 
 
+def test_linux_cifar_launcher_uses_v3_meanflow_and_tracks_only_text_log() -> None:
+    text = (LINUX_DIR / "train_cifar.sh").read_text(encoding="utf-8")
+    assert "config/mf_v3_exact_jvp_b128.json" in text
+    assert "training_logs/" in text
+    assert 'git add -- "$LOG_RELATIVE"' in text
+    assert 'git commit -m "logs: record CIFAR-10 training' in text
+    assert "--train-only" not in text
+
+
 def test_generated_outputs_remain_ignored() -> None:
     result = subprocess.run(
         [
@@ -58,4 +67,3 @@ def test_generated_outputs_remain_ignored() -> None:
     assert "results/example/checkpoints/run_1/model.pt" in ignored
     assert "data/raw/cifar-10-python.tar.gz" in ignored
     assert "data/reflow_pairs_cifar10.pt" in ignored
-
