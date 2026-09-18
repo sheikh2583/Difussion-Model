@@ -1,58 +1,143 @@
-# Concurrent Development Rules
+# Codex + Antigravity Collaboration Rules
 
-Codex and Antigravity/Claude share this working tree. File changes are visible
-immediately; git pull/push is not a synchronization mechanism between local
-agents.
+Codex and Antigravity/Claude share one filesystem, branch, git index, GPU, and
+results directory. Edits are visible immediately; neither agent should pull to
+synchronize local work.
 
-## Start-of-session checklist
+## Session start
 
-1. Read `PLAN.md` and this file.
-2. Run `git status --short` before editing.
-3. Work only in the file ownership listed in `PLAN.md`.
-4. Treat existing modified or untracked files as another contributor's work
-   unless the plan explicitly assigns them to you.
+Every agent must:
 
-## Collision prevention
+1. Read this file and `PLAN.md` completely.
+2. Run `git status --short` and `git log -3 --oneline`.
+3. Confirm its task is marked `READY` or `IN PROGRESS` in `PLAN.md`.
+4. Touch only its owned paths below. Report a cross-track defect instead of
+   fixing it in the other agent's files.
 
-- Never edit a file owned by the other active track.
-- `AGENTS.md` and `PLAN.md` have one coordinator at a time. The current
-  coordinator is recorded in `PLAN.md`; request a hand-off before editing them.
-- Stage explicit paths only. Do not use `git add .` or commit another track's
-  files.
-- Before committing, inspect `git diff --cached --name-status` and
-  `git diff --cached --check`.
-- Do not rewrite, clean, reset, or delete another agent's changes or local
-  results.
-- The untracked review documents `THESIS_REVIEW_PACKAGE.md` and
-  `verified_findings_and_scaffolded_plan.md` are evidence inputs. Do not edit,
-  stage, or delete them unless `PLAN.md` assigns that work.
+## Current objective
 
-## Runtime and GPU rules
+Prepare a fresh Mean Flow v2 stability experiment without altering the original
+diverged MF evidence. No GPU run is authorized merely by these instructions.
 
-- The completed CIFAR-10 tournament is the current evidence baseline. Do not
-  start new model training unless the user explicitly approves it.
-- Sampling-only evaluation and benchmarks must still use `results/.lock` so
-  two agents do not contend for the GPU.
-- A missing lock file does not grant permission for a long-running job; it only
-  prevents accidental concurrency.
-- Preserve raw JSONL, checkpoints, and generated datasets before forensic
-  changes. Derived aggregate files may be regenerated after their source set is
-  recorded.
+## Fixed file ownership
 
-## Run lifecycle contract
+### Antigravity/Claude — trainer, configuration, and data integrity
 
-- Every training front end exposes `continue` and `fresh` modes.
-- `continue` resumes the numerically latest compatible checkpoint.
-- `fresh` never deletes the previous canonical run. It moves it into
-  `results/history/<run>_<timestamp>/` before starting at epoch 1.
-- Direct training against a non-empty run directory without an explicit mode
-  must fail safely instead of mixing logs or overwriting checkpoints.
-- To extend a completed run, set a total epoch target greater than its latest
-  checkpoint epoch.
+Antigravity exclusively owns during this phase:
 
-## Verification standard
+- `config/config.py`
+- `training/trainer.py`
+- new `config/mf_full_v2.json`
+- new `tests/test_trainer_controls.py`
+- `scripts/aggregate_results.py`
+- `evaluation/`
+- `utils/results.py` and `utils/logging.py`
+- forensic utilities and derived outputs under `results/aggregate/`
 
-Changes must work after a clean clone followed by the platform initializer:
-`INIT_ALL.cmd` on Windows or `./init_all.sh` on Linux. Use the project virtual
-environment, keep paths relative to the repository, and provide equivalent
-Windows/Linux behavior for user-facing scripts.
+Antigravity must not edit Codex-owned files, `algorithms/mean_flow.py`, the old
+`config/mf_full.json`, or the submitted report during this phase.
+
+### Codex — lifecycle, provenance, and MF v2 preflight
+
+Codex exclusively owns during this phase:
+
+- `train.py`
+- `experiments/runner.py`
+- `utils/run_lifecycle.py`
+- new checkpoint/config provenance helpers under `utils/`
+- `tests/test_run_lifecycle.py` and new provenance/preflight tests
+- new MF v2 validation/preflight scripts under `scripts/`
+- MF v2 command documentation in `README.md`
+
+Codex must not edit the trainer/config files owned by Antigravity or any
+algorithm mathematics.
+
+### Frozen evidence and shared files
+
+- `algorithms/mean_flow.py` is read-only until the v2 probe fails and the user
+  explicitly approves an exact-JVP investigation.
+- `config/mf_full.json` and `results/mf_cifar10/` describe the diverged run and
+  must not be modified, moved, merged, or overwritten.
+- `THESIS_REVIEW_PACKAGE.md`, `verified_findings_and_scaffolded_plan.md`, and
+  `docs/RUN 1 logs` are untracked evidence owned by the user. Do not stage,
+  edit, rename, or delete them.
+- `AGENTS.md` and `PLAN.md` are read-only after this coordination commit unless
+  the user explicitly appoints a coordinator for another update.
+
+## Agreed implementation contract
+
+The pasted MF prompt uses field names from a different schema. Implement the
+current repository schema only:
+
+- `epochs`, not `num_epochs`
+- `amp`, not `use_amp`
+- `optim.learning_rate`, not `optim.lr`
+- existing `optim.scheduler`, not a new `lr_scheduler`
+- evaluation settings nested under `evaluation`
+
+Cosine scheduling already exists in `training/trainer.py`, steps once per epoch,
+and is checkpointed. Do not add a second scheduler mechanism. MF v2 uses:
+
+```json
+"optim": {
+  "optimizer": "adamw",
+  "learning_rate": 0.0001,
+  "weight_decay": 0.0001,
+  "gradient_clip_norm": 1.0,
+  "scheduler": "cosine",
+  "scheduler_kwargs": {"eta_min": 0.000001}
+}
+```
+
+Add only `gradient_clip_norm: Optional[float] = None` to `OptimConfig`. With
+AMP, clipping must occur after `GradScaler.unscale_(optimizer)` and before
+`GradScaler.step(optimizer)`. Clip the union of parameters from
+`self.trainable_modules`; `BaseAlgorithm` is not guaranteed to implement
+`.parameters()`.
+
+`mf_full_v2.json` uses the current nested config shape, batch 128, 100 epochs,
+AMP, seed 0, a 5,000-sample evaluation cache with a distinct filename, and the
+requested MF kwargs (`p_same=0.25`, `p_fd_step=0.5`, delta `1e-3` to `1e-4`).
+The controlled `experiment_name="mf_v2"` variant is permitted so its evidence
+lands in `results/mf_v2_cifar10/`; algorithm selection remains `--algorithm mf`.
+
+Do not add EMA or change r-conditioning in this phase. This run intentionally
+tests clipping, cosine decay, batch size, learning rate, weight decay, and delta
+without changing MF mathematics.
+
+## Probe versus full run
+
+The 15-epoch probe and 100-epoch run are separate experiments. Never continue
+the probe to epoch 100: its cosine scheduler checkpoint has `T_max=15`.
+
+- Probe: `mf_v2_probe_cifar10`, 15 epochs, training only.
+- Full: `mf_v2_cifar10`, fresh from epoch 1 with `T_max=100`.
+
+Codex may add a tested `--train-only` path so the probe does not spend time on
+5,000-sample FID. The full run must use the normal evaluation workflow.
+
+## GPU and commit locks
+
+- Any CUDA training, sampling, evaluation, pair generation, or benchmark must
+  acquire `results/.lock` atomically. Record host, PID, UTC start time, and the
+  command/run name. CPU tests and dry runs do not take the GPU lock.
+- Never remove a lock only because it looks old. Verify the same-host PID is
+  dead, or ask the user to confirm it is stale.
+- Lock absence prevents contention; it does not authorize a run. The 15-epoch
+  probe and the full run each require explicit user approval.
+- The git index is also shared. Before staging, acquire the cooperative
+  `results/.agent_git.lock`. Only its owner may stage or commit. Stage explicit
+  paths, inspect `git diff --cached --name-status` and
+  `git diff --cached --check`, commit, then remove the lock. Never use
+  `git add .`.
+
+## Verification and hand-off
+
+- All code must remain usable after clone plus `INIT_ALL.cmd` or
+  `./init_all.sh`.
+- Antigravity runs focused trainer/config tests and records changed paths and
+  test output without launching training.
+- Codex runs lifecycle/provenance/preflight tests and reviews integration
+  without launching training.
+- One agent never commits the other agent's files. When both commits exist,
+  Codex performs the read-only integration audit defined in `PLAN.md`.
