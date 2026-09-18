@@ -5,6 +5,7 @@
 #   .\scripts\run_full_tournament.ps1
 #   .\scripts\run_full_tournament.ps1 -Dataset cifar10
 #   .\scripts\run_full_tournament.ps1 -Dataset celeba -BatchSize 32
+#   .\scripts\run_full_tournament.ps1 -Dataset cifar10 -Mode fresh
 [CmdletBinding()]
 param(
     [ValidateSet("all", "cifar10", "celeba")]
@@ -12,6 +13,8 @@ param(
     [ValidateRange(1, [int]::MaxValue)]
     [int]$Epoch = 100,
     [int]$BatchSize = 0,
+    [ValidateSet("continue", "fresh")]
+    [string]$Mode = "continue",
     [switch]$DryRun
 )
 
@@ -121,7 +124,7 @@ function Invoke-Algorithm {
         [string]$Description
     )
     $Checkpoint = "results/$RunName/checkpoints/${ClassName}_epoch$Epoch.pt"
-    if (Test-Path -LiteralPath $Checkpoint) {
+    if ($Mode -eq "continue" -and (Test-Path -LiteralPath $Checkpoint)) {
         Write-Host ""
         Write-Host "[skip] $Description - checkpoint already exists: $Checkpoint"
         return
@@ -129,7 +132,7 @@ function Invoke-Algorithm {
     Assert-FileReady -Path $Config -Purpose "config"
     $TrainArguments = @(
         "train.py", "--algorithm", $Algorithm, "--config", $Config,
-        "--epochs", "$Epoch", "--resume", "auto"
+        "--epochs", "$Epoch", "--mode", $Mode
     )
     if ($BatchSize -gt 0) {
         $TrainArguments += @("--batch-size", "$BatchSize")
@@ -182,7 +185,20 @@ function Invoke-DatasetTournament {
     Invoke-Algorithm "mf_distill" $Configs.mf_distill "mf_distill_$Name" `
         "MeanFlowDistillAlgorithm" "[5/7] Mean Flow Distillation - $Name"
 
-    if (Test-Path -LiteralPath $Pairs) {
+    if ($Mode -eq "fresh" -and (Test-Path -LiteralPath $Pairs)) {
+        $HistoryDir = Join-Path $ProjectRoot "data\history"
+        $PairName = [System.IO.Path]::GetFileNameWithoutExtension($Pairs)
+        $PairExtension = [System.IO.Path]::GetExtension($Pairs)
+        $ArchivedPairs = Join-Path $HistoryDir "${PairName}_${Timestamp}_pid${PID}${PairExtension}"
+        Write-Host ""
+        Write-Host "[preserve] [6/7] Existing Reflow pairs: $Pairs -> $ArchivedPairs"
+        if (-not $DryRun) {
+            New-Item -ItemType Directory -Force -Path $HistoryDir | Out-Null
+            Move-Item -LiteralPath $Pairs -Destination $ArchivedPairs
+        }
+    }
+
+    if ($Mode -eq "continue" -and (Test-Path -LiteralPath $Pairs)) {
         Write-Host ""
         Write-Host "[skip] [6/7] Reflow pair generation - artifact exists: $Pairs"
     } else {
@@ -206,7 +222,11 @@ try {
     Start-Transcript -LiteralPath $LogFile | Out-Null
     $TranscriptStarted = $true
     Write-Host "Logging to $LogFile"
-    Write-Host "Completed epoch-$Epoch checkpoints and existing pair artifacts will be skipped."
+    if ($Mode -eq "continue") {
+        Write-Host "Continue mode: completed epoch-$Epoch checkpoints and existing pair artifacts will be skipped."
+    } else {
+        Write-Host "Fresh mode: existing runs are preserved by train.py and Reflow pairs are archived before regeneration."
+    }
 
     $Datasets = if ($Dataset -eq "all") { @("cifar10", "celeba") } else { @($Dataset) }
     foreach ($Name in $Datasets) {

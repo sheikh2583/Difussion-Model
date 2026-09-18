@@ -22,6 +22,7 @@
 #                         config/mf_celeba64.json        (MF on CelebA 64x64)
 #   -n, --name        Override experiment_name in the config
 #   -e, --epochs      Override epoch count from the config
+#   -m, --mode        continue | fresh (default: continue)
 #   -h, --help        Show this message
 #
 # Examples:
@@ -45,6 +46,7 @@ ALGORITHM="fm"
 CONFIG=""
 EXPERIMENT_NAME=""
 EPOCHS=""
+MODE="continue"
 
 # ---------------------------------------------------------------------------
 # Parse arguments
@@ -55,11 +57,17 @@ while [[ $# -gt 0 ]]; do
         -c|--config)     CONFIG="$2"; shift 2 ;;
         -n|--name)       EXPERIMENT_NAME="$2"; shift 2 ;;
         -e|--epochs)     EPOCHS="$2"; shift 2 ;;
+        -m|--mode)       MODE="$2"; shift 2 ;;
         -h|--help)
             sed -n '2,/^# ===/p' "$0"; exit 0 ;;
         *) echo "Unknown argument: $1"; exit 1 ;;
     esac
 done
+
+case "$MODE" in
+    continue|fresh) ;;
+    *) echo "ERROR: --mode must be continue or fresh" >&2; exit 2 ;;
+esac
 
 # ---------------------------------------------------------------------------
 # Activate virtual environment
@@ -81,7 +89,7 @@ export PYTHONPATH="$PROJECT_ROOT"
 # ---------------------------------------------------------------------------
 # Build argument list
 # ---------------------------------------------------------------------------
-ARGS=("train.py" "--algorithm" "$ALGORITHM")
+ARGS=("train.py" "--algorithm" "$ALGORITHM" "--mode" "$MODE")
 [[ -n "$CONFIG" ]]          && ARGS+=("--config" "$CONFIG")
 [[ -n "$EXPERIMENT_NAME" ]] && ARGS+=("--experiment-name" "$EXPERIMENT_NAME")
 [[ -n "$EPOCHS" ]]          && ARGS+=("--epochs" "$EPOCHS")
@@ -92,6 +100,7 @@ ARGS=("train.py" "--algorithm" "$ALGORITHM")
 echo "=== DiffusionProject Training ==="
 echo "Algorithm : $ALGORITHM"
 echo "Config    : ${CONFIG:-(defaults)}"
+echo "Mode      : $MODE"
 echo "Command   : python ${ARGS[*]}"
 echo ""
 

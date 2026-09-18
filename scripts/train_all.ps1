@@ -1,6 +1,6 @@
 # Train the supported algorithm suite in dependency order.
 # Usage: .\scripts\train_all.ps1 [-Dataset cifar10|celeba] [-Only ALGORITHM]
-#                                  [-SkipReflow] [-DryRun]
+#                                  [-SkipReflow] [-Mode continue|fresh] [-DryRun]
 [CmdletBinding()]
 param(
     [switch]$SkipFm,
@@ -13,6 +13,8 @@ param(
     [string]$Only = "",
     [ValidateSet("cifar10", "celeba")]
     [string]$Dataset = "cifar10",
+    [ValidateSet("continue", "fresh")]
+    [string]$Mode = "continue",
     [switch]$DryRun
 )
 Set-StrictMode -Version Latest
@@ -55,9 +57,9 @@ function Invoke-Training {
         $script:Failed = $true
         return
     }
-    Write-Host "[PLAN] $Python train.py --algorithm $Algorithm --config $Config --resume auto"
+    Write-Host "[PLAN] $Python train.py --algorithm $Algorithm --config $Config --mode $Mode"
     if (-not $DryRun) {
-        & $Python train.py --algorithm $Algorithm --config $Config --resume auto
+        & $Python train.py --algorithm $Algorithm --config $Config --mode $Mode
         if ($LASTEXITCODE -ne 0) { throw "Training failed: $Algorithm" }
     }
 }
@@ -94,9 +96,21 @@ if (-not $SkipConsistency -and (-not $Only -or $Only -eq "consistency")) {
     }
 }
 if (-not $SkipReflow -and (-not $Only -or $Only -eq "reflow")) {
-    if (-not (Test-Path -LiteralPath $ReflowPairs)) {
+    if ($Mode -eq "fresh" -and (Test-Path -LiteralPath $ReflowPairs)) {
+        $HistoryDir = Join-Path $ProjectRoot "data\history"
+        $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        $PairName = [System.IO.Path]::GetFileNameWithoutExtension($ReflowPairs)
+        $PairExtension = [System.IO.Path]::GetExtension($ReflowPairs)
+        $ArchivedPairs = Join-Path $HistoryDir "${PairName}_${Timestamp}_pid${PID}${PairExtension}"
+        Write-Host "[PLAN] Preserve existing Reflow pairs: $ReflowPairs -> $ArchivedPairs"
+        if (-not $DryRun) {
+            New-Item -ItemType Directory -Force -Path $HistoryDir | Out-Null
+            Move-Item -LiteralPath $ReflowPairs -Destination $ArchivedPairs
+        }
+    }
+    if ($Mode -eq "fresh" -or -not (Test-Path -LiteralPath $ReflowPairs)) {
         $TeacherReady = Test-Prerequisite $FmCheckpoint "FM teacher checkpoint"
-        if ($TeacherReady) {
+        if ($TeacherReady -or $DryRun) {
             Write-Host "[PLAN] Generate Reflow pairs: $ReflowPairs"
             if (-not $DryRun) {
                 & $Python scripts/generate_reflow_pairs.py `

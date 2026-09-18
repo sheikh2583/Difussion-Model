@@ -54,7 +54,10 @@ param(
 
     [string]$ExperimentName = "",
 
-    [int]$Epochs = 0
+    [int]$Epochs = 0,
+
+    [ValidateSet("continue", "fresh")]
+    [string]$Mode = "continue"
 )
 
 Set-StrictMode -Version Latest
@@ -83,7 +86,7 @@ $env:PYTHONPATH = $ProjectRoot
 # ---------------------------------------------------------------------------
 # Build the argument list
 # ---------------------------------------------------------------------------
-$Args = @("train.py", "--algorithm", $Algorithm)
+$Args = @("train.py", "--algorithm", $Algorithm, "--mode", $Mode)
 
 if ($Config -ne "") {
     $Args += @("--config", $Config)
@@ -101,6 +104,7 @@ if ($Epochs -gt 0) {
 Write-Host "=== DiffusionProject Training ===" -ForegroundColor Cyan
 Write-Host "Algorithm : $Algorithm"
 Write-Host "Config    : $(if ($Config) { $Config } else { '(defaults)' })"
+Write-Host "Mode      : $Mode"
 Write-Host "Command   : python $($Args -join ' ')"
 Write-Host ""
 

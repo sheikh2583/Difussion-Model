@@ -40,7 +40,8 @@ local browser UI for inspecting trained models.
 
 1. Double-click **`INIT_ALL.cmd`** — installs Python, creates the environment,
    downloads CIFAR-10 and CelebA.
-2. Double-click **`TRAIN.cmd`** — choose a model from the menu and confirm.
+2. Double-click **`TRAIN.cmd`** — choose a model, then choose whether to
+   continue its existing run or preserve it and start fresh.
 
 **Linux:**
 
@@ -53,12 +54,12 @@ local browser UI for inspecting trained models.
 
 ```bash
 # Smoke test — CPU safe, ~30 s
-python train.py --algorithm mock --config config/smoke_fast.json
+python train.py --algorithm mock --config config/smoke_fast.json --mode fresh
 
 # Train the three core thesis algorithms
-python train.py --algorithm fm         --config config/fm_full.json
-python train.py --algorithm fm_lognorm --config config/fm_lognorm_full.json
-python train.py --algorithm mf         --config config/mf_full.json
+python train.py --algorithm fm         --config config/fm_full.json --mode fresh
+python train.py --algorithm fm_lognorm --config config/fm_lognorm_full.json --mode fresh
+python train.py --algorithm mf         --config config/mf_full.json --mode fresh
 
 # Full tournament — trains all six algorithms in dependency order
 .\scripts\run_full_tournament.ps1 -Dataset cifar10   # Windows
@@ -88,7 +89,7 @@ The high-level contrast between the three main thesis algorithms:
 ## Repository Map
 
 ```text
-train.py                 CLI entry point: --algorithm, --config, --resume
+train.py                 CLI entry point: --algorithm, --config, --mode
 evaluate.py              Re-evaluate any checkpoint at arbitrary NFE values
 bootstrap.py             Cross-platform environment & dataset setup
 
@@ -670,19 +671,27 @@ A contribution to **research methodology**, not just software engineering:
 ## Training
 
 ```bash
-# Single algorithm
-python train.py --algorithm fm          --config config/fm_full.json
-python train.py --algorithm fm_lognorm  --config config/fm_lognorm_full.json
-python train.py --algorithm mf          --config config/mf_full.json
-python train.py --algorithm mf_distill  --config config/mf_distill_full.json
-python train.py --algorithm consistency --config config/consistency_full.json
+# Start a new single-algorithm run. Any existing canonical run is first moved
+# into results/history/<run>_<timestamp>/ so it remains recoverable.
+python train.py --algorithm fm          --config config/fm_full.json          --mode fresh
+python train.py --algorithm fm_lognorm  --config config/fm_lognorm_full.json  --mode fresh
+python train.py --algorithm mf          --config config/mf_full.json          --mode fresh
+python train.py --algorithm mf_distill  --config config/mf_distill_full.json  --mode fresh
+python train.py --algorithm consistency --config config/consistency_full.json --mode fresh
 
-# Resume the latest checkpoint automatically
-python train.py --algorithm mf --config config/mf_full.json --resume auto
+# Continue the latest checkpoint to its configured target
+python train.py --algorithm mf --config config/mf_full.json --mode continue
+
+# Extend a completed epoch-100 run to a total of 110 epochs
+python train.py --algorithm mf --config config/mf_full.json --mode continue --epochs 110
 
 # Full tournament (all six algorithms, dependency order, skips completed runs)
 .\scripts\run_full_tournament.ps1 -Dataset cifar10   # Windows
 ./scripts/run_full_tournament.sh  --dataset cifar10  # Linux
+
+# Start the whole tournament fresh while preserving old runs and Reflow pairs
+.\scripts\run_full_tournament.ps1 -Dataset cifar10 -Mode fresh
+./scripts/run_full_tournament.sh  --dataset cifar10 --mode fresh
 
 # Dry run — prints plan, starts nothing
 .\scripts\run_full_tournament.ps1 -DryRun
@@ -699,6 +708,18 @@ Checkpoints are saved under `results/<experiment>_<dataset>/checkpoints/` at the
 configured frequency and at the final epoch. Each `.pt` file is also packaged as
 a self-contained ZIP with weights, config, and metadata. Resumption restores
 model state, optimizer, scheduler, AMP scaler, counters, and RNG state.
+If a canonical run directory is non-empty, direct `train.py` calls require an
+explicit `--mode continue` or `--mode fresh`; this prevents accidental metric
+mixing and checkpoint replacement. The beginner menu asks the same question.
+
+### Latest local tournament status
+
+The six-algorithm CIFAR-10 tournament completed on 18 September 2026, including
+epoch-100 checkpoints, evaluation, and aggregation. Its local transcript is
+`results/tournament_run_20260917_143512_pid10672.log`. These generated artifacts
+remain gitignored and therefore are not included in a fresh clone. Completion
+does not imply convergence: the MF run showed late loss divergence and remains
+an active analysis item in `PLAN.md`.
 
 ---
 

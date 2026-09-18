@@ -6,6 +6,7 @@
 #   ./scripts/run_full_tournament.sh
 #   ./scripts/run_full_tournament.sh --dataset cifar10
 #   ./scripts/run_full_tournament.sh --dataset celeba --batch-size 32
+#   ./scripts/run_full_tournament.sh --dataset cifar10 --mode fresh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,6 +27,7 @@ DATASET="all"
 EPOCH=100
 BATCH_SIZE=0
 DRY_RUN=false
+MODE="continue"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dataset)
@@ -37,6 +39,9 @@ while [[ $# -gt 0 ]]; do
     --batch-size)
       [[ $# -ge 2 ]] || { echo "ERROR: --batch-size requires a value" >&2; exit 2; }
       BATCH_SIZE="$2"; shift 2 ;;
+    --mode)
+      [[ $# -ge 2 ]] || { echo "ERROR: --mode requires a value" >&2; exit 2; }
+      MODE="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -47,6 +52,9 @@ done
 
 case "$DATASET" in all|cifar10|celeba) ;; *)
   echo "ERROR: --dataset must be all, cifar10, or celeba" >&2; exit 2 ;;
+esac
+case "$MODE" in continue|fresh) ;; *)
+  echo "ERROR: --mode must be continue or fresh" >&2; exit 2 ;;
 esac
 [[ "$EPOCH" =~ ^[1-9][0-9]*$ ]] || {
   echo "ERROR: --epoch must be a positive integer" >&2; exit 2;
@@ -126,7 +134,7 @@ require_file() {
 run_algorithm() {
   local algorithm=$1 config=$2 run_name=$3 class_name=$4 description=$5
   local checkpoint="results/${run_name}/checkpoints/${class_name}_epoch${EPOCH}.pt"
-  if [[ -f "$checkpoint" ]]; then
+  if [[ "$MODE" == "continue" && -f "$checkpoint" ]]; then
     echo ""
     echo "[skip] $description - checkpoint already exists: $checkpoint"
     return 0
@@ -134,7 +142,7 @@ run_algorithm() {
   require_file "$config" "config"
   local train_args=(
     train.py --algorithm "$algorithm" --config "$config"
-    --epochs "$EPOCH" --resume auto
+    --epochs "$EPOCH" --mode "$MODE"
   )
   if [[ "$BATCH_SIZE" -gt 0 ]]; then
     train_args+=(--batch-size "$BATCH_SIZE")
@@ -183,7 +191,20 @@ run_dataset() {
   run_algorithm mf_distill "$mf_distill_config" "mf_distill_${name}" \
     MeanFlowDistillAlgorithm "[5/7] Mean Flow Distillation - $name"
 
-  if [[ -f "$pairs" ]]; then
+  if [[ "$MODE" == "fresh" && -f "$pairs" ]]; then
+    local history_dir="data/history"
+    local pair_basename="${pairs##*/}"
+    local pair_stem="${pair_basename%.pt}"
+    local archived_pairs="$history_dir/${pair_stem}_$(date +%Y%m%d_%H%M%S)_pid$$.pt"
+    echo ""
+    echo "[preserve] [6/7] Existing Reflow pairs: $pairs -> $archived_pairs"
+    if [[ "$DRY_RUN" == false ]]; then
+      mkdir -p "$history_dir"
+      mv -- "$pairs" "$archived_pairs"
+    fi
+  fi
+
+  if [[ "$MODE" == "continue" && -f "$pairs" ]]; then
     echo ""
     echo "[skip] [6/7] Reflow pair generation - artifact exists: $pairs"
   else
@@ -200,7 +221,11 @@ run_dataset() {
 }
 
 echo "Logging to $LOG_FILE"
-echo "Completed epoch-$EPOCH checkpoints and existing pair artifacts will be skipped."
+if [[ "$MODE" == "continue" ]]; then
+  echo "Continue mode: completed epoch-$EPOCH checkpoints and existing pair artifacts will be skipped."
+else
+  echo "Fresh mode: existing runs are preserved by train.py and Reflow pairs are archived before regeneration."
+fi
 
 if [[ "$DATASET" == "all" || "$DATASET" == "cifar10" ]]; then
   run_dataset cifar10

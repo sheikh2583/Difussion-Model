@@ -14,10 +14,17 @@ Output directory is derived automatically: results/<experiment_name>_<dataset.na
 So switching datasets in the config automatically routes to a new directory.
 """
 import argparse
+from pathlib import Path
 
 from algorithms import ALGORITHM_REGISTRY
 from config.config import ExperimentConfig
 from experiments.runner import ExperimentRunner
+from utils.run_lifecycle import (
+    archive_existing_run,
+    has_run_artifacts,
+    latest_checkpoint,
+    run_directory,
+)
 
 
 def parse_args():
@@ -26,7 +33,8 @@ def parse_args():
         "--algorithm",
         choices=list(ALGORITHM_REGISTRY.keys()),
         required=True,
-        help="Algorithm to train: fm | fm_lognorm | mf | mf_distill",
+        help=("Registered algorithm key, including fm, fm_lognorm, mf, "
+              "mf_distill, consistency, reflow, or mock."),
     )
     parser.add_argument(
         "--config", type=str, default=None,
@@ -39,9 +47,17 @@ def parse_args():
                         help="Override epochs from config.")
     parser.add_argument("--batch-size", type=int, default=None,
                         help="Override batch size from config (useful for low-memory runs).")
-    parser.add_argument(
+    start_group = parser.add_mutually_exclusive_group()
+    start_group.add_argument(
+        "--mode",
+        choices=("continue", "fresh"),
+        help=("Run lifecycle: 'continue' resumes the latest checkpoint; 'fresh' "
+              "archives any existing run before starting at epoch 1."),
+    )
+    start_group.add_argument(
         "--resume", type=str, default=None,
-        help="Resume from a checkpoint path, or use 'auto' for the latest checkpoint.",
+        help=("Legacy/advanced resume option: checkpoint path or 'auto'. "
+              "Prefer --mode continue for normal use."),
     )
     return parser.parse_args()
 
@@ -51,17 +67,60 @@ def main():
     cfg  = ExperimentConfig.load(args.config) if args.config else ExperimentConfig()
     if args.experiment_name:
         cfg.experiment_name = args.experiment_name
-    if args.epochs:
+    if args.epochs is not None:
+        if args.epochs < 1:
+            raise ValueError("--epochs must be at least 1")
         cfg.epochs = args.epochs
     if args.batch_size is not None:
         if args.batch_size < 1:
             raise ValueError("--batch-size must be at least 1")
         cfg.batch_size = args.batch_size
 
+    project_root = Path(__file__).resolve().parent
+    canonical_run_dir = run_directory(cfg, project_root)
+    existing = has_run_artifacts(canonical_run_dir)
+
+    resume_checkpoint = args.resume
+    if args.mode == "fresh":
+        archived = archive_existing_run(canonical_run_dir)
+        if archived is not None:
+            print(f"[fresh] Previous run preserved at: {archived}")
+        else:
+            print("[fresh] No previous run artifacts found; starting at epoch 1.")
+    elif args.mode == "continue":
+        resume_checkpoint = "auto"
+        if existing:
+            if latest_checkpoint(canonical_run_dir) is None:
+                raise SystemExit(
+                    f"Cannot continue {canonical_run_dir}: it contains artifacts but "
+                    "no epoch checkpoint. Choose --mode fresh to preserve that "
+                    "directory and restart safely."
+                )
+            print(f"[continue] Resuming the latest checkpoint in: {canonical_run_dir}")
+        else:
+            print("[continue] No previous run found; starting the first run at epoch 1.")
+    elif resume_checkpoint is None and existing:
+        raise SystemExit(
+            f"Run artifacts already exist at {canonical_run_dir}. "
+            "Choose --mode continue to resume or --mode fresh to preserve them "
+            "in results/history and restart from epoch 1."
+        )
+
+    if resume_checkpoint == "auto" and existing:
+        if latest_checkpoint(canonical_run_dir) is None:
+            raise SystemExit(
+                f"Cannot auto-resume {canonical_run_dir}: no epoch checkpoint exists. "
+                "Use --mode fresh to preserve it and restart safely."
+            )
+    elif resume_checkpoint:
+        requested_checkpoint = Path(resume_checkpoint)
+        if not requested_checkpoint.is_file():
+            raise FileNotFoundError(f"Resume checkpoint not found: {requested_checkpoint}")
+
     algorithm_cls = ALGORITHM_REGISTRY[args.algorithm]
     runner = ExperimentRunner(cfg, algorithm_cls)
     cfg.save(f"{runner.run_dir}/config.json")
-    runner.run_full(resume_checkpoint=args.resume)
+    runner.run_full(resume_checkpoint=resume_checkpoint)
 
 
 if __name__ == "__main__":

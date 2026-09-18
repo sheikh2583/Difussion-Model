@@ -2,7 +2,7 @@
 # Train the supported algorithm suite in dependency order.
 # Usage:
 #   ./scripts/train_all.sh [--dataset cifar10|celeba] [--only ALGORITHM]
-#                          [--skip-ALGORITHM] [--dry-run]
+#                          [--skip-ALGORITHM] [--mode continue|fresh] [--dry-run]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,6 +28,7 @@ SKIP_REFLOW=false
 ONLY=""
 DATASET="cifar10"
 DRY_RUN=false
+MODE="continue"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,6 +44,9 @@ while [[ $# -gt 0 ]]; do
     --dataset)
       [[ $# -ge 2 ]] || { echo "ERROR: --dataset requires a value" >&2; exit 2; }
       DATASET="$2"; shift 2 ;;
+    --mode)
+      [[ $# -ge 2 ]] || { echo "ERROR: --mode requires a value" >&2; exit 2; }
+      MODE="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -59,6 +63,11 @@ esac
 case "$ONLY" in
   ""|fm|fm_lognorm|mf|mf_distill|consistency|reflow) ;;
   *) echo "ERROR: unknown algorithm for --only: $ONLY" >&2; exit 2 ;;
+esac
+
+case "$MODE" in
+  continue|fresh) ;;
+  *) echo "ERROR: --mode must be continue or fresh" >&2; exit 2 ;;
 esac
 
 if [[ "$DATASET" == "celeba" ]]; then
@@ -94,9 +103,9 @@ run_training() {
     FAILED=1
     return 0
   fi
-  echo "[PLAN] $PYTHON train.py --algorithm $algorithm --config $config --resume auto"
+  echo "[PLAN] $PYTHON train.py --algorithm $algorithm --config $config --mode $MODE"
   if [[ "$DRY_RUN" == false ]]; then
-    "$PYTHON" train.py --algorithm "$algorithm" --config "$config" --resume auto
+    "$PYTHON" train.py --algorithm "$algorithm" --config "$config" --mode "$MODE"
   fi
 }
 
@@ -134,10 +143,22 @@ if [[ "$SKIP_CONSISTENCY" == false && ( -z "$ONLY" || "$ONLY" == "consistency" )
   fi
 fi
 if [[ "$SKIP_REFLOW" == false && ( -z "$ONLY" || "$ONLY" == "reflow" ) ]]; then
-  if [[ ! -f "$REFLOW_PAIRS" ]]; then
+  if [[ "$MODE" == "fresh" && -f "$REFLOW_PAIRS" ]]; then
+    HISTORY_DIR="data/history"
+    TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+    PAIR_BASENAME="${REFLOW_PAIRS##*/}"
+    PAIR_STEM="${PAIR_BASENAME%.pt}"
+    ARCHIVED_PAIRS="$HISTORY_DIR/${PAIR_STEM}_${TIMESTAMP}_pid$$.pt"
+    echo "[PLAN] Preserve existing Reflow pairs: $REFLOW_PAIRS -> $ARCHIVED_PAIRS"
+    if [[ "$DRY_RUN" == false ]]; then
+      mkdir -p "$HISTORY_DIR"
+      mv -- "$REFLOW_PAIRS" "$ARCHIVED_PAIRS"
+    fi
+  fi
+  if [[ "$MODE" == "fresh" || ! -f "$REFLOW_PAIRS" ]]; then
     READY=true
     require_file "$FM_CKPT" "FM teacher checkpoint" || READY=false
-    if [[ "$READY" == true ]]; then
+    if [[ "$READY" == true || "$DRY_RUN" == true ]]; then
       echo "[PLAN] Generate Reflow pairs: $REFLOW_PAIRS"
       if [[ "$DRY_RUN" == false ]]; then
         "$PYTHON" scripts/generate_reflow_pairs.py \

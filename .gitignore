@@ -24,6 +24,7 @@ tmp/
 # Keep Python packages under data/ and models/ tracked; ignore only artifacts.
 data/raw/
 data/reflow_pairs_*.pt
+data/history/
 models/checkpoints/
 results/
 *.pdf

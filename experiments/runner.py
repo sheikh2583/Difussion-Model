@@ -98,6 +98,12 @@ class ExperimentRunner:
             resolved = self._resolve_resume_checkpoint(resume_checkpoint)
             if resolved:
                 start_epoch = trainer.load_checkpoint(resolved) + 1
+        if start_epoch > self.cfg.epochs:
+            print(
+                f"[continue] Run is already complete at epoch {start_epoch - 1}; "
+                f"target is {self.cfg.epochs}. Increase --epochs to extend it."
+            )
+            return trainer
         trainer.fit(start_epoch=start_epoch)
         return trainer
 
