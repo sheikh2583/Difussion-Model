@@ -78,7 +78,8 @@ def main():
     sampler   = Sampler(algorithm, device, run_dir, run_name, cfg.seed)
     evaluator = Evaluator(cfg, run_dir, device)
     evaluator.evaluate(sampler, nfe_values=cfg.evaluation.nfe_values,
-                       make_plots=args.make_plots)
+                       make_plots=args.make_plots,
+                       checkpoint_path=str(checkpoint_path))
 
 
 if __name__ == "__main__":

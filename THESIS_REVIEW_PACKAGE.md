@@ -101,6 +101,20 @@ All other rows unchanged. Aggregator now processes 9 files (was 11, excluding `s
 
 ---
 
+---
+
+### `b01e22f` — 2026-09-18 — `feat(C1): pass checkpoint_path to evaluation` — **Codex**
+
+| File | Owner | Change |
+|------|-------|--------|
+| `experiments/runner.py` | Codex | **Fix AGY-001** — Pass the actual `checkpoint_path` to `evaluator.evaluate()` in `_eval_hook` and `run_full`. |
+| `evaluate.py` | Codex | **Fix AGY-001** — Pass the actual `checkpoint_path` to `evaluator.evaluate()`. |
+| `CROSS_TRACK.md` | Both | **Resolve AGY-001**, Acknowledge AGY-002 and AGY-003. |
+
+**Purpose:** Completes the implementation of C1 by ensuring that the traceability fields `checkpoint_path` and `num_generated_samples` introduced by Antigravity in `ResultRecord` are properly populated by the calling code.
+
+---
+
 ### Pending (awaiting user approval to run)
 
 | Gate | What | Status |

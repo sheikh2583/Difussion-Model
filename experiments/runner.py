@@ -72,7 +72,13 @@ class ExperimentRunner:
                                 run_name, cfg.seed)
 
     def _eval_hook(self, epoch: int) -> None:
-        self.evaluator.evaluate(self.sampler, nfe_values=self.cfg.evaluation.nfe_values)
+        checkpoint_dir = checkpoint_run_directory(Path(self.run_dir), self.checkpoint_run_number)
+        checkpoint_path = checkpoint_dir / f"{self.algorithm.name()}_epoch{epoch}.pt"
+        self.evaluator.evaluate(
+            self.sampler,
+            nfe_values=self.cfg.evaluation.nfe_values,
+            checkpoint_path=str(checkpoint_path)
+        )
 
     def _resolve_resume_checkpoint(self, requested: str) -> str:
         if requested != "auto":
@@ -145,8 +151,12 @@ class ExperimentRunner:
         # The trainer evaluates at configured epoch intervals. Do not repeat
         # the full evaluation when the final epoch has just triggered that hook.
         if self.cfg.epochs % self.cfg.evaluation.eval_frequency_epochs != 0:
+            checkpoint_dir = checkpoint_run_directory(Path(self.run_dir), self.checkpoint_run_number)
+            checkpoint_path = checkpoint_dir / f"{self.algorithm.name()}_epoch{self.cfg.epochs}.pt"
             self.evaluator.evaluate(
-                self.sampler, nfe_values=self.cfg.evaluation.nfe_values
+                self.sampler,
+                nfe_values=self.cfg.evaluation.nfe_values,
+                checkpoint_path=str(checkpoint_path)
             )
 
     def run_train_only(self, resume_checkpoint: Optional[str] = None) -> None:
