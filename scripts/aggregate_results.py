@@ -11,13 +11,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 os.chdir(PROJECT_ROOT)
 
 from utils.plots import (
-    plot_fid_vs_nfe,
     plot_fid_vs_sampling_time,
     plot_gpu_memory_comparison,
     plot_is_vs_nfe,
@@ -107,6 +108,18 @@ def build_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             for row in algorithm_records
             if row.get("record_type") == "evaluation"
         }
+        evaluation_rows = [
+            row for row in algorithm_records
+            if row.get("record_type") == "evaluation"
+        ]
+        sample_count = next(
+            (
+                row.get("num_generated_samples")
+                for row in reversed(evaluation_rows)
+                if row.get("num_generated_samples") is not None
+            ),
+            "unknown",
+        )
         last_training = training[-1] if training else {}
         rows.append({
             "experiment": algorithm,
@@ -126,14 +139,71 @@ def build_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 ),
                 default=None,
             ),
+            "num_generated_samples": sample_count,
             "fid_at_1": (evaluations.get(1) or {}).get("fid"),
+            "fid_at_2": (evaluations.get(2) or {}).get("fid"),
             "fid_at_5": (evaluations.get(5) or {}).get("fid"),
+            "fid_at_10": (evaluations.get(10) or {}).get("fid"),
             "fid_at_20": (evaluations.get(20) or {}).get("fid"),
+            "fid_at_50": (evaluations.get(50) or {}).get("fid"),
+            "fid_at_100": (evaluations.get(100) or {}).get("fid"),
             "is_at_1": (evaluations.get(1) or {}).get("is_mean"),
+            "is_at_2": (evaluations.get(2) or {}).get("is_mean"),
             "is_at_5": (evaluations.get(5) or {}).get("is_mean"),
+            "is_at_10": (evaluations.get(10) or {}).get("is_mean"),
             "is_at_20": (evaluations.get(20) or {}).get("is_mean"),
+            "is_at_50": (evaluations.get(50) or {}).get("is_mean"),
+            "is_at_100": (evaluations.get(100) or {}).get("is_mean"),
         })
     return rows
+
+
+PRIMARY_EXPERIMENTS = {
+    "fm_cifar10_5k": "FM (5k)",
+    "fm_lognorm_cifar10": "FM-LN (5k)",
+    "mf_distill_cifar10": "MF-Distill",
+    "consistency_cifar10": "Consistency",
+    "reflow_cifar10": "Reflow",
+}
+
+BUDGET_EXPERIMENTS = {
+    "fm_cifar10": "FM (legacy budget)",
+    "fm_lognorm_rtx3060": "FM-LN (budget comparison)",
+}
+
+
+def plot_fid_subset(
+    records: list[dict[str, Any]],
+    experiments: dict[str, str],
+    out_path: Path,
+    title: str,
+) -> None:
+    """Render a controlled FID comparison without unrelated runs."""
+    plt.figure()
+    for experiment, label in experiments.items():
+        rows = sorted(
+            (
+                row for row in records
+                if row.get("experiment") == experiment
+                and row.get("record_type") == "evaluation"
+                and row.get("fid") is not None
+            ),
+            key=lambda row: row.get("nfe") or -1,
+        )
+        if rows:
+            plt.plot(
+                [row["nfe"] for row in rows],
+                [row["fid"] for row in rows],
+                marker="o",
+                label=label,
+            )
+    plt.xlabel("NFE")
+    plt.ylabel("FID")
+    plt.title(title)
+    plt.legend()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_path, bbox_inches="tight")
+    plt.close()
 
 
 def render_plots(combined_path: Path, plot_dir: Path, records: list[dict[str, Any]]) -> None:
@@ -152,7 +222,18 @@ def render_plots(combined_path: Path, plot_dir: Path, records: list[dict[str, An
             str(combined_path), str(plot_dir / "sampling_time_vs_nfe.png")
         )
     if "evaluation" in record_types:
-        plot_fid_vs_nfe(str(combined_path), str(plot_dir / "fid_vs_nfe.png"))
+        plot_fid_subset(
+            records,
+            PRIMARY_EXPERIMENTS,
+            plot_dir / "fid_vs_nfe.png",
+            "Primary Comparison: FID vs NFE",
+        )
+        plot_fid_subset(
+            records,
+            BUDGET_EXPERIMENTS,
+            plot_dir / "fid_vs_nfe_budget.png",
+            "Budget Comparison: FID vs NFE",
+        )
         plot_is_vs_nfe(str(combined_path), str(plot_dir / "is_vs_nfe.png"))
     if {"sampling", "evaluation"} <= record_types:
         plot_fid_vs_sampling_time(

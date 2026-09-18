@@ -734,9 +734,8 @@ mixing and checkpoint replacement. The beginner menu asks the same question.
 
 ### Mean Flow v2 error-fix workflow
 
-Agents only prepare and statically validate this workflow; they do not execute
-training or evaluation. After `config/mf_full_v2.json` is supplied by the
-trainer/config track, run the static preflight first:
+Before launching the MF v2 probe, validate the configuration and preserved
+evidence with the static preflight:
 
 ```powershell
 # Windows

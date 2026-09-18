@@ -221,16 +221,21 @@ class ConsistencyAlgorithm(BaseAlgorithm):
                 t = torch.ones(n_samples, device=device)
                 x = self._consistency_fn(self.ema_model, x, t)
             else:
-                # Multi-step: apply f_θ, re-inject noise, repeat
-                ts = torch.linspace(1.0, 1.0 / self.n_timesteps, nfe, device=device)
-                for t_val in ts:
-                    t_b = torch.full((n_samples,), t_val.item(), device=device)
+                # Multi-step: nfe forward passes with noise re-injection between steps.
+                # Use nfe+1 evenly-spaced time boundaries from 1.0 to 0.0 so each
+                # step sees a meaningful noise level. This fixes the NFE=2 collapse
+                # (previous linspace(1.0, 1/n_timesteps, nfe) gave t_next=0.056 for
+                # NFE=2, injecting almost no noise and producing FID=434 vs NFE=1's 137).
+                t_boundaries = torch.linspace(1.0, 0.0, nfe + 1, device=device)
+                for i in range(nfe):
+                    t_cur  = t_boundaries[i]
+                    t_next = t_boundaries[i + 1]
+                    t_b    = torch.full((n_samples,), t_cur.item(), device=device)
                     x_0_hat = self._consistency_fn(self.ema_model, x, t_b)
-                    if t_val > ts[-1]:
-                        # Re-inject noise for next step
+                    if i < nfe - 1:
+                        # Re-inject noise at the next time level
                         noise = torch.randn_like(x_0_hat)
-                        t_next = max(t_val.item() - 1.0 / self.n_timesteps, 0.0)
-                        x = (1 - t_next) * x_0_hat + t_next * noise
+                        x = (1.0 - t_next) * x_0_hat + t_next * noise
                     else:
                         x = x_0_hat
 
