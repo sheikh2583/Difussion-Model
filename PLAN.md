@@ -7,6 +7,15 @@ task splits. The user authorized this coordination revision; after it is
 committed, `AGENTS.md` and `PLAN.md` are read-only until another explicit
 coordination request.
 
+## Execution boundary
+
+Codex and Antigravity/Claude only fix errors and prepare validated code. They do
+not run models. Prohibited agent actions include research training, short probes,
+smoke training, resume/fresh runs, tournament execution, GPU evaluation,
+sampling benchmarks, and pair generation. Allowed validation is limited to
+read-only inspection, synthetic unit tests, compilation, config/workflow checks,
+script parsing, and dry-runs. Commands in later sections are for the user only.
+
 ## Verified evidence baseline
 
 - First tournament attempt:
@@ -158,23 +167,28 @@ GPU: none
 - Confirm fresh-clone initialization still supplies every Python dependency.
 - Commit each track separately using the cooperative git-index lock.
 
-## GPU gates — no automatic launch
+## User-operated run gates — agents must not execute
 
 ### G0 — 15-epoch disposable probe
 
-Status: `BLOCKED` on I0 and explicit user approval
+Owner: **User only**
 
-- Acquire `results/.lock`.
+Status: `USER-RUN ONLY` after I0
+
+- The user acquires `results/.lock` before launching.
 - Start `mf_v2_probe_cifar10` fresh; never resume old `mf_cifar10`.
 - Report loss and peak VRAM at epochs 1, 5, 10, and 15.
 - Pass criteria: epoch-15 loss below epoch 1, no sustained upward trend or
   non-finite values, oscillation approximately within the user-approved range,
   and peak VRAM below 4,000 MB.
-- Release the lock and stop. Do not continue this probe to 100 epochs.
+- The user releases the lock after completion. Agents only analyze the returned
+  logs and fix errors; they do not continue this probe to 100 epochs.
 
 ### G1 — Fresh 100-epoch MF v2
 
-Status: `BLOCKED` on a passing G0 and separate explicit user approval
+Owner: **User only**
+
+Status: `USER-RUN ONLY` after a passing G0
 
 ```powershell
 venv\Scripts\python.exe train.py --algorithm mf `
@@ -188,7 +202,9 @@ venv\Scripts\python.exe train.py --algorithm mf `
 
 ### E0 — Evaluate and aggregate MF v2
 
-Status: `BLOCKED` on successful G1
+Owner: **User executes evaluation; agents may fix resulting errors**
+
+Status: `USER-RUN ONLY` after successful G1
 
 - Evaluate the epoch-100 MF v2 checkpoint at the configured 5,000 samples and
   NFE grid.
@@ -201,6 +217,9 @@ Status: `BLOCKED` on successful G1
 - `[Codex][2026-09-18]` Corrected the restart prompt against the live schema and
   existing scheduler implementation; defined disjoint ownership, separate probe
   and full-run horizons, commit/GPU locks, and explicit approval gates.
+- `[User][2026-09-18]` Restricted both agents to error fixing only. Agents must
+  not execute training, smoke runs, GPU evaluation, sampling, pair generation,
+  or benchmarks.
 - `[Antigravity/Claude]` On completion, report owned paths changed, tests run,
   evidence hashes recorded, and blockers. Do not edit this plan to report status
   unless the user explicitly assigns another coordination update.

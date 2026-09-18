@@ -16,8 +16,22 @@ Every agent must:
 
 ## Current objective
 
-Prepare a fresh Mean Flow v2 stability experiment without altering the original
-diverged MF evidence. No GPU run is authorized merely by these instructions.
+Fix and statically validate the errors exposed by the completed tournament
+without altering the original diverged MF evidence. Agents prepare safe code and
+configuration only; the user alone decides whether and when to run models.
+
+## Absolute no-training rule
+
+- Codex and Antigravity/Claude must not execute model training of any length.
+- This includes research runs, 15-epoch probes, one-epoch tests, smoke training,
+  tournament commands, resumed runs, and fresh runs.
+- Agents must not launch GPU sampling/evaluation, pair generation, or performance
+  benchmarks as a substitute for training.
+- Agents may run read-only inspections, unit tests with synthetic tensors,
+  Python compilation, config parsing, workflow verification that does not train,
+  shell/PowerShell parsing, and command dry-runs.
+- Agents may prepare and document commands for the user, but must not execute
+  those commands. When the user supplies logs, agents diagnose and fix errors.
 
 ## Fixed file ownership
 
@@ -113,18 +127,20 @@ the probe to epoch 100: its cosine scheduler checkpoint has `T_max=15`.
 - Probe: `mf_v2_probe_cifar10`, 15 epochs, training only.
 - Full: `mf_v2_cifar10`, fresh from epoch 1 with `T_max=100`.
 
-Codex may add a tested `--train-only` path so the probe does not spend time on
-5,000-sample FID. The full run must use the normal evaluation workflow.
+Codex may add a unit-tested `--train-only` path so a user-run probe does not
+spend time on 5,000-sample FID. Agents must not execute either the probe or the
+full run.
 
 ## GPU and commit locks
 
-- Any CUDA training, sampling, evaluation, pair generation, or benchmark must
-  acquire `results/.lock` atomically. Record host, PID, UTC start time, and the
-  command/run name. CPU tests and dry runs do not take the GPU lock.
+- Agents do not launch CUDA training, sampling, evaluation, pair generation, or
+  benchmarks. User-run commands should acquire `results/.lock` atomically and
+  record host, PID, UTC start time, and the command/run name. CPU-only unit tests
+  and dry runs do not take the GPU lock.
 - Never remove a lock only because it looks old. Verify the same-host PID is
   dead, or ask the user to confirm it is stale.
-- Lock absence prevents contention; it does not authorize a run. The 15-epoch
-  probe and the full run each require explicit user approval.
+- Lock absence prevents contention; it never authorizes an agent-run job. The
+  15-epoch probe and full run are user-operated tasks only.
 - The git index is also shared. Before staging, acquire the cooperative
   `results/.agent_git.lock`. Only its owner may stage or commit. Stage explicit
   paths, inspect `git diff --cached --name-status` and
@@ -135,9 +151,9 @@ Codex may add a tested `--train-only` path so the probe does not spend time on
 
 - All code must remain usable after clone plus `INIT_ALL.cmd` or
   `./init_all.sh`.
-- Antigravity runs focused trainer/config tests and records changed paths and
-  test output without launching training.
-- Codex runs lifecycle/provenance/preflight tests and reviews integration
-  without launching training.
+- Antigravity runs focused synthetic trainer/config unit tests and records
+  changed paths and test output without launching training.
+- Codex runs lifecycle/provenance/preflight unit tests and reviews integration
+  without launching training, sampling, or GPU evaluation.
 - One agent never commits the other agent's files. When both commits exist,
   Codex performs the read-only integration audit defined in `PLAN.md`.
