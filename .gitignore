@@ -33,3 +33,8 @@ results/
 *.gif
 thesis_dashboard.html
 ProjectForClaude.zip
+
+# Agent conversation files
+AGENTS.md
+PLAN.md
+CROSS_TRACK.md
