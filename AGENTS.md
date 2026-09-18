@@ -13,6 +13,8 @@ Every agent must:
 3. Confirm its task is marked `READY` or `IN PROGRESS` in `PLAN.md`.
 4. Touch only its owned paths below. Report a cross-track defect instead of
    fixing it in the other agent's files.
+5. **Read `CROSS_TRACK.md`** and act on every open item addressed to you
+   before starting new work. Post an `ACK` reply within the same session.
 
 ## Current objective
 
@@ -130,6 +132,83 @@ the probe to epoch 100: its cosine scheduler checkpoint has `T_max=15`.
 Codex may add a unit-tested `--train-only` path so a user-run probe does not
 spend time on 5,000-sample FID. Agents must not execute either the probe or the
 full run.
+
+## Inter-agent communication protocol
+
+When one agent cannot complete work on its **own** file because it depends on a
+change in the **other** agent's owned file, it must not silently leave the work
+undone or guess at the other agent's interface. Instead it posts a structured
+message to `CROSS_TRACK.md` and continues with whatever it can do independently.
+
+### The channel: `CROSS_TRACK.md`
+
+- Lives at project root alongside `AGENTS.md` and `PLAN.md`.
+- **Append-only:** agents may only ADD new entries; never edit or delete
+  another agent's text. Use strikethrough or an `ACK`/`RESOLVED` reply entry
+  to update status — never overwrite.
+- Both agents read it at every session start (rule 5 above).
+- The user may also read and add entries.
+- Entries are committed inside the normal agent git-lock commit.
+
+### Entry format
+
+Every entry starts with a level-3 heading:
+
+```
+### [TYPE] [ID] — [DATE] — FROM: [Agent] → TO: [Agent]
+
+**Status:** OPEN | ACKNOWLEDGED | RESOLVED
+**Blocking file (FROM owns):** `path/to/blocked_file.py`
+**Depends on (TO owns):** `path/to/dependency_file.py`
+
+[One paragraph describing exactly what is needed and why the cross-track
+dependency exists. Be specific: name the function, field, or interface
+required. Include the line numbers if helpful.]
+
+**Acceptance criteria:** How the FROM agent will know the dependency is met.
+```
+
+### Entry types
+
+| Type | Use when |
+|------|----------|
+| `BLOCKS` | Your file cannot be completed until the other agent changes theirs |
+| `NEEDS_INTERFACE` | You need a new function/field exposed in the other agent's file |
+| `DEFECT` | You found a bug in the other agent's owned file (do not fix it yourself) |
+| `HANDOFF` | Your work is complete and unlocks the other agent's next step |
+| `ACK` | Acknowledging receipt of an item addressed to you |
+| `RESOLVED` | Confirming the dependency/defect is fixed; closes the entry |
+
+### Rules
+
+1. **Never fix the other agent's file.** Post a `BLOCKS` or `DEFECT` entry
+   instead and continue with what you can do independently.
+2. **Never silently skip** work that has a cross-track dependency. Post the
+   entry so the other agent knows, even if you think they will discover it
+   themselves.
+3. **One entry per dependency.** If two blocked files share the same root
+   cause, one entry covering both is fine.
+4. **ACK within the same session.** When you read an open item addressed to
+   you, post an `ACK` reply entry in the same git commit — even if you cannot
+   fix it immediately. `ACK` means "seen and understood," not "done."
+5. **RESOLVED closes the loop.** After fixing the dependency, post a `RESOLVED`
+   entry referencing the original ID and commit hash, then notify the FROM agent
+   by updating the original entry's status line.
+6. **IDs are sequential per agent prefix:** `AGY-001`, `AGY-002`, … for
+   Antigravity; `CDX-001`, `CDX-002`, … for Codex. Choose the next available
+   number when posting.
+7. **Severity:** Use `[BLOCKS]` for work that cannot proceed at all;
+   `[NEEDS_INTERFACE]` for work that can proceed with a stub but needs the
+   real interface before the run; `[DEFECT]` for correctness issues that won't
+   break agent work but will break user execution.
+
+### What CROSS_TRACK.md is NOT for
+
+- Do not use it for general status updates — use the `PLAN.md` status log.
+- Do not use it to request changes to `AGENTS.md` or `PLAN.md` — those
+  require explicit user coordination.
+- Do not use it to ask the other agent to run models — that is the user's
+  exclusive domain.
 
 ## GPU and commit locks
 
