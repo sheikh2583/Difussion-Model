@@ -121,6 +121,18 @@ class Trainer:
 
             self.scaler.scale(loss).backward()
             scale_before_step = self.scaler.get_scale()
+            # AMP-safe gradient clipping: unscale first so clip operates on
+            # true gradients, then step (GradScaler skips step on inf/NaN).
+            self.scaler.unscale_(self.optimizer)
+            clip_norm = self.cfg.optim.gradient_clip_norm
+            if clip_norm is not None:
+                # Clip the union of parameters from all trainable modules.
+                # Do NOT call algorithm.parameters(); BaseAlgorithm is not
+                # guaranteed to be an nn.Module.
+                all_params = itertools.chain.from_iterable(
+                    m.parameters() for m in self.trainable_modules
+                )
+                torch.nn.utils.clip_grad_norm_(all_params, clip_norm)
             self.scaler.step(self.optimizer)
             self.scaler.update()
             # A decreasing scale means GradScaler detected non-finite gradients
@@ -178,6 +190,11 @@ class Trainer:
         for i, m in enumerate(extra_modules):
             payload[f"extra_module_{i}_state"] = m.state_dict()
 
+        torch.save(payload, path)
+        # Embed Codex provenance when available (set by utils/run_lifecycle.py)
+        provenance = getattr(self, "checkpoint_provenance", None)
+        if provenance is not None:
+            payload["provenance"] = provenance
         torch.save(payload, path)
         self.logger.info(f"Checkpoint saved -> {path}")
         self._zip_checkpoint(epoch, path)

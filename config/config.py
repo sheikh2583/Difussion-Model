@@ -9,7 +9,7 @@ present in this shared config (batch size, epochs, optimizer, lr,
 scheduler, AMP, backbone, dataset, seed, evaluation settings, etc).
 """
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import json
 import os
 
@@ -37,6 +37,10 @@ class OptimConfig:
     optimizer: str = "adamw"
     learning_rate: float = 2e-4
     weight_decay: float = 0.0
+    # Optional gradient clipping applied after AMP unscale and before
+    # optimizer.step().  None (the default) disables clipping so that
+    # all existing configs are unaffected.
+    gradient_clip_norm: Optional[float] = None
     scheduler: str = "none"  # "none" | "cosine" | "step"
     scheduler_kwargs: Dict[str, Any] = field(default_factory=dict)
 
