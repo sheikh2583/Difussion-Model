@@ -38,8 +38,9 @@ local browser UI for inspecting trained models.
 
 **Windows (no command-line required):**
 
-1. Double-click **`INIT_ALL.cmd`** — installs Python, creates the environment,
-   downloads CIFAR-10 and CelebA.
+1. Double-click **`INIT_ALL.cmd`** — installs Python if needed, creates the
+   environment, installs dependencies, and downloads CIFAR-10. CelebA is an
+   optional large download so a quota failure cannot break first-time setup.
 2. Double-click **`TRAIN.cmd`** — choose a model, then choose whether to
    continue its existing run or preserve it and start fresh.
 
@@ -49,6 +50,11 @@ local browser UI for inspecting trained models.
 ./init_all.sh
 ./train_interactive.sh
 ```
+
+To initialize both datasets explicitly, run `INIT_ALL.cmd -Datasets all` on
+Windows or `./init_all.sh --datasets all` on Linux. The checked-in
+`requirements_frozen.txt` is the CUDA workstation snapshot, not a portable
+installer; always use the initialization script on a new machine.
 
 **Command-line (after setup):**
 
@@ -711,6 +717,32 @@ model state, optimizer, scheduler, AMP scaler, counters, and RNG state.
 If a canonical run directory is non-empty, direct `train.py` calls require an
 explicit `--mode continue` or `--mode fresh`; this prevents accidental metric
 mixing and checkpoint replacement. The beginner menu asks the same question.
+
+### Mean Flow v2 error-fix workflow
+
+Agents only prepare and statically validate this workflow; they do not execute
+training or evaluation. After `config/mf_full_v2.json` is supplied by the
+trainer/config track, run the static preflight first:
+
+```powershell
+# Windows
+venv\Scripts\python.exe scripts\preflight_mf_v2.py --strict-evidence
+venv\Scripts\python.exe train.py --algorithm mf --config config\mf_full_v2.json `
+  --experiment-name mf_v2_probe --epochs 15 --mode fresh --train-only
+```
+
+```bash
+# Linux
+venv/bin/python scripts/preflight_mf_v2.py --strict-evidence
+venv/bin/python train.py --algorithm mf --config config/mf_full_v2.json \
+  --experiment-name mf_v2_probe --epochs 15 --mode fresh --train-only
+```
+
+Omit `--strict-evidence` on a clean clone, where the gitignored original
+`results/mf_cifar10` directory is expected to be absent. `--train-only`
+disables FID reference preparation, periodic evaluation, and final sampling.
+The probe and full run use separate directories and scheduler horizons; never
+continue the 15-epoch probe as the 100-epoch experiment.
 
 ### Latest local tournament status
 

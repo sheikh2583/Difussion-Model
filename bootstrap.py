@@ -189,18 +189,30 @@ TORCH_INDEX_URLS = {
 TORCH_PACKAGES = ["torch", "torchvision", "torchaudio"]
 
 
-def install_torch(gpu_type: str) -> None:
+def install_torch(gpu_type: str) -> str:
     head("Step 4 - PyTorch installation")
     index_url = TORCH_INDEX_URLS[gpu_type]
     print(f"  Index URL : {index_url}")
     print(f"  Packages  : {' '.join(TORCH_PACKAGES)}")
     print("  (this may take a few minutes on first install) ...")
-    run([
+    command = [
         str(VENV_PYTHON), "-m", "pip", "install", "--upgrade",
-        *TORCH_PACKAGES,
-        "--index-url", index_url,
-    ])
+        *TORCH_PACKAGES, "--index-url", index_url,
+    ]
+    try:
+        run(command)
+    except subprocess.CalledProcessError:
+        if gpu_type == "cpu":
+            raise
+        warn(f"The {gpu_type} wheel is unavailable on this OS/Python combination.")
+        warn("Falling back to the portable CPU PyTorch build; rerun setup later to change it.")
+        gpu_type = "cpu"
+        run([
+            str(VENV_PYTHON), "-m", "pip", "install", "--upgrade",
+            *TORCH_PACKAGES, "--index-url", TORCH_INDEX_URLS["cpu"],
+        ])
     info(f"PyTorch installed ({gpu_type})")
+    return gpu_type
 
 
 # ---------------------------------------------------------------------------
@@ -419,7 +431,7 @@ def main() -> None:
             ).strip()
 
     if not args.skip_torch:
-        install_torch(gpu_type)
+        gpu_type = install_torch(gpu_type)
 
     install_requirements()
     prefetch_metric_assets()

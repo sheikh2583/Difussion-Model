@@ -22,7 +22,6 @@ from experiments.runner import ExperimentRunner
 from utils.run_lifecycle import (
     archive_existing_run,
     has_run_artifacts,
-    latest_checkpoint,
     run_directory,
 )
 
@@ -47,6 +46,11 @@ def parse_args():
                         help="Override epochs from config.")
     parser.add_argument("--batch-size", type=int, default=None,
                         help="Override batch size from config (useful for low-memory runs).")
+    parser.add_argument(
+        "--train-only", action="store_true",
+        help=("Disable FID cache preparation, periodic evaluation, and final "
+              "sampling. Intended for a short user-operated diagnostic probe."),
+    )
     start_group = parser.add_mutually_exclusive_group()
     start_group.add_argument(
         "--mode",
@@ -88,16 +92,11 @@ def main():
         else:
             print("[fresh] No previous run artifacts found; starting at epoch 1.")
     elif args.mode == "continue":
-        resume_checkpoint = "auto"
         if existing:
-            if latest_checkpoint(canonical_run_dir) is None:
-                raise SystemExit(
-                    f"Cannot continue {canonical_run_dir}: it contains artifacts but "
-                    "no epoch checkpoint. Choose --mode fresh to preserve that "
-                    "directory and restart safely."
-                )
+            resume_checkpoint = "auto"
             print(f"[continue] Resuming the latest checkpoint in: {canonical_run_dir}")
         else:
+            resume_checkpoint = None
             print("[continue] No previous run found; starting the first run at epoch 1.")
     elif resume_checkpoint is None and existing:
         raise SystemExit(
@@ -106,21 +105,17 @@ def main():
             "in results/history and restart from epoch 1."
         )
 
-    if resume_checkpoint == "auto" and existing:
-        if latest_checkpoint(canonical_run_dir) is None:
-            raise SystemExit(
-                f"Cannot auto-resume {canonical_run_dir}: no epoch checkpoint exists. "
-                "Use --mode fresh to preserve it and restart safely."
-            )
-    elif resume_checkpoint:
+    if resume_checkpoint and resume_checkpoint != "auto":
         requested_checkpoint = Path(resume_checkpoint)
         if not requested_checkpoint.is_file():
             raise FileNotFoundError(f"Resume checkpoint not found: {requested_checkpoint}")
 
     algorithm_cls = ALGORITHM_REGISTRY[args.algorithm]
-    runner = ExperimentRunner(cfg, algorithm_cls)
-    cfg.save(f"{runner.run_dir}/config.json")
-    runner.run_full(resume_checkpoint=resume_checkpoint)
+    runner = ExperimentRunner(cfg, algorithm_cls, algorithm_key=args.algorithm)
+    if args.train_only:
+        runner.run_train_only(resume_checkpoint=resume_checkpoint)
+    else:
+        runner.run_full(resume_checkpoint=resume_checkpoint)
 
 
 if __name__ == "__main__":

@@ -2,9 +2,13 @@
 setlocal
 cd /d "%~dp0"
 echo ==========================================================
-echo   DiffusionProject - install everything and get datasets
+echo   DiffusionProject - install everything and get CIFAR-10
 echo ==========================================================
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\setup.ps1" -Yes -Datasets all
+if "%~1"=="" (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\setup.ps1" -Yes -Datasets cifar10
+) else (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\setup.ps1" -Yes %*
+)
 if errorlevel 1 (
     echo.
     echo INITIALIZATION FAILED. Read the error above, then run this file again.
