@@ -1,0 +1,61 @@
+from __future__ import annotations
+
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+LINUX_DIR = PROJECT_ROOT / "platform" / "linux"
+WINDOWS_DIR = PROJECT_ROOT / "platform" / "windows"
+
+
+def test_linux_platform_scripts_parse_and_are_executable() -> None:
+    shell = shutil.which("sh")
+    bash = shutil.which("bash")
+    if shell is None or bash is None:
+        pytest.skip("POSIX shells are unavailable")
+
+    for name in ("init.sh", "train.sh", "train_cifar.sh"):
+        path = LINUX_DIR / name
+        assert path.stat().st_mode & 0o111
+        interpreter = bash if name == "train_cifar.sh" else shell
+        subprocess.run([interpreter, "-n", str(path)], check=True)
+
+
+def test_platform_wrappers_reference_preserved_entrypoints() -> None:
+    assert "init_all.sh" in (LINUX_DIR / "init.sh").read_text(encoding="utf-8")
+    assert "train_interactive.sh" in (LINUX_DIR / "train.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "scripts/train_all.sh" in (LINUX_DIR / "train_cifar.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "INIT_ALL.cmd" in (WINDOWS_DIR / "init.cmd").read_text(encoding="utf-8")
+    assert "TRAIN.cmd" in (WINDOWS_DIR / "train.cmd").read_text(encoding="utf-8")
+    assert "scripts\\train_all.ps1" in (
+        WINDOWS_DIR / "train_cifar.cmd"
+    ).read_text(encoding="utf-8")
+
+
+def test_generated_outputs_remain_ignored() -> None:
+    result = subprocess.run(
+        [
+            "git",
+            "check-ignore",
+            "results/example/checkpoints/run_1/model.pt",
+            "data/raw/cifar-10-python.tar.gz",
+            "data/reflow_pairs_cifar10.pt",
+        ],
+        cwd=PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    ignored = set(result.stdout.splitlines())
+    assert "results/example/checkpoints/run_1/model.pt" in ignored
+    assert "data/raw/cifar-10-python.tar.gz" in ignored
+    assert "data/reflow_pairs_cifar10.pt" in ignored
+
