@@ -1,0 +1,27 @@
+[OK] FM teacher checkpoint: results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt
+[PLAN] /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/bin/python train.py --algorithm mf_distill --config config/mf_distill_full.json --mode continue --checkpoint-every 10
+[continue] Resuming the latest checkpoint in: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/mf_distill_cifar10
+[checkpoints] Active checkpoint series: run_2
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/mf_distill_full.json
+[startup] algorithm: mf_distill
+[startup] experiment: mf_distill
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/mf_distill_cifar10
+[startup] batch_size: 64
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 5e-05
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.25
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: c1f065aee704388850448d7347408c84833ef8c7+dirty:af518271b20a
+Files already downloaded and verified
+Files already downloaded and verified
+2026-09-19 19:39:35,807 [INFO] trainer.MeanFlowDistillAlgorithm: Resumed from results/mf_distill_cifar10/checkpoints/run_2/MeanFlowDistillAlgorithm_epoch100.pt at epoch 100
+[continue] Run is already complete at epoch 100; target is 100. Increase --epochs to extend it.
+Training workflow complete.
