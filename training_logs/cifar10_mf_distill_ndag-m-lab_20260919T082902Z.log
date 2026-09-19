@@ -1,0 +1,42 @@
+[run] dataset=cifar10 algorithm=mf_distill
+[run] started_utc=2026-09-19T08:29:14Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/train_all.sh --dataset cifar10 --only mf_distill --mode continue --checkpoint-every 10
+[OK] FM teacher checkpoint: results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt
+[PLAN] /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/bin/python train.py --algorithm mf_distill --config config/mf_distill_full.json --mode continue --checkpoint-every 10
+[continue] Existing artifacts contain no checkpoint; preserved them at /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/history/mf_distill_cifar10_20260919_142916 and starting a clean run at epoch 1.
+[checkpoints] Active checkpoint series: run_2
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/mf_distill_full.json
+[startup] algorithm: mf_distill
+[startup] experiment: mf_distill
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/mf_distill_cifar10
+[startup] batch_size: 64
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 5e-05
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.25
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 3ee8b280c0dbca64b69761911f3f5ca2db8d2c05
+Files already downloaded and verified
+Files already downloaded and verified
+2026-09-19 14:30:20,923 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=1 loss=0.153144 time=63.549s peak_mem=1203.3MB
+2026-09-19 14:31:24,328 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=2 loss=0.061362 time=63.404s peak_mem=1203.3MB
+2026-09-19 14:32:28,113 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=3 loss=0.045939 time=63.785s peak_mem=1203.3MB
+2026-09-19 14:33:31,562 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=4 loss=0.038184 time=63.449s peak_mem=1203.3MB
+2026-09-19 14:34:34,797 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=5 loss=0.033488 time=63.234s peak_mem=1203.3MB
+2026-09-19 14:35:38,910 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=6 loss=0.029132 time=64.112s peak_mem=1203.2MB
+2026-09-19 14:36:42,916 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=7 loss=0.026454 time=64.005s peak_mem=1203.3MB
+2026-09-19 14:37:46,044 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=8 loss=0.023579 time=63.128s peak_mem=1203.2MB
+2026-09-19 14:38:49,793 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=9 loss=0.021778 time=63.748s peak_mem=1203.3MB
+2026-09-19 14:39:53,396 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=10 loss=0.020213 time=63.602s peak_mem=1203.3MB
+2026-09-19 14:39:53,496 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_cifar10/checkpoints/run_2/MeanFlowDistillAlgorithm_epoch10.pt
+2026-09-19 14:39:53,624 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_cifar10/checkpoints/run_2/archive/MeanFlowDistillAlgorithm_epoch10.zip
+2026-09-19 14:40:57,006 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=11 loss=0.018860 time=63.381s peak_mem=1203.3MB
+2026-09-19 14:42:01,293 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=12 loss=0.017635 time=64.286s peak_mem=1203.3MB
+2026-09-19 14:43:04,894 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=13 loss=0.016556 time=63.601s peak_mem=1203.2MB
