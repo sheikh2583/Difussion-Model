@@ -1,0 +1,31 @@
+[run] dataset=cifar10 algorithm=fm_lognorm
+[run] started_utc=2026-09-19T09:09:36Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/train_all.sh --dataset cifar10 --only fm_lognorm --mode continue --checkpoint-every 10
+[PLAN] /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/bin/python train.py --algorithm fm_lognorm --config config/fm_lognorm_full.json --mode continue --checkpoint-every 10
+[continue] Resuming the latest checkpoint in: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_lognorm_cifar10
+[checkpoints] Active checkpoint series: run_1
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/fm_lognorm_full.json
+[startup] algorithm: fm_lognorm
+[startup] experiment: fm_lognorm
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_lognorm_cifar10
+[startup] batch_size: 128
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0002
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.25
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 2ea2a5e2039b73b79ac8ad0d4f51572296a255fb
+Files already downloaded and verified
+Files already downloaded and verified
+2026-09-19 15:09:40,451 [INFO] trainer.FlowMatchingLognormAlgorithm: Resumed from results/fm_lognorm_cifar10/checkpoints/run_1/FlowMatchingLognormAlgorithm_epoch100.pt at epoch 100
+[continue] Run is already complete at epoch 100; target is 100. Increase --epochs to extend it.
+Training workflow complete.
+[run] finished_utc=2026-09-19T09:09:40Z
+[run] exit_status=0
