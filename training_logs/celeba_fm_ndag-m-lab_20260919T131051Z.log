@@ -1,0 +1,28 @@
+[run] dataset=celeba algorithm=fm
+[run] started_utc=2026-09-19T13:10:51Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/train_all.sh --dataset celeba --only fm --mode continue --checkpoint-every 10
+[PLAN] /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/bin/python train.py --algorithm fm --config config/fm_celeba64.json --mode continue --checkpoint-every 10
+[continue] No previous run found; starting the first run at epoch 1.
+[checkpoints] Active checkpoint series: run_1
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/fm_celeba64.json
+[startup] algorithm: fm
+[startup] experiment: fm
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_celeba
+[startup] batch_size: 64
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0002
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.25
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 2ea2a5e2039b73b79ac8ad0d4f51572296a255fb
+Files already downloaded and verified
+Files already downloaded and verified
+2026-09-19 19:20:23,191 [INFO] trainer.FlowMatchingAlgorithm: epoch=1 loss=0.167009 time=559.440s peak_mem=4450.9MB
+2026-09-19 19:28:23,856 [INFO] trainer.FlowMatchingAlgorithm: epoch=2 loss=0.126988 time=480.665s peak_mem=4450.9MB
