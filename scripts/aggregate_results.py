@@ -7,6 +7,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,7 @@ def parse_args() -> argparse.Namespace:
 def load_records(paths: list[Path]) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for path in paths:
+        file_records: list[dict[str, Any]] = []
         with path.open("r", encoding="utf-8") as handle:
             for line_number, line in enumerate(handle, start=1):
                 if not line.strip():
@@ -55,21 +57,67 @@ def load_records(paths: list[Path]) -> list[dict[str, Any]]:
                     ) from error
                 if not isinstance(record, dict):
                     raise ValueError(f"Expected an object in {path}:{line_number}")
-                experiment = path.parent.parent.name
-                machine = record.get("machine_label") or record.get("hostname")
-                code_identity = record.get("code_identity") or record.get("git_commit")
-                comparison = experiment
-                if machine:
-                    comparison += f"@{machine}"
-                if code_identity:
-                    comparison += f"@{str(code_identity)[:20]}"
-                record["algorithm_class"] = record.get("algorithm")
-                record["experiment"] = experiment
-                record["comparison"] = comparison
-                # Plotting utilities group on `algorithm`; use the run name so
-                # datasets, machines, and code revisions cannot merge silently.
-                record["algorithm"] = comparison
-                records.append(record)
+                file_records.append(record)
+
+        # Preserve the raw JSONL order long enough to associate periodic
+        # sampling/evaluation blocks with their preceding training epoch.
+        last_epoch = None
+        for record in file_records:
+            if record.get("record_type") == "train_epoch" and record.get("epoch"):
+                last_epoch = record["epoch"]
+            elif (
+                record.get("record_type") in {"evaluation", "sampling"}
+                and record.get("epoch") is None
+            ):
+                record["epoch"] = last_epoch
+
+        # Standalone evaluations may not follow a training row. Recover their
+        # epoch from the checkpoint filename when it is available.
+        for record in file_records:
+            if (
+                record.get("record_type") == "evaluation"
+                and record.get("epoch") is None
+            ):
+                checkpoint = record.get("checkpoint_path") or ""
+                match = re.search(r"epoch(\d+)", checkpoint)
+                if match:
+                    record["epoch"] = int(match.group(1))
+
+        for record in file_records:
+            experiment = path.parent.parent.name
+            algorithm_class = record.get("algorithm")
+
+            # Legacy evaluation rows did not record their checkpoint. Add
+            # the conventional run_1 path only when that file exists.
+            if (
+                record.get("record_type") == "evaluation"
+                and not record.get("checkpoint_path")
+                and record.get("epoch") is not None
+                and algorithm_class
+            ):
+                expected = (
+                    path.parent.parent
+                    / "checkpoints"
+                    / "run_1"
+                    / f"{algorithm_class}_epoch{record['epoch']}.pt"
+                )
+                if expected.is_file():
+                    record["checkpoint_path"] = str(expected.resolve())
+
+            machine = record.get("machine_label") or record.get("hostname")
+            code_identity = record.get("code_identity") or record.get("git_commit")
+            comparison = experiment
+            if machine:
+                comparison += f"@{machine}"
+            if code_identity:
+                comparison += f"@{str(code_identity)[:20]}"
+            record["algorithm_class"] = algorithm_class
+            record["experiment"] = experiment
+            record["comparison"] = comparison
+            # Plotting utilities group on `algorithm`; use the run name so
+            # datasets, machines, and code revisions cannot merge silently.
+            record["algorithm"] = comparison
+            records.append(record)
     return records
 
 
@@ -130,6 +178,13 @@ def build_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             ),
             "unknown",
         )
+        eval_epoch = max(
+            (
+                row["epoch"] for row in evaluation_rows
+                if row.get("epoch") is not None
+            ),
+            default=None,
+        )
         last_training = training[-1] if training else {}
         rows.append({
             "experiment": algorithm,
@@ -178,6 +233,7 @@ def build_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 ),
                 default=None,
             ),
+            "eval_epoch": eval_epoch,
             "num_generated_samples": sample_count,
             "fid_at_1": (evaluations.get(1) or {}).get("fid"),
             "fid_at_2": (evaluations.get(2) or {}).get("fid"),
@@ -209,6 +265,108 @@ BUDGET_EXPERIMENTS = {
     "fm_cifar10": "FM (legacy budget)",
     "fm_lognorm_rtx3060": "FM-LN (budget comparison)",
 }
+
+LOSS_CURVE_EXPERIMENTS = {
+    "fm_cifar10": "FM — CIFAR-10",
+    "fm_lognorm_cifar10": "FM-LogNorm — CIFAR-10",
+    "mf_distill_cifar10": "MF-Distill — CIFAR-10",
+    "consistency_cifar10": "Consistency — CIFAR-10",
+    "reflow_cifar10": "Reflow — CIFAR-10",
+    "fm_celeba": "FM — CelebA",
+    "fm_lognorm_celeba": "FM-LogNorm — CelebA",
+}
+
+
+def plot_primary_loss_curves(records: list[dict[str, Any]], out_path: Path) -> None:
+    """Plot one log-scale training-loss curve per requested experiment."""
+    plt.figure()
+    for experiment, label in LOSS_CURVE_EXPERIMENTS.items():
+        by_epoch: dict[int, dict[str, Any]] = {}
+        for row in records:
+            if (
+                row.get("experiment") == experiment
+                and row.get("record_type") == "train_epoch"
+                and row.get("epoch") is not None
+                and row.get("loss") is not None
+            ):
+                by_epoch[int(row["epoch"])] = row
+        if not by_epoch:
+            continue
+        epochs = sorted(by_epoch)
+        plt.plot(
+            epochs,
+            [by_epoch[epoch]["loss"] for epoch in epochs],
+            label=label,
+        )
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.yscale("log")
+    plt.title("Training Loss Curves")
+    plt.legend()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_path, bbox_inches="tight")
+    plt.close()
+
+
+def build_training_cost_table(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Build one training-cost row per canonical experiment directory."""
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for record in records:
+        grouped.setdefault(
+            str(record.get("experiment", "unknown")), []
+        ).append(record)
+
+    rows: list[dict[str, Any]] = []
+    for experiment, experiment_records in sorted(grouped.items()):
+        training = sorted(
+            (
+                row for row in experiment_records
+                if row.get("record_type") == "train_epoch"
+                and row.get("epoch") is not None
+            ),
+            key=lambda row: row["epoch"],
+        )
+        if not training:
+            continue
+        evaluations = [
+            row for row in experiment_records
+            if row.get("record_type") == "evaluation"
+        ]
+        final_training = training[-1]
+        sample_count = next(
+            (
+                row.get("num_generated_samples")
+                for row in reversed(evaluations)
+                if row.get("num_generated_samples") is not None
+            ),
+            "unknown",
+        )
+        eval_epoch = max(
+            (row["epoch"] for row in evaluations if row.get("epoch") is not None),
+            default=None,
+        )
+        training_seconds = final_training.get("training_time")
+        rows.append({
+            "experiment": experiment,
+            "algorithm": next(
+                (
+                    row.get("algorithm_class") for row in experiment_records
+                    if row.get("algorithm_class")
+                ),
+                None,
+            ),
+            "epochs": final_training.get("epoch"),
+            "total_training_hours": (
+                training_seconds / 3600 if training_seconds is not None else None
+            ),
+            "peak_gpu_mb": max(
+                (row.get("peak_gpu_memory") or 0 for row in training),
+                default=None,
+            ),
+            "num_generated_samples": sample_count,
+            "eval_epoch": eval_epoch,
+        })
+    return rows
 
 
 def plot_fid_subset(
@@ -266,6 +424,7 @@ def render_plots(combined_path: Path, plot_dir: Path, records: list[dict[str, An
         plot_gpu_memory_comparison(
             str(combined_path), str(plot_dir / "gpu_memory.png")
         )
+        plot_primary_loss_curves(records, plot_dir / "loss_curves.png")
     if "sampling" in record_types:
         plot_sampling_time_vs_nfe(
             str(combined_path), str(plot_dir / "sampling_time_vs_nfe.png")
@@ -343,10 +502,21 @@ def main() -> int:
         writer.writeheader()
         writer.writerows(summary)
 
+    training_cost_rows = build_training_cost_table(records)
+    training_cost_path = output_dir / "training_cost_table.csv"
+    if training_cost_rows:
+        with training_cost_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(
+                handle, fieldnames=list(training_cost_rows[0])
+            )
+            writer.writeheader()
+            writer.writerows(training_cost_rows)
+
     render_plots(combined_path, output_dir / "plots", records)
     print(f"Aggregated {len(records)} records from {len(inputs)} files.")
     print(f"Combined metrics: {combined_path}")
     print(f"Summary table:    {summary_path}")
+    print(f"Training costs:   {training_cost_path}")
     print(f"Plots:            {output_dir / 'plots'}")
     return 0
 

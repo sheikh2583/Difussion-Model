@@ -18,10 +18,22 @@ def test_linux_platform_scripts_parse_and_are_executable() -> None:
     if shell is None or bash is None:
         pytest.skip("POSIX shells are unavailable")
 
-    for name in ("init.sh", "train.sh", "train_cifar.sh", "train_all_datasets.sh"):
+    for name in (
+        "init.sh",
+        "train.sh",
+        "train_cifar.sh",
+        "train_all_datasets.sh",
+        "make_summary.sh",
+        "make_minimal_zip.sh",
+    ):
         path = LINUX_DIR / name
         assert path.stat().st_mode & 0o111
-        interpreter = bash if name in ("train_cifar.sh", "train_all_datasets.sh") else shell
+        interpreter = bash if name in (
+            "train_cifar.sh",
+            "train_all_datasets.sh",
+            "make_summary.sh",
+            "make_minimal_zip.sh",
+        ) else shell
         subprocess.run([interpreter, "-n", str(path)], check=True)
 
 
@@ -68,3 +80,16 @@ def test_generated_outputs_remain_ignored() -> None:
     assert "results/example/checkpoints/run_1/model.pt" in ignored
     assert "data/raw/cifar-10-python.tar.gz" in ignored
     assert "data/reflow_pairs_cifar10.pt" in ignored
+
+
+def test_linux_reporting_helpers_are_training_safe() -> None:
+    summary = (LINUX_DIR / "make_summary.sh").read_text(encoding="utf-8")
+    package = (LINUX_DIR / "make_minimal_zip.sh").read_text(encoding="utf-8")
+
+    assert "scripts/aggregate_results.py" in summary
+    assert "scripts/package_review.py" in package
+    for text in (summary, package):
+        assert "pgrep" in text
+        assert "--allow-running" in text
+        assert "--dry-run" in text
+        assert "kill" not in text

@@ -10,6 +10,7 @@ Add --make-plots to regenerate FID/IS vs NFE curves into results/<experiment>/me
 """
 import argparse
 import os
+import re
 from pathlib import Path
 
 import torch
@@ -77,9 +78,12 @@ def main():
     run_name = os.path.basename(os.path.normpath(run_dir))
     sampler   = Sampler(algorithm, device, run_dir, run_name, cfg.seed)
     evaluator = Evaluator(cfg, run_dir, device)
+    epoch_match = re.search(r"epoch(\d+)", str(checkpoint_path))
+    inferred_epoch = int(epoch_match.group(1)) if epoch_match else None
     evaluator.evaluate(sampler, nfe_values=cfg.evaluation.nfe_values,
                        make_plots=args.make_plots,
-                       checkpoint_path=str(checkpoint_path))
+                       checkpoint_path=str(checkpoint_path),
+                       current_epoch=inferred_epoch)
 
 
 if __name__ == "__main__":

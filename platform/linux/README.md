@@ -52,3 +52,20 @@ The CIFAR-10 suite keeps each preset's controlled batch size: 128 for FM,
 FM-LN, exact-JVP MF, Consistency, and Reflow; 64 for MF-Distill.
 
 Outputs are stored under `results/<algorithm>_cifar10/` and are ignored by Git.
+
+## Summaries and review packages
+
+After training finishes, rebuild the aggregate tables and the minimal review
+archive with Linux-native entrypoints:
+
+```bash
+./platform/linux/make_summary.sh
+./platform/linux/make_minimal_zip.sh
+```
+
+These helpers use `venv/bin/python`, resolve paths containing spaces, and never
+start, stop, signal, or modify a training process. By default they refuse to
+run while this project's `train.py` is active so an append-in-progress metrics
+record cannot enter the output. Use `--dry-run` to inspect either command. A
+deliberate read-only snapshot during training is available with
+`--allow-running`.

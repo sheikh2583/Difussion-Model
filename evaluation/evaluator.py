@@ -5,6 +5,7 @@ the Sampler, plus the cached real-data reference statistics.
 """
 import json
 import os
+import re
 from typing import List
 
 import torch
@@ -114,7 +115,11 @@ class Evaluator:
 
     def evaluate(self, sampler: Sampler, nfe_values: List[int],
                  make_plots: bool = False,
-                 checkpoint_path: str = None) -> None:
+                 checkpoint_path: str = None,
+                 current_epoch: int = None) -> None:
+        if current_epoch is None and checkpoint_path:
+            match = re.search(r"epoch(\d+)", str(checkpoint_path))
+            current_epoch = int(match.group(1)) if match else None
         real_images = None
         fid_metric = None
         if "fid" in self.cfg.evaluation.metrics:
@@ -132,6 +137,7 @@ class Evaluator:
                 algorithm=sampler.algorithm.name(),
                 seed=sampler.seed,
                 record_type="sampling",
+                epoch=current_epoch,
                 nfe=nfe,
                 sampling_time=elapsed,
                 time_per_image=elapsed / sample_count,
@@ -153,6 +159,7 @@ class Evaluator:
                 algorithm=sampler.algorithm.name(),
                 seed=sampler.seed,
                 record_type="evaluation",
+                epoch=current_epoch,
                 nfe=nfe,
                 fid=fid_score,
                 is_mean=is_mean,
