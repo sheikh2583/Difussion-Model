@@ -5,8 +5,8 @@ between operating systems. Only the launch commands differ.
 
 Choose one platform guide:
 
-- [Linux](platform/linux/README.md)
-- [Windows](platform/windows/README.md)
+- [Linux](scripts/linux/README.md)
+- [Windows](scripts/windows/README.md)
 
 ## Repository layout
 
@@ -42,14 +42,14 @@ Linux:
 
 ```bash
 export DIFFUSION_MACHINE_LABEL=linux-rtx3090
-./platform/linux/train_cifar.sh
+./scripts/linux/train_cifar.sh
 ```
 
 Windows Command Prompt:
 
 ```bat
 set DIFFUSION_MACHINE_LABEL=windows-rtx3090
-platform\windows\train_cifar.cmd
+scripts\windows\train_cifar.cmd
 ```
 
 Use the same Git commit and unchanged configs for controlled comparisons.

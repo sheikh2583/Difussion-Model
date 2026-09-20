@@ -59,7 +59,7 @@ This document is a self-contained technical review dossier intended for a review
 | `tests/test_mf_v2_preflight.py` | Codex | **[NEW]** Preflight unit tests |
 | `tests/test_runner_lifecycle.py` | Codex | **[NEW]** Runner lifecycle unit tests |
 | `README.md` | Codex | MF v2 probe and full-run command documentation |
-| `INIT_ALL.cmd` / `init_all.sh` | Codex | Cross-platform bootstrap |
+| `scripts\windows\init.cmd` / `scripts/linux/init.sh` | Codex | Cross-platform bootstrap |
 | `.gitattributes` | Codex | Line-ending hygiene |
 | `bootstrap.py` | Codex | Updated setup helper |
 
@@ -85,7 +85,7 @@ This document is a self-contained technical review dossier intended for a review
 | File | Owner | Change |
 |------|-------|--------|
 | `scripts/aggregate_results.py` | Antigravity | **Fix 0.1** — Canonical JSONL selection: aggregator now only loads the file whose stem matches the run directory name, excluding smoke/auxiliary files. Corrects `fm_lognorm_rtx3060` FID@5: **310.43 → 96.45** |
-| `scripts/forensic_mf_split.py` | Antigravity | **[NEW] Fix 0.2** — Forensic split of `mf_cifar10.jsonl` into run1 (epochs 1–30, batch=32, diverged) and run2 (epochs 31–100, batch=64, stable ~0.40 then late divergence). Original file untouched. |
+| Retired one-off forensic utility | Antigravity | **Fix 0.2** — Split the historical `mf_cifar10.jsonl` evidence into run1 (epochs 1–30, batch=32, diverged) and run2 (epochs 31–100, batch=64, stable ~0.40 then late divergence). The utility was removed after the canonical records were repaired; the original evidence remains untouched. |
 | `utils/results.py` | Antigravity | **Fix 0.3** — Added `checkpoint_path` and `num_generated_samples` to `ResultRecord` schema. Legacy records retain `None`. |
 | `evaluation/evaluator.py` | Antigravity | **Fix 0.3** — `evaluate()` now accepts `checkpoint_path=` and writes both traceability fields into every future evaluation record. |
 

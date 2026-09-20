@@ -1,8 +1,7 @@
 from scripts.aggregate_results import (
-    BUDGET_EXPERIMENTS,
-    PRIMARY_EXPERIMENTS,
     build_summary,
     deduplicate,
+    experiment_labels,
 )
 
 
@@ -60,16 +59,30 @@ def test_legacy_null_sample_count_is_reported_as_unknown():
     assert summary["num_generated_samples"] == "unknown"
 
 
-def test_primary_and_budget_plot_membership_is_disjoint():
-    assert set(PRIMARY_EXPERIMENTS) == {
-        "fm_cifar10_5k",
-        "fm_lognorm_cifar10",
-        "mf_distill_cifar10",
-        "consistency_cifar10",
-        "reflow_cifar10",
+def test_plot_membership_and_labels_come_from_record_metadata():
+    records = [
+        {
+            "experiment": "fm_lognorm_cifar10",
+            "experiment_name": "fm_lognorm",
+            "dataset": "cifar10",
+            "algorithm_class": "FlowMatchingLognormAlgorithm",
+        },
+        {
+            "experiment": "mf_v3_exact_jvp_b128_cifar10",
+            "experiment_name": "mf_v3_exact_jvp_b128",
+            "dataset": "cifar10",
+            "algorithm_class": "MeanFlowAlgorithm",
+        },
+        {
+            "experiment": "fm_celeba",
+            "experiment_name": "fm",
+            "dataset": "celeba",
+            "algorithm_class": "FlowMatchingAlgorithm",
+        },
+    ]
+
+    assert experiment_labels(records, "cifar10") == {
+        "fm_lognorm_cifar10": "FM-LN",
+        "mf_v3_exact_jvp_b128_cifar10": "Mean Flow [mf_v3_exact_jvp_b128]",
     }
-    assert set(BUDGET_EXPERIMENTS) == {
-        "fm_cifar10",
-        "fm_lognorm_rtx3060",
-    }
-    assert set(PRIMARY_EXPERIMENTS).isdisjoint(BUDGET_EXPERIMENTS)
+    assert experiment_labels(records, "celeba") == {"fm_celeba": "FM"}

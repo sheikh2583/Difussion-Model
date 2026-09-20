@@ -44,6 +44,19 @@ def parse_args() -> argparse.Namespace:
 def load_records(paths: list[Path]) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for path in paths:
+        run_dir = path.parent.parent
+        config: dict[str, Any] = {}
+        try:
+            config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            pass
+        dataset_config = config.get("dataset", {})
+        dataset = dataset_config.get("name") if isinstance(dataset_config, dict) else None
+        if not dataset:
+            dataset = next(
+                (name for name in ("cifar10", "celeba") if run_dir.name.endswith(f"_{name}")),
+                "unknown",
+            )
         file_records: list[dict[str, Any]] = []
         with path.open("r", encoding="utf-8") as handle:
             for line_number, line in enumerate(handle, start=1):
@@ -113,6 +126,8 @@ def load_records(paths: list[Path]) -> list[dict[str, Any]]:
                 comparison += f"@{str(code_identity)[:20]}"
             record["algorithm_class"] = algorithm_class
             record["experiment"] = experiment
+            record["experiment_name"] = config.get("experiment_name", experiment)
+            record["dataset"] = str(dataset).lower()
             record["comparison"] = comparison
             # Plotting utilities group on `algorithm`; use the run name so
             # datasets, machines, and code revisions cannot merge silently.
@@ -253,34 +268,39 @@ def build_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
-PRIMARY_EXPERIMENTS = {
-    "fm_cifar10_5k": "FM (5k)",
-    "fm_lognorm_cifar10": "FM-LN (5k)",
-    "mf_distill_cifar10": "MF-Distill",
-    "consistency_cifar10": "Consistency",
-    "reflow_cifar10": "Reflow",
-}
-
-BUDGET_EXPERIMENTS = {
-    "fm_cifar10": "FM (legacy budget)",
-    "fm_lognorm_rtx3060": "FM-LN (budget comparison)",
-}
-
-LOSS_CURVE_EXPERIMENTS = {
-    "fm_cifar10": "FM — CIFAR-10",
-    "fm_lognorm_cifar10": "FM-LogNorm — CIFAR-10",
-    "mf_distill_cifar10": "MF-Distill — CIFAR-10",
-    "consistency_cifar10": "Consistency — CIFAR-10",
-    "reflow_cifar10": "Reflow — CIFAR-10",
-    "fm_celeba": "FM — CelebA",
-    "fm_lognorm_celeba": "FM-LogNorm — CelebA",
+ALGORITHM_LABELS = {
+    "FlowMatchingAlgorithm": "FM",
+    "FlowMatchingLognormAlgorithm": "FM-LN",
+    "MeanFlowAlgorithm": "Mean Flow",
+    "MeanFlowDistillAlgorithm": "MF-Distill",
+    "ConsistencyAlgorithm": "Consistency",
+    "ReflowAlgorithm": "Reflow",
 }
 
 
-def plot_primary_loss_curves(records: list[dict[str, Any]], out_path: Path) -> None:
-    """Plot one log-scale training-loss curve per requested experiment."""
+def experiment_labels(records: list[dict[str, Any]], dataset: str) -> dict[str, str]:
+    """Build stable labels from recorded algorithm classes and config metadata."""
+    labels: dict[str, str] = {}
+    for row in records:
+        if row.get("dataset") != dataset:
+            continue
+        experiment = str(row.get("experiment", "unknown"))
+        algorithm_class = str(row.get("algorithm_class", ""))
+        base = ALGORITHM_LABELS.get(algorithm_class, str(row.get("experiment_name", experiment)))
+        # Preserve meaningful variant names without exposing the redundant
+        # dataset suffix already represented by the plot title.
+        configured = str(row.get("experiment_name", ""))
+        canonical = {"fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow"}
+        labels[experiment] = base if configured in canonical else f"{base} [{configured}]"
+    return labels
+
+
+def plot_primary_loss_curves(
+    records: list[dict[str, Any]], dataset: str, out_path: Path
+) -> None:
+    """Plot one log-scale training-loss curve per discovered dataset run."""
     plt.figure()
-    for experiment, label in LOSS_CURVE_EXPERIMENTS.items():
+    for experiment, label in experiment_labels(records, dataset).items():
         by_epoch: dict[int, dict[str, Any]] = {}
         for row in records:
             if (
@@ -301,8 +321,9 @@ def plot_primary_loss_curves(records: list[dict[str, Any]], out_path: Path) -> N
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.yscale("log")
-    plt.title("Training Loss Curves")
-    plt.legend()
+    plt.title(f"{dataset_label(dataset)} Training Loss Curves")
+    if plt.gca().has_data():
+        plt.legend()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path, bbox_inches="tight")
     plt.close()
@@ -413,6 +434,12 @@ def plot_fid_subset(
     plt.close()
 
 
+def dataset_label(dataset: str) -> str:
+    return {"cifar10": "CIFAR-10", "celeba": "CelebA"}.get(
+        dataset, dataset.replace("_", " ").title()
+    )
+
+
 def render_plots(combined_path: Path, plot_dir: Path, records: list[dict[str, Any]]) -> None:
     plot_dir.mkdir(parents=True, exist_ok=True)
     record_types = {row.get("record_type") for row in records}
@@ -424,24 +451,24 @@ def render_plots(combined_path: Path, plot_dir: Path, records: list[dict[str, An
         plot_gpu_memory_comparison(
             str(combined_path), str(plot_dir / "gpu_memory.png")
         )
-        plot_primary_loss_curves(records, plot_dir / "loss_curves.png")
+        for dataset in sorted({str(row.get("dataset")) for row in records} - {"unknown"}):
+            plot_primary_loss_curves(
+                records, dataset, plot_dir / f"loss_curves_{dataset}.png"
+            )
     if "sampling" in record_types:
         plot_sampling_time_vs_nfe(
             str(combined_path), str(plot_dir / "sampling_time_vs_nfe.png")
         )
     if "evaluation" in record_types:
-        plot_fid_subset(
-            records,
-            PRIMARY_EXPERIMENTS,
-            plot_dir / "fid_vs_nfe.png",
-            "Primary Comparison: FID vs NFE",
-        )
-        plot_fid_subset(
-            records,
-            BUDGET_EXPERIMENTS,
-            plot_dir / "fid_vs_nfe_budget.png",
-            "Budget Comparison: FID vs NFE",
-        )
+        for dataset in sorted({str(row.get("dataset")) for row in records} - {"unknown"}):
+            labels = experiment_labels(records, dataset)
+            if labels:
+                plot_fid_subset(
+                    records,
+                    labels,
+                    plot_dir / f"fid_vs_nfe_{dataset}.png",
+                    f"{dataset_label(dataset)}: FID vs NFE",
+                )
         plot_is_vs_nfe(str(combined_path), str(plot_dir / "is_vs_nfe.png"))
     if {"sampling", "evaluation"} <= record_types:
         plot_fid_vs_sampling_time(

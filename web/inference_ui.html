@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Live inference interface for CIFAR-10 Flow Matching and Mean Flow models.">
+  <meta name="description" content="Live inference interface for discovered CIFAR-10 and CelebA diffusion checkpoints.">
   <title>Inference</title>
   <style>
     :root {
@@ -135,7 +135,7 @@
         </div>
         <div class="image-stage">
           <canvas id="noiseCanvas" width="256" height="256" aria-label="Gaussian noise initialization"></canvas>
-          <img id="resultImage" alt="Generated CIFAR-10 sample grid">
+          <img id="resultImage" alt="Generated sample grid">
           <div class="stage-message" id="stageMessage">Input: Gaussian noise · choose Generate</div>
         </div>
         <div class="metadata" id="metadata"><span>No inference run yet</span></div>
@@ -155,11 +155,7 @@
             </div>
             <div class="field full">
               <span class="field-label">Function evaluations</span>
-              <div class="nfe-options" role="group" aria-label="Number of function evaluations">
-                <button class="nfe" type="button" data-nfe="1" aria-pressed="false">NFE 1</button>
-                <button class="nfe" type="button" data-nfe="5" aria-pressed="false">NFE 5</button>
-                <button class="nfe active" type="button" data-nfe="20" aria-pressed="true">NFE 20</button>
-              </div>
+              <div class="nfe-options" id="nfeOptions" role="group" aria-label="Number of function evaluations"></div>
             </div>
             <div class="field full">
               <label for="seed">Random seed</label>
@@ -200,7 +196,8 @@
     const lossChart = document.getElementById("lossChart");
     const lossValue = document.getElementById("lossValue");
     const chartEpoch = document.getElementById("chartEpoch");
-    const nfeButtons = [...document.querySelectorAll(".nfe")];
+    const nfeOptions = document.getElementById("nfeOptions");
+    function nfeButtons() { return [...nfeOptions.querySelectorAll(".nfe")]; }
 
     function drawNoise(animated = false) {
       const ctx = noiseCanvas.getContext("2d");
@@ -222,7 +219,7 @@
       checkpoint.disabled = busy || !selectedModel()?.available;
       imageCount.disabled = busy;
       seed.disabled = busy;
-      nfeButtons.forEach(button => button.disabled = busy);
+      nfeButtons().forEach(button => button.disabled = busy);
       status.classList.toggle("running", busy);
       statusText.textContent = busy ? "Inferring" : "Ready";
       generateButton.textContent = busy ? "Generating…" : "Generate new samples";
@@ -237,6 +234,29 @@
       [...model.epochs].reverse().forEach(epoch => checkpoint.add(new Option(`Epoch ${epoch}`, String(epoch), false, epoch === model.default_epoch)));
     }
 
+    function renderNfeOptions(model) {
+      nfeOptions.replaceChildren();
+      const values = model.nfe_values?.length ? model.nfe_values : [1, 5, 20];
+      state.nfe = values.includes(20) ? 20 : values.at(-1);
+      values.forEach(value => {
+        const button = document.createElement("button");
+        button.className = `nfe${value === state.nfe ? " active" : ""}`;
+        button.type = "button";
+        button.dataset.nfe = String(value);
+        button.textContent = `NFE ${value}`;
+        button.setAttribute("aria-pressed", String(value === state.nfe));
+        button.addEventListener("click", () => {
+          state.nfe = value;
+          nfeButtons().forEach(item => {
+            const active = Number(item.dataset.nfe) === state.nfe;
+            item.classList.toggle("active", active);
+            item.setAttribute("aria-pressed", String(active));
+          });
+        });
+        nfeOptions.appendChild(button);
+      });
+    }
+
     function selectAlgorithm(key) {
       state.model = key;
       const model = selectedModel();
@@ -245,6 +265,7 @@
         button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active));
       });
       renderCheckpoints(model);
+      renderNfeOptions(model);
       notice.classList.toggle("visible", !model.available);
       notice.textContent = model.available ? "" : `${model.label} checkpoints are not available yet. The interface will enable this model when its run is added.`;
       resultImage.style.display = "none";
@@ -262,7 +283,7 @@
       state.catalog.forEach(model => {
         const button = document.createElement("button");
         button.type = "button"; button.className = `algorithm${model.available ? "" : " unavailable"}`;
-        button.dataset.model = model.key; button.textContent = model.key === "fm_lognorm" ? "FM-LN" : model.key.toUpperCase();
+        button.dataset.model = model.key; button.textContent = `${model.short_label} · ${model.dataset_label}`;
         button.setAttribute("aria-pressed", "false");
         button.addEventListener("click", () => selectAlgorithm(model.key));
         algorithmBar.appendChild(button);
@@ -280,7 +301,7 @@
       ctx.clearRect(0,0,width,height);
       if (!rows.length) { ctx.fillStyle = "#858899"; ctx.font = "12px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText("Training history unavailable",width/2,height/2); lossValue.textContent = "—"; chartEpoch.textContent="Epoch —"; return; }
       const values = rows.map(row => row[1]); const minY = Math.min(...values)*.92, maxY = Math.max(...values)*1.06;
-      const maxEpoch = rows.at(-1)[0]; const x = epoch => pad.l + (epoch-1)/(maxEpoch-1)*(width-pad.l-pad.r); const y = value => pad.t + (1-(value-minY)/(maxY-minY))*(height-pad.t-pad.b);
+      const maxEpoch = rows.at(-1)[0]; const epochSpan = Math.max(1, maxEpoch-1); const valueSpan = Math.max(1e-12, maxY-minY); const x = epoch => pad.l + (epoch-1)/epochSpan*(width-pad.l-pad.r); const y = value => pad.t + (1-(value-minY)/valueSpan)*(height-pad.t-pad.b);
       ctx.font = "9px Inter, sans-serif"; ctx.fillStyle = "#7b7e91"; ctx.strokeStyle = "#e5e7f0"; ctx.lineWidth = 1; ctx.textAlign = "left";
       [0,.5,1].forEach(f => { const py=pad.t+(height-pad.t-pad.b)*f; ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(width-pad.r,py);ctx.stroke();ctx.fillText((maxY-(maxY-minY)*f).toFixed(3),5,py+3); });
       const selectedEpoch = Number(checkpoint.value || model.default_epoch);
@@ -353,7 +374,6 @@
       }
     }
 
-    nfeButtons.forEach(button => button.addEventListener("click",()=>{ state.nfe=Number(button.dataset.nfe); nfeButtons.forEach(item=>{const active=Number(item.dataset.nfe)===state.nfe;item.classList.toggle("active",active);item.setAttribute("aria-pressed",String(active));}); }));
     checkpoint.addEventListener("change",resetLossChart);
     document.getElementById("randomSeed").addEventListener("click",()=>{ seed.value=crypto.getRandomValues(new Uint32Array(1))[0]; });
     generateButton.addEventListener("click",generate);
@@ -364,10 +384,11 @@
       try {
         const response = await fetch("/api/models"); const data = await response.json();
         state.catalog=data.models;
-        renderAlgorithms(); const preferred=state.catalog.find(model=>model.key==="fm_lognorm"&&model.available)||state.catalog.find(model=>model.available)||state.catalog[0];
+        if (!state.catalog.length) throw new Error("No checkpoint runs were discovered");
+        renderAlgorithms(); const preferred=state.catalog.find(model=>model.algorithm==="fm_lognorm"&&model.dataset==="cifar10"&&model.available)||state.catalog.find(model=>model.available)||state.catalog[0];
         selectAlgorithm(preferred.key);
       } catch (error) {
-        stageMessage.textContent="Start inference_server.py to connect"; generateButton.disabled=true;
+        stageMessage.textContent=error.message || "Start inference_server.py to connect"; generateButton.disabled=true;
       }
     }
     initialize();

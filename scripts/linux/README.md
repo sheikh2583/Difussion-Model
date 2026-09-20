@@ -1,0 +1,71 @@
+# Linux quickstart
+
+From the repository root:
+
+```bash
+chmod +x scripts/linux/*.sh
+./scripts/linux/init.sh
+./scripts/linux/train_cifar.sh
+```
+
+To run CIFAR-10 and then CelebA unattended with one command:
+
+```bash
+./scripts/linux/train_all_datasets.sh
+```
+
+The launchers run each model sequentially in dependency order. CIFAR-10 uses
+the batch-128 exact-JVP MeanFlow configuration. A separate complete terminal
+log is saved for every dataset/model pair under a device-specific directory,
+for example `training_logs/nvidia-geforce-rtx-3090-24gb/`. After all
+requested jobs have been attempted, the logs are committed together and pushed
+to the current branch. Committing at the end keeps one source-code identity
+across every comparison. Large results, checkpoints, datasets, and generated
+samples remain excluded from Git.
+
+The machine label is generated automatically from the OS, hostname, GPU, and
+VRAM (for example, `linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb`). No setup
+is required. To use a shorter custom label instead, optionally run:
+
+```bash
+export DIFFUSION_MACHINE_LABEL=linux-rtx3090
+```
+
+Run `./scripts/linux/train_cifar.sh` again after an interruption. Completed
+models are detected, and an interrupted model resumes from its latest completed
+10-epoch checkpoint.
+
+For the model-selection menu:
+
+```bash
+./scripts/linux/train.sh
+```
+
+Useful checks that do not start training:
+
+```bash
+./scripts/linux/train.sh --list
+./scripts/linux/train_cifar.sh --dry-run
+./scripts/linux/train_all_datasets.sh --dry-run
+```
+
+The CIFAR-10 suite keeps each preset's controlled batch size: 128 for FM,
+FM-LN, exact-JVP MF, Consistency, and Reflow; 64 for MF-Distill.
+
+Outputs are stored under `results/<algorithm>_cifar10/` and are ignored by Git.
+
+## Summaries, animations, and dataset bundles
+
+After training finishes, rebuild aggregate tables and dataset-specific GIFs:
+
+```bash
+./scripts/linux/make_summary.sh
+./scripts/linux/generate_cifar10_outputs.sh
+./scripts/linux/generate_celeba_outputs.sh
+venv/bin/python scripts/package_dataset_bundles.py
+```
+
+These tools use existing metrics, configs, and atomically published checkpoint
+archives. They never start, stop, signal, or modify a training process. The
+summary helper refuses to run during training unless `--allow-running` is
+explicitly supplied; `--dry-run` prints its command without writing outputs.

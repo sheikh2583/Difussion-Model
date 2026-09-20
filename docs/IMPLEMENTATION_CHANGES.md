@@ -21,18 +21,18 @@ experience.
 
 ### Windows
 
-1. Double-click `INIT_ALL.cmd`.
+1. Double-click `scripts\windows\init.cmd`.
 2. Wait for installation and downloads to finish.
-3. Double-click `TRAIN.cmd`.
+3. Double-click `scripts\windows\train.cmd`.
 4. Select a model from the numbered menu.
 5. Confirm the selection to start training.
 
 ### Linux
 
 ```bash
-chmod +x init_all.sh train_interactive.sh
-./init_all.sh
-./train_interactive.sh
+chmod +x scripts/linux/init.sh scripts/linux/train.sh
+./scripts/linux/init.sh
+./scripts/linux/train.sh
 ```
 
 The initializer and training scripts always resolve the repository directory, so
@@ -64,11 +64,11 @@ The initialization workflow now:
 The lower-level setup commands remain available when only one dataset is wanted:
 
 ```powershell
-.\scripts\setup.ps1 -Yes -Datasets cifar10
+.\scripts\windows\setup.ps1 -Yes -Datasets cifar10
 ```
 
 ```bash
-./scripts/setup.sh --yes --datasets cifar10
+./scripts/linux/setup.sh --yes --datasets cifar10
 ```
 
 CelebA is distributed through an upstream Google Drive source. If its automatic
@@ -268,13 +268,13 @@ starting dependent jobs and support dry-run planning.
 Examples:
 
 ```powershell
-.\scripts\train_all.ps1 -Dataset cifar10 -DryRun
-.\scripts\evaluate_all.ps1 -Dataset cifar10 -DryRun
+.\scripts\windows\train_all.ps1 -Dataset cifar10 -DryRun
+.\scripts\windows\evaluate_all.ps1 -Dataset cifar10 -DryRun
 ```
 
 ```bash
-./scripts/train_all.sh --dataset celeba --dry-run
-./scripts/evaluate_all.sh --dataset celeba --dry-run
+./scripts/linux/train_all.sh --dataset celeba --dry-run
+./scripts/linux/evaluate_all.sh --dataset celeba --dry-run
 ```
 
 ## Workflow verification
@@ -347,8 +347,8 @@ remain unavailable because they inherently require CelebA model training.
 
 | Purpose | Windows | Linux |
 |---|---|---|
-| Install everything | `INIT_ALL.cmd` | `./init_all.sh` |
-| Interactive training | `TRAIN.cmd` | `./train_interactive.sh` |
+| Install everything | `scripts\windows\init.cmd` | `./scripts/linux/init.sh` |
+| Interactive training | `scripts\windows\train.cmd` | `./scripts/linux/train.sh` |
 | Verify workflow | `venv\Scripts\python.exe scripts\verify_workflow.py` | `venv/bin/python scripts/verify_workflow.py` |
 | Aggregate results | `venv\Scripts\python.exe scripts\aggregate_results.py` | `venv/bin/python scripts/aggregate_results.py` |
 | Inference UI | `venv\Scripts\python.exe web\inference_server.py` | `venv/bin/python web/inference_server.py` |

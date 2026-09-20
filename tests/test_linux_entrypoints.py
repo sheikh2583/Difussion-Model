@@ -12,9 +12,9 @@ from scripts import interactive_train
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 POSIX_ENTRYPOINTS = (
-    PROJECT_ROOT / "init_all.sh",
-    PROJECT_ROOT / "train_interactive.sh",
-    PROJECT_ROOT / "scripts" / "setup.sh",
+    PROJECT_ROOT / "scripts" / "linux" / "init.sh",
+    PROJECT_ROOT / "scripts" / "linux" / "train.sh",
+    PROJECT_ROOT / "scripts" / "linux" / "setup.sh",
 )
 
 
@@ -34,12 +34,12 @@ def test_posix_entrypoints_parse_with_system_sh():
 
 
 def test_initializer_does_not_depend_on_nested_executable_bit():
-    text = (PROJECT_ROOT / "init_all.sh").read_text(encoding="utf-8")
-    assert 'exec sh "$PROJECT_ROOT/scripts/setup.sh"' in text
+    text = (PROJECT_ROOT / "scripts" / "linux" / "init.sh").read_text(encoding="utf-8")
+    assert 'exec sh "$SCRIPT_DIR/setup.sh"' in text
 
 
 def test_setup_installs_venv_support_on_minimal_linux():
-    text = (PROJECT_ROOT / "scripts" / "setup.sh").read_text(encoding="utf-8")
+    text = (PROJECT_ROOT / "scripts" / "linux" / "setup.sh").read_text(encoding="utf-8")
     assert "python_can_create_venv" in text
     assert "python3-venv" in text
     assert "import ensurepip, venv" in text

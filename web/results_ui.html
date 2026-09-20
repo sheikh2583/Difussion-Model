@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Read-only overview of discovered diffusion experiment outputs.">
+  <title>Experiment Results</title>
+  <style>
+    :root { --bg:#f7f9ff; --surface:#fff; --ink:#17182d; --muted:#6d7084; --teal:#00aeb3; --indigo:#5c6bc0; --line:#e3e6f1; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; color:var(--ink); background:var(--bg); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    body::before { content:""; position:fixed; inset:0 0 auto; height:3px; background:linear-gradient(90deg,var(--teal),var(--indigo)); }
+    header, main { width:min(1180px,calc(100% - 32px)); margin:auto; }
+    header { display:flex; align-items:end; justify-content:space-between; gap:20px; padding:42px 0 24px; }
+    h1 { margin:0; font-size:clamp(2rem,5vw,3.4rem); letter-spacing:-.05em; }
+    header p { margin:8px 0 0; color:var(--muted); }
+    nav { display:flex; gap:10px; }
+    nav a { color:var(--indigo); text-decoration:none; font-weight:700; font-size:.85rem; }
+    .filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+    .filters button { border:1px solid var(--line); border-radius:999px; padding:8px 14px; color:var(--ink); background:var(--surface); cursor:pointer; }
+    .filters button.active { color:white; border-color:var(--indigo); background:var(--indigo); }
+    .summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
+    .stat, .run { border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:0 14px 38px rgba(50,61,116,.08); }
+    .stat { padding:18px; }
+    .stat strong { display:block; font-size:1.8rem; }
+    .stat span { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; }
+    .runs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; padding-bottom:42px; }
+    .run { padding:20px; }
+    .run-head { display:flex; justify-content:space-between; align-items:start; gap:14px; }
+    .run h2 { margin:0; font-size:1.15rem; }
+    .run-name { margin:5px 0 0; color:var(--muted); font:12px ui-monospace,SFMono-Regular,Consolas,monospace; overflow-wrap:anywhere; }
+    .badge { flex:none; border-radius:999px; padding:5px 9px; color:#057377; background:#e5fbfa; font-size:.7rem; font-weight:800; }
+    .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:18px; }
+    .metric { min-width:0; }
+    .metric strong { display:block; font-size:.95rem; overflow-wrap:anywhere; }
+    .metric span { color:var(--muted); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; }
+    .empty { grid-column:1/-1; padding:50px; text-align:center; color:var(--muted); }
+    @media(max-width:760px) { header { align-items:start; flex-direction:column; } .runs { grid-template-columns:1fr; } .metrics { grid-template-columns:repeat(2,1fr); } }
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1>Experiment Results</h1><p>Live, read-only inventory of configs, metrics, and published checkpoints.</p></div>
+    <nav><a href="/">Home</a><a href="/infer">Generate →</a></nav>
+  </header>
+  <main>
+    <div class="filters" id="filters" aria-label="Filter by dataset"></div>
+    <section class="summary" aria-label="Result summary">
+      <div class="stat"><strong id="runCount">—</strong><span>Runs</span></div>
+      <div class="stat"><strong id="checkpointCount">—</strong><span>Checkpoints</span></div>
+      <div class="stat"><strong id="evaluatedCount">—</strong><span>Evaluated runs</span></div>
+    </section>
+    <section class="runs" id="runs" aria-live="polite"><div class="empty">Loading result catalog…</div></section>
+  </main>
+  <script>
+    const state = { models: [], dataset: "all" };
+    const runs = document.getElementById("runs");
+    const filters = document.getElementById("filters");
+    const value = (item, fallback="—") => item == null ? fallback : item;
+    function metric(label, content) {
+      const node=document.createElement("div"); node.className="metric";
+      const strong=document.createElement("strong"); strong.textContent=content;
+      const span=document.createElement("span"); span.textContent=label;
+      node.append(strong,span); return node;
+    }
+    function render() {
+      const visible=state.models.filter(model=>state.dataset==="all"||model.dataset===state.dataset);
+      document.getElementById("runCount").textContent=visible.length;
+      document.getElementById("checkpointCount").textContent=visible.reduce((sum,model)=>sum+model.epochs.length,0);
+      document.getElementById("evaluatedCount").textContent=visible.filter(model=>model.evaluation_count>0).length;
+      runs.replaceChildren();
+      if (!visible.length) { const empty=document.createElement("div"); empty.className="empty"; empty.textContent="No matching result runs were discovered."; runs.append(empty); return; }
+      visible.forEach(model=>{
+        const card=document.createElement("article"); card.className="run";
+        const head=document.createElement("div"); head.className="run-head";
+        const titleWrap=document.createElement("div"); const title=document.createElement("h2"); title.textContent=model.label;
+        const name=document.createElement("p"); name.className="run-name"; name.textContent=model.key; titleWrap.append(title,name);
+        const badge=document.createElement("span"); badge.className="badge"; badge.textContent=model.available?"READY":"INCOMPLETE"; head.append(titleWrap,badge);
+        const metrics=document.createElement("div"); metrics.className="metrics";
+        metrics.append(
+          metric("Latest epoch",value(model.default_epoch)),
+          metric("Checkpoints",model.epochs.length),
+          metric("Latest loss",model.latest_loss==null?"—":model.latest_loss.toFixed(4)),
+          metric("Best FID",model.best_fid==null?"—":`${model.best_fid.toFixed(2)} @ NFE ${value(model.best_fid_nfe)}`)
+        );
+        card.append(head,metrics); runs.append(card);
+      });
+    }
+    function renderFilters() {
+      const choices=["all",...new Set(state.models.map(model=>model.dataset))]; filters.replaceChildren();
+      choices.forEach(dataset=>{ const button=document.createElement("button"); button.type="button"; button.textContent=dataset==="all"?"All datasets":state.models.find(model=>model.dataset===dataset)?.dataset_label||dataset; button.classList.toggle("active",dataset===state.dataset); button.addEventListener("click",()=>{state.dataset=dataset;renderFilters();render();}); filters.append(button); });
+    }
+    fetch("/api/models").then(response=>{if(!response.ok)throw new Error("Catalog request failed");return response.json();}).then(data=>{state.models=data.models;renderFilters();render();}).catch(error=>{runs.innerHTML="";const empty=document.createElement("div");empty.className="empty";empty.textContent=error.message;runs.append(empty);});
+  </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-"""Local HTTP inference service for the CIFAR-10 generative models.
+"""Local HTTP results browser and inference service for trained models.
 
 Run from the project root:
     python web/inference_server.py
@@ -39,14 +39,15 @@ from utils.checkpoints import load_algorithm_state
 from utils.checkpoint_runs import latest_checkpoint_run_directory
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+WEB_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = WEB_ROOT.parent
 PAGE_PATHS = {
-    "/": PROJECT_ROOT / "index.html",
-    "/index.html": PROJECT_ROOT / "index.html",
-    "/train": PROJECT_ROOT / "thesis_dashboard.html",
-    "/thesis_dashboard.html": PROJECT_ROOT / "thesis_dashboard.html",
-    "/infer": PROJECT_ROOT / "inference_ui.html",
-    "/inference_ui.html": PROJECT_ROOT / "inference_ui.html",
+    "/": WEB_ROOT / "index.html",
+    "/index.html": WEB_ROOT / "index.html",
+    "/results": WEB_ROOT / "results_ui.html",
+    "/results_ui.html": WEB_ROOT / "results_ui.html",
+    "/infer": WEB_ROOT / "inference_ui.html",
+    "/inference_ui.html": WEB_ROOT / "inference_ui.html",
 }
 MAX_REQUEST_BYTES = 64 * 1024
 MAX_IMAGES = 64
@@ -59,6 +60,11 @@ class ModelSpec:
     algorithm_class: Type[BaseAlgorithm]
     run_directory: Path
     checkpoint_prefix: str
+    experiment_name: str
+    dataset: str
+    dataset_label: str
+    image_size: int
+    nfe_values: tuple[int, ...]
 
     @property
     def config_path(self) -> Path:
@@ -87,6 +93,18 @@ _ALGO_LABELS: dict[str, str] = {
     "ReflowAlgorithm": "Rectified Flow Reflow",
     "MockAlgorithm": "Mock (smoke test)",
 }
+
+_ALGO_SHORT_LABELS: dict[str, str] = {
+    "FlowMatchingAlgorithm": "FM",
+    "FlowMatchingLognormAlgorithm": "FM-LN",
+    "MeanFlowAlgorithm": "Mean Flow",
+    "MeanFlowDistillAlgorithm": "MF-Distill",
+    "ConsistencyAlgorithm": "Consistency",
+    "ReflowAlgorithm": "Reflow",
+    "MockAlgorithm": "Mock",
+}
+
+_DATASET_LABELS = {"cifar10": "CIFAR-10", "celeba": "CelebA"}
 
 
 def _infer_algo_cls_from_ckpt_dir(ckpt_dir: Path):
@@ -130,11 +148,26 @@ def build_model_specs(results_root: Path) -> dict[str, "ModelSpec"]:
 
         # Use the run directory name as the unique key (e.g. "fm_cifar10").
         key = run_dir.name
-        with cfg_path.open(encoding="utf-8") as handle:
-            raw_config = json.load(handle)
-        dataset = raw_config.get("dataset", {}).get("name", "unknown dataset")
+        try:
+            with cfg_path.open(encoding="utf-8") as handle:
+                raw_config = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            continue
+        dataset_config = raw_config.get("dataset", {})
+        dataset = str(dataset_config.get("name", "unknown")).lower()
+        dataset_label = _DATASET_LABELS.get(dataset, dataset.replace("_", " ").title())
+        evaluation = raw_config.get("evaluation", {})
+        nfe_values = tuple(
+            sorted(
+                {
+                    int(value)
+                    for value in evaluation.get("nfe_values", (1, 5, 20))
+                    if isinstance(value, int) and 1 <= value <= 100
+                }
+            )
+        ) or (1, 5, 20)
         base_label = _ALGO_LABELS.get(algo_cls.__name__, algo_cls.__name__)
-        label = f"{base_label} ({dataset})"
+        label = f"{base_label} · {dataset_label}"
 
         specs[key] = ModelSpec(
             key=key,
@@ -142,6 +175,11 @@ def build_model_specs(results_root: Path) -> dict[str, "ModelSpec"]:
             algorithm_class=algo_cls,
             run_directory=run_dir,
             checkpoint_prefix=ckpt_prefix,
+            experiment_name=str(raw_config.get("experiment_name", run_dir.name)),
+            dataset=dataset,
+            dataset_label=dataset_label,
+            image_size=int(dataset_config.get("image_size", 0) or 0),
+            nfe_values=nfe_values,
         )
 
     return specs
@@ -182,18 +220,55 @@ def training_losses(spec: ModelSpec) -> list[list[float]]:
     return [[epoch, latest[epoch]] for epoch in sorted(latest)]
 
 
+def evaluation_summary(spec: ModelSpec) -> dict:
+    """Summarize completed evaluation rows without touching checkpoints."""
+    if not spec.metrics_path.is_file():
+        return {"evaluation_count": 0, "best_fid": None, "best_fid_nfe": None}
+    evaluations: list[dict] = []
+    with spec.metrics_path.open("r", encoding="utf-8") as file:
+        for line in file:
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if record.get("record_type") == "evaluation" and record.get("fid") is not None:
+                evaluations.append(record)
+    if not evaluations:
+        return {"evaluation_count": 0, "best_fid": None, "best_fid_nfe": None}
+    best = min(evaluations, key=lambda row: float(row["fid"]))
+    return {
+        "evaluation_count": len(evaluations),
+        "best_fid": float(best["fid"]),
+        "best_fid_nfe": best.get("nfe"),
+        "best_fid_epoch": best.get("epoch"),
+    }
+
+
 def model_catalog() -> list[dict]:
     catalog = []
     for spec in MODEL_SPECS.values():
         checkpoints = checkpoint_map(spec)
+        losses = training_losses(spec)
         catalog.append(
             {
                 "key": spec.key,
                 "label": spec.label,
+                "short_label": _ALGO_SHORT_LABELS.get(
+                    spec.algorithm_class.__name__, spec.algorithm_class.__name__
+                ),
+                "algorithm": spec.experiment_name,
+                "dataset": spec.dataset,
+                "dataset_label": spec.dataset_label,
+                "image_size": spec.image_size,
                 "available": bool(checkpoints) and spec.config_path.is_file(),
                 "epochs": list(checkpoints),
                 "default_epoch": max(checkpoints) if checkpoints else None,
-                "losses": training_losses(spec),
+                "nfe_values": list(spec.nfe_values),
+                "losses": losses,
+                "latest_loss": losses[-1][1] if losses else None,
+                **evaluation_summary(spec),
             }
         )
     return catalog
@@ -301,7 +376,7 @@ RUNTIME = InferenceRuntime()
 
 
 class InferenceHandler(BaseHTTPRequestHandler):
-    server_version = "CIFARInference/1.0"
+    server_version = "DiffusionResults/2.0"
 
     def _send_json(self, payload: dict | list, status: HTTPStatus = HTTPStatus.OK) -> None:
         body = json.dumps(payload).encode("utf-8")

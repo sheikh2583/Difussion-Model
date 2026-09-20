@@ -38,29 +38,29 @@ local browser UI for inspecting trained models.
 
 **Windows (no command-line required):**
 
-1. Double-click **`INIT_ALL.cmd`** — installs Python if needed, creates the
+1. Double-click **`scripts\windows\init.cmd`** — installs Python if needed, creates the
    environment, installs dependencies, and downloads CIFAR-10. CelebA is an
    optional large download so a quota failure cannot break first-time setup.
-2. Double-click **`TRAIN.cmd`** — choose a model, then choose whether to
+2. Double-click **`scripts\windows\train.cmd`** — choose a model, then choose whether to
    continue its existing run or preserve it and start fresh.
 
 **Linux:**
 
 ```bash
-chmod +x init_all.sh train_interactive.sh scripts/*.sh
-./init_all.sh
-./train_interactive.sh
+chmod +x scripts/linux/init.sh scripts/linux/train.sh scripts/*.sh
+./scripts/linux/init.sh
+./scripts/linux/train.sh
 ```
 
 If the project came from an archive that discarded executable bits, the same
 entry points can be launched explicitly through the POSIX shell:
 
 ```bash
-sh init_all.sh
-sh train_interactive.sh
+sh scripts/linux/init.sh
+sh scripts/linux/train.sh
 ```
 
-`init_all.sh` detects Python 3.9+, installs `python3-venv`/pip through the
+`scripts/linux/init.sh` detects Python 3.9+, installs `python3-venv`/pip through the
 available Linux package manager when necessary, creates `venv/`, selects the
 CUDA, ROCm, or CPU PyTorch build, installs dependencies, and downloads CIFAR-10.
 The training menu then uses only `venv/bin/python` and recognizes both legacy
@@ -69,15 +69,15 @@ and numbered (`checkpoints/run_N/`) prerequisite checkpoints.
 To verify the menu and a complete training plan without starting a model:
 
 ```bash
-./train_interactive.sh --list
-./train_interactive.sh --choice cifar10:fm --mode fresh --dry-run
+./scripts/linux/train.sh --list
+./scripts/linux/train.sh --choice cifar10:fm --mode fresh --dry-run
 ```
 
 For a recovery-first Linux run that only trains and checkpoints (no periodic
 FID work), use:
 
 ```bash
-./scripts/run_train.sh --algorithm fm --config config/fm_full.json \
+./scripts/linux/run_train.sh --algorithm fm --config config/fm_full.json \
   --mode continue --checkpoint-every 10 --train-only
 ```
 
@@ -87,12 +87,12 @@ starts normally when it does not. Use `--batch-size N` if GPU memory is tight.
 To train the dependency-ordered CIFAR-10 suite with the same recovery policy:
 
 ```bash
-./scripts/train_all.sh --dataset cifar10 --mode continue \
+./scripts/linux/train_all.sh --dataset cifar10 --mode continue \
   --checkpoint-every 10 --train-only
 ```
 
-To initialize both datasets explicitly, run `INIT_ALL.cmd -Datasets all` on
-Windows or `./init_all.sh --datasets all` on Linux. The checked-in
+To initialize both datasets explicitly, run `scripts\windows\init.cmd -Datasets all` on
+Windows or `./scripts/linux/init.sh --datasets all` on Linux. The checked-in
 `requirements_frozen.txt` is the CUDA workstation snapshot, not a portable
 installer; always use the initialization script on a new machine.
 
@@ -108,8 +108,8 @@ python train.py --algorithm fm_lognorm --config config/fm_lognorm_full.json --mo
 python train.py --algorithm mf         --config config/mf_full.json --mode fresh
 
 # Full tournament — trains all six algorithms in dependency order
-.\scripts\run_full_tournament.ps1 -Dataset cifar10   # Windows
-./scripts/run_full_tournament.sh  --dataset cifar10  # Linux
+.\scripts\windows\run_full_tournament.ps1 -Dataset cifar10   # Windows
+./scripts/linux/run_full_tournament.sh  --dataset cifar10  # Linux
 ```
 
 ---
@@ -183,7 +183,7 @@ scripts/
   verify_workflow.py              End-to-end sanity checks before a long run
   interactive_train.py            Non-interactive training menu
 
-web/inference_server.py  Local HTTP inference server + browser UI
+web/inference_server.py  Read-only results browser + checkpoint inference UI
 
 docs/
   THEORY_NOTES.md                Mathematical derivations and references
@@ -732,15 +732,15 @@ python train.py --algorithm mf --config config/mf_full.json --mode continue
 python train.py --algorithm mf --config config/mf_full.json --mode continue --epochs 110
 
 # Full tournament (all six algorithms, dependency order, skips completed runs)
-.\scripts\run_full_tournament.ps1 -Dataset cifar10   # Windows
-./scripts/run_full_tournament.sh  --dataset cifar10  # Linux
+.\scripts\windows\run_full_tournament.ps1 -Dataset cifar10   # Windows
+./scripts/linux/run_full_tournament.sh  --dataset cifar10  # Linux
 
 # Start the whole tournament fresh while preserving old runs and Reflow pairs
-.\scripts\run_full_tournament.ps1 -Dataset cifar10 -Mode fresh
-./scripts/run_full_tournament.sh  --dataset cifar10 --mode fresh
+.\scripts\windows\run_full_tournament.ps1 -Dataset cifar10 -Mode fresh
+./scripts/linux/run_full_tournament.sh  --dataset cifar10 --mode fresh
 
 # Dry run — prints plan, starts nothing
-.\scripts\run_full_tournament.ps1 -DryRun
+.\scripts\windows\run_full_tournament.ps1 -DryRun
 
 # Manual Reflow pair generation (required before training reflow)
 python scripts/generate_reflow_pairs.py ^
@@ -821,8 +821,8 @@ python evaluate.py --algorithm fm \
   --config results/fm_cifar10/config.json --make-plots
 
 # Evaluate all available epoch-100 checkpoints
-.\scripts\evaluate_all.ps1 -Dataset cifar10   # Windows
-./scripts/evaluate_all.sh  --dataset cifar10  # Linux
+.\scripts\windows\evaluate_all.ps1 -Dataset cifar10   # Windows
+./scripts/linux/evaluate_all.sh  --dataset cifar10  # Linux
 
 # Aggregate all JSONL metrics into a comparison CSV and plots
 python scripts/aggregate_results.py
@@ -866,9 +866,9 @@ python scripts/sample_mean_flow_extensions.py adaptive \
 # Coarse-to-fine cascade
 python scripts/sample_mean_flow_extensions.py multiscale --help
 
-# Local browser inference UI
+# Local results browser and checkpoint inference UI
 python web/inference_server.py
-# Open http://127.0.0.1:8000
+# Open http://127.0.0.1:8000; runs are named from their saved configs.
 ```
 
 ---
@@ -878,7 +878,7 @@ python web/inference_server.py
 **Windows (automatic):**
 
 ```
-Double-click INIT_ALL.cmd
+Double-click scripts\windows\init.cmd
 ```
 
 **Linux (automatic):**
@@ -889,19 +889,19 @@ git clone https://github.com/sheikh2583/Difussion-Model.git
 cd Difussion-Model
 
 # 2. Restore executable bits (normally preserved by Git)
-chmod +x init_all.sh train_interactive.sh scripts/*.sh
+chmod +x scripts/linux/init.sh scripts/linux/train.sh scripts/*.sh
 
 # 3. Create venv/, install the correct PyTorch build and dependencies,
 #    then download CIFAR-10
-./init_all.sh
+./scripts/linux/init.sh
 
 # 4. Open the model-selection menu
-./train_interactive.sh
+./scripts/linux/train.sh
 ```
 
 On minimal Debian/Ubuntu, Fedora/RHEL, Arch, openSUSE, or Alpine installations,
 the setup wrapper installs Python, pip, and virtual-environment support when
-they are missing. Use `sh init_all.sh` if executable permissions were lost.
+they are missing. Use `sh scripts/linux/init.sh` if executable permissions were lost.
 
 ### Linux initialization options
 
@@ -910,23 +910,23 @@ detection:
 
 ```bash
 # Default: auto-detect CUDA/ROCm/CPU and download CIFAR-10
-./init_all.sh
+./scripts/linux/init.sh
 
 # Install the environment without downloading a dataset
-./init_all.sh --datasets none
+./scripts/linux/init.sh --datasets none
 
 # Download CIFAR-10 and CelebA
-./init_all.sh --datasets all
+./scripts/linux/init.sh --datasets all
 
 # Select one dataset explicitly
-./init_all.sh --datasets celeba
+./scripts/linux/init.sh --datasets celeba
 
 # Override hardware detection when necessary
-./init_all.sh --gpu cuda128 --datasets cifar10
-./init_all.sh --gpu cuda121 --datasets cifar10
-./init_all.sh --gpu cuda118 --datasets cifar10
-./init_all.sh --gpu rocm --datasets cifar10
-./init_all.sh --gpu cpu --datasets cifar10
+./scripts/linux/init.sh --gpu cuda128 --datasets cifar10
+./scripts/linux/init.sh --gpu cuda121 --datasets cifar10
+./scripts/linux/init.sh --gpu cuda118 --datasets cifar10
+./scripts/linux/init.sh --gpu rocm --datasets cifar10
+./scripts/linux/init.sh --gpu cpu --datasets cifar10
 ```
 
 The virtual environment does not have to be activated when using the launch
@@ -948,25 +948,25 @@ and automatically handles FM-teacher and Reflow-pair prerequisites:
 
 ```bash
 # Show accepted choice names without training
-./train_interactive.sh --list
+./scripts/linux/train.sh --list
 
 # Open the interactive menu
-./train_interactive.sh
+./scripts/linux/train.sh
 
 # Preview a complete command plan without training
-./train_interactive.sh \
+./scripts/linux/train.sh \
   --choice cifar10:fm --mode fresh --dry-run
 
 # Start a new FM run; an existing run is preserved under results/history/
-./train_interactive.sh \
+./scripts/linux/train.sh \
   --choice cifar10:fm --mode fresh --yes
 
 # Continue the latest numbered checkpoint
-./train_interactive.sh \
+./scripts/linux/train.sh \
   --choice cifar10:fm --mode continue --yes
 
 # Continue to a new total epoch target (not "additional epochs")
-./train_interactive.sh \
+./scripts/linux/train.sh \
   --choice cifar10:fm --mode continue --epochs 120 --yes
 ```
 
@@ -985,11 +985,11 @@ To preview or launch the complete dependency-ordered CIFAR-10 tournament:
 
 ```bash
 # No model execution
-./scripts/run_full_tournament.sh \
+./scripts/linux/run_full_tournament.sh \
   --dataset cifar10 --mode fresh --dry-run
 
 # Actual run
-./scripts/run_full_tournament.sh \
+./scripts/linux/run_full_tournament.sh \
   --dataset cifar10 --mode fresh
 ```
 
@@ -1001,8 +1001,8 @@ The launchers refuse ambiguous resume/fresh behavior and the tournament uses
 ### Linux troubleshooting
 
 - **Permission denied:** restore executable bits with the `chmod` command shown
-  above, or invoke the entry point as `sh init_all.sh`.
-- **No `venv`/`ensurepip`:** rerun `./init_all.sh`; the wrapper installs the
+  above, or invoke the entry point as `sh scripts/linux/init.sh`.
+- **No `venv`/`ensurepip`:** rerun `./scripts/linux/init.sh`; the wrapper installs the
   appropriate virtual-environment and pip packages through the detected package
   manager. Root access or `sudo` is required only for missing system packages.
 - **GPU not detected:** check `nvidia-smi` for NVIDIA or `rocm-smi` for AMD,

@@ -121,7 +121,7 @@ python scripts/aggregate_results.py
 
 ---
 
-## Step 6 — Inference server (optional, needs a checkpoint)
+## Step 6 — Results browser and inference server
 
 ```bash
 python web/inference_server.py --self-test   # exits after smoke test
@@ -130,7 +130,8 @@ python web/inference_server.py               # stays running, open http://127.0.
 ```
 
 - [ ] Server starts without import errors
-- [ ] If checkpoints exist: `[OK]` lines printed for each discovered model
+- [ ] Results page lists runs using config-derived algorithm and dataset names
+- [ ] `--self-test` prints one JSON object for each discovered checkpoint run
 
 ---
 
