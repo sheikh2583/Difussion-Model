@@ -1,1129 +1,387 @@
-﻿# Flow Matching & Mean Flow — Comparative Study
+# DiffusionProject
 
-A reproducible research codebase comparing six generative image-generation
-algorithms on a **shared backbone, data pipeline, training loop, sampler, and
-evaluation stack**. Built as a thesis project exploring the family of
-flow-based generative models, from vanilla Flow Matching to one-step
-Mean-Flow distillation.
+Research implementation and experiment pipeline for unconditional generative
+models on CIFAR-10 (32×32) and CelebA (64×64).
 
-Supports **CIFAR-10** (32 × 32) and **CelebA** (64 × 64), saves resumable
-checkpoints, provides an automated full-tournament runner, and includes a
-local browser UI for inspecting trained models.
+Implemented methods:
 
----
+- Flow Matching (FM)
+- Flow Matching with logit-normal time sampling (FM-LN)
+- Mean Flow (MF), including exact-JVP and finite-difference experiment presets
+- Mean Flow Distillation (MF-Distill)
+- Consistency Models
+- Rectified Flow Reflow
 
-## Table of Contents
+The project provides resumable training, numbered checkpoint runs, evaluation
+at configurable numbers of function evaluations (NFE), FID and Inception Score,
+result aggregation, GIF generation, portable dataset bundles, and a local
+results/inference web interface.
 
-1. [Quickstart](#quickstart)
-2. [The Core Idea](#the-core-idea)
-3. [Repository Map](#repository-map)
-4. [Shared Foundation](#shared-foundation)
-5. [Algorithms](#algorithms)
-   - [Flow Matching (FM)](#1-flow-matching-fm)
-   - [Flow Matching — Logit-Normal Time (FM-LN)](#2-flow-matching--logit-normal-time-fm-ln)
-   - [Mean Flow (MF)](#3-mean-flow-mf)
-   - [Mean Flow Distillation (MF-Distill)](#4-mean-flow-distillation-mf-distill)
-   - [Consistency Models](#5-consistency-models)
-   - [Rectified Flow Reflow](#6-rectified-flow-reflow)
-6. [Unique Thesis Contributions](#unique-thesis-contributions)
-7. [Training](#training)
-8. [Evaluation](#evaluation)
-9. [Outputs & Inference UI](#outputs--inference-ui)
-10. [Setup](#setup)
-11. [Config Reference](#config-reference)
+## Repository layout
 
----
+```text
+algorithms/             Algorithm implementations
+config/                 Reproducible JSON experiment presets
+data/                   CIFAR-10 and CelebA loaders/registry
+evaluation/             FID, Inception Score, and evaluation orchestration
+experiments/            Shared experiment runner
+models/                 Shared time-conditioned U-Net backbone
+sampling/               Generic sampling and timing
+training/               Optimizer, AMP, checkpoint, and training loop
+utils/                  Results, provenance, lifecycle, and plotting helpers
 
-## Quickstart
+scripts/
+  *.py                  Platform-independent utilities
+  linux/                Linux/macOS shell entrypoints
+  windows/              Windows PowerShell and Command Prompt entrypoints
 
-**Windows (no command-line required):**
+web/                    Results browser and checkpoint inference UI
+tests/                  CPU-oriented regression and workflow tests
+docs/report/             Submission report source
+docs/assets/             Figures referenced by the report
 
-1. Double-click **`scripts\windows\init.cmd`** — installs Python if needed, creates the
-   environment, installs dependencies, and downloads CIFAR-10. CelebA is an
-   optional large download so a quota failure cannot break first-time setup.
-2. Double-click **`scripts\windows\train.cmd`** — choose a model, then choose whether to
-   continue its existing run or preserve it and start fresh.
+results/                Generated runs and exports (Git-ignored)
+training_logs/          Versioned terminal training transcripts by device
+```
 
-**Linux:**
+See [scripts/README.md](scripts/README.md) for the platform command map.
+
+## Quick start
+
+Run commands from the repository root. Paths containing spaces are supported.
+
+### Linux
 
 ```bash
-chmod +x scripts/linux/init.sh scripts/linux/train.sh scripts/*.sh
+chmod +x scripts/linux/*.sh
 ./scripts/linux/init.sh
 ./scripts/linux/train.sh
 ```
 
-If the project came from an archive that discarded executable bits, the same
-entry points can be launched explicitly through the POSIX shell:
+The initializer creates `venv/`, installs dependencies, and downloads CIFAR-10
+by default. To initialize both datasets:
 
 ```bash
-sh scripts/linux/init.sh
-sh scripts/linux/train.sh
+./scripts/linux/init.sh --datasets all
 ```
 
-`scripts/linux/init.sh` detects Python 3.9+, installs `python3-venv`/pip through the
-available Linux package manager when necessary, creates `venv/`, selects the
-CUDA, ROCm, or CPU PyTorch build, installs dependencies, and downloads CIFAR-10.
-The training menu then uses only `venv/bin/python` and recognizes both legacy
-and numbered (`checkpoints/run_N/`) prerequisite checkpoints.
-
-To verify the menu and a complete training plan without starting a model:
+Useful setup variants:
 
 ```bash
-./scripts/linux/train.sh --list
-./scripts/linux/train.sh --choice cifar10:fm --mode fresh --dry-run
+./scripts/linux/init.sh --gpu cuda128 --datasets cifar10
+./scripts/linux/init.sh --gpu rocm --datasets all
+./scripts/linux/init.sh --gpu cpu --datasets none
 ```
 
-For a recovery-first Linux run that only trains and checkpoints (no periodic
-FID work), use:
+### Windows
 
-```bash
-./scripts/linux/run_train.sh --algorithm fm --config config/fm_full.json \
-  --mode continue --checkpoint-every 10 --train-only
+From Command Prompt:
+
+```bat
+scripts\windows\init.cmd
+scripts\windows\train.cmd
 ```
 
-Replace `fm` and its config with `fm_lognorm`, `mf`, or another preset as
-needed. `--mode continue` resumes the latest checkpoint when one exists and
-starts normally when it does not. Use `--batch-size N` if GPU memory is tight.
-To train the dependency-ordered CIFAR-10 suite with the same recovery policy:
+From PowerShell, the lower-level scripts are also available directly:
 
-```bash
-./scripts/linux/train_all.sh --dataset cifar10 --mode continue \
-  --checkpoint-every 10 --train-only
+```powershell
+.\scripts\windows\setup.ps1 -Yes -Datasets all
+.\scripts\windows\run_train.ps1 -Algorithm fm -Config config/fm_full.json
 ```
-
-To initialize both datasets explicitly, run `scripts\windows\init.cmd -Datasets all` on
-Windows or `./scripts/linux/init.sh --datasets all` on Linux. The checked-in
-`requirements_frozen.txt` is the CUDA workstation snapshot, not a portable
-installer; always use the initialization script on a new machine.
-
-**Command-line (after setup):**
-
-```bash
-# Smoke test — CPU safe, ~30 s
-python train.py --algorithm mock --config config/smoke_fast.json --mode fresh
-
-# Train the three core thesis algorithms
-python train.py --algorithm fm         --config config/fm_full.json --mode fresh
-python train.py --algorithm fm_lognorm --config config/fm_lognorm_full.json --mode fresh
-python train.py --algorithm mf         --config config/mf_full.json --mode fresh
-
-# Full tournament — trains all six algorithms in dependency order
-.\scripts\windows\run_full_tournament.ps1 -Dataset cifar10   # Windows
-./scripts/linux/run_full_tournament.sh  --dataset cifar10  # Linux
-```
-
----
-
-## The Core Idea
-
-All algorithms in this project are **flow-based generative models**. They learn
-to transform Gaussian noise into realistic images by learning a vector field
-over a linear probability path.
-
-The high-level contrast between the three main thesis algorithms:
-
-| | **FM** | **FM-LN** | **MF** |
-|---|---|---|---|
-| What the network predicts | Instantaneous velocity v(z_t, t) | Same as FM | Average velocity u(z_t, r, t) over [r, t] |
-| Time sampling | Uniform t ~ U(0,1) | Logit-normal t = sigmoid(u), u~N | Uniform t, plus sampled r in [0, t] |
-| Training target | epsilon - x_0 | epsilon - x_0 | Mean Flow Identity (JVP/FD) |
-| Min useful NFE | ~5 | ~5 | **1** |
-| Extra parameters | 0 | 0 | 323 (the r-embed MLP) |
-
----
-
-## Repository Map
-
-```text
-train.py                 CLI entry point: --algorithm, --config, --mode
-evaluate.py              Re-evaluate any checkpoint at arbitrary NFE values
-bootstrap.py             Cross-platform environment & dataset setup
-
-algorithms/
-  base.py                BaseAlgorithm ABC: training_step() + sample()
-  r_embed.py             Shared r-conditioning MLP (Linear->SiLU->Linear, 323 params)
-  flow_matching.py       FM: CFM / Rectified Flow, uniform time
-  flow_matching_lognorm.py  FM-LN: logit-normal time sampling (SD3 trick)
-  mean_flow.py           MF: Mean Flow with FD-JVP + two-path stochastic training
-  mean_flow_distill.py   MF-Distill: FM-teacher rollout -> student, no JVP
-  mean_flow_adaptive_nfe.py  Adaptive per-sample early-exit sampler
-  mean_flow_multiscale.py    Coarse-to-fine cascade sampling pipeline
-  consistency.py         Consistency Models (Song et al. 2023)
-  reflow.py              Rectified Flow Reflow (Liu et al. 2022)
-  mock.py                Smoke-test stub
-
-models/backbone.py       Shared time-conditioned SimpleUNet (6,352,899 params)
-training/trainer.py      Generic training loop — zero algorithm-specific math
-sampling/sampler.py      Generic sampler — calls algorithm.sample()
-evaluation/
-  evaluator.py           FID reference cache + per-NFE evaluation
-  metrics.py             FID (torchmetrics) + Inception Score
-experiments/runner.py    Builds shared objects; runs train->sample->evaluate
-
-config/
-  smoke_fast.json          2-epoch CPU smoke test
-  fm_full.json             FM on CIFAR-10, 100 epochs, batch 128
-  fm_lognorm_full.json     FM-LN on CIFAR-10, 100 epochs, batch 128
-  mf_full.json             MF on CIFAR-10, 100 epochs
-  mf_distill_full.json     MF-Distill on CIFAR-10, requires FM teacher
-  consistency_full.json    Consistency Models on CIFAR-10
-  reflow_full.json         Reflow on CIFAR-10, requires pairs artifact
-  mf_coarse16.json         Coarse 16x16 MF model for multiscale pipeline
-  *_celeba64.json          CelebA 64x64 variants of each algorithm
-
-scripts/
-  run_full_tournament.*        Full six-algorithm run with dependency ordering
-  train_all.*                  Batch training helper
-  evaluate_all.*               Batch evaluation helper
-  generate_checkpoint_samples.py  Sample grids from every checkpoint
-  generate_reflow_pairs.py        Generate 50k Reflow (z1, x0) pairs
-  sample_mean_flow_extensions.py  Adaptive + multiscale inference CLI
-  aggregate_results.py            Combine JSONL metrics -> CSV + comparison plots
-  benchmark_training_flows.py     Pre-run GPU memory & time estimates
-  verify_workflow.py              End-to-end sanity checks before a long run
-  interactive_train.py            Non-interactive training menu
-
-web/inference_server.py  Read-only results browser + checkpoint inference UI
-
-docs/
-  THEORY_NOTES.md                Mathematical derivations and references
-  PROJECT_INTERVIEW_GUIDE.md     Full algorithm walk-through for thesis defense
-  IMPLEMENTATION_CHANGES.md      Engineering changelog
-  TRAINING_TIME_ESTIMATES.md     GPU-specific time budgets
-  CONSISTENCY_TUNING_NOTES.md    Consistency Model training tips
-
-results/                 Generated outputs (gitignored)
-data/                    CIFAR-10 / CelebA (gitignored)
-```
-
----
-
-## Shared Foundation
-
-### Probability Path
-
-Every algorithm is built on the same **linear interpolation path** between real
-data and Gaussian noise:
-
-```
-z_t = (1 - t) * x_0 + t * epsilon,   epsilon ~ N(0, I),   t in [0, 1]
-```
-
-- `t = 0` is the **data** end.
-- `t = 1` is the **noise** end (the known prior).
-
-The instantaneous velocity along this path is:
-
-```
-v = d/dt [z_t] = epsilon - x_0
-```
-
-This is **not** a diffusion model. It does not involve a stochastic
-reverse-time SDE or a DDPM noise schedule. It learns a **deterministic ODE**
-whose vector field maps noise to data. Generation is: start from
-`z_1 ~ N(0, I)` and integrate the ODE *backward* from `t=1` to `t=0`.
-
-All images are normalized to `[-1, 1]` throughout.
-
-### Shared SimpleUNet Backbone
-
-`models/backbone.py` defines a single `SimpleUNet` used by **every** algorithm:
-
-```
-f_θ(x, t) : R^(3×H×W) × [0,1]  →  R^(3×H×W)
-```
-
-The network is intentionally **semantically neutral** — it does not know whether
-its output is an instantaneous velocity, an average velocity, or a clean image
-prediction. That meaning is assigned entirely by the algorithm wrapper.
-
-**Architecture:**
-- Sinusoidal time embedding → 2-layer MLP → injected into each ResBlock via
-  a learned projection
-- 3-level encoder/decoder with GroupNorm-8 + SiLU residual blocks
-- Skip connections at every resolution scale
-- Strided convolution downsampling; transposed-convolution upsampling
-- **6,352,899 parameters** at the standard 32×32 CIFAR-10 configuration
-
-All algorithms obtain their model through the single `build_backbone()` function
-so architecture and parameter count **can never silently diverge** between methods.
-
-### Fairness Enforcement
-
-The runner rejects any key in `algorithm_kwargs` that would shadow a shared
-control (learning rate, batch size, epochs, backbone, dataset, optimizer,
-evaluation settings). This is enforced at runtime via
-`ExperimentConfig._protected_keys`. An algorithm cannot, even accidentally,
-improve its results by secretly adjusting optimizer hyperparameters.
-
----
-
-## Algorithms
-
-### 1. Flow Matching (FM)
-
-> **Source:** `algorithms/flow_matching.py` · **Config:** `config/fm_full.json`
-> **Reference:** Lipman et al. 2022; Liu et al. 2022 (Rectified Flow)
-
-**What it learns:** The conditional instantaneous velocity `v = epsilon - x_0`
-along the linear probability path.
-
-#### Training Objective
-
-```
-L_FM(θ) = E[|| f_θ(z_t, t) - (epsilon - x_0) ||²],   t ~ U(0,1)
-```
-
-Steps per training batch:
-1. Sample Gaussian noise `epsilon ~ N(0, I)`.
-2. Sample time `t ~ U(0, 1)`, one per image.
-3. Interpolate: `z_t = (1-t)*x_0 + t*epsilon`.
-4. Compute target velocity: `v = epsilon - x_0`.
-5. Predict: `v_hat = f_θ(z_t, t)`.
-6. Loss: `MSE(v_hat, v)`.
-
-#### Sampling (Reverse Euler)
-
-Start from `z_1 ~ N(0, I)`, take `nfe` equal steps from `t=1` to `t=0`:
-
-```
-z ← z - f_θ(z, t_cur) * Δt
-```
-
-One backbone evaluation per step, so **NFE = number of Euler steps**.
-Outputs are clamped to `[-1, 1]`.
-
----
-
-### 2. Flow Matching — Logit-Normal Time (FM-LN)
-
-> **Source:** `algorithms/flow_matching_lognorm.py`
-> **Config:** `config/fm_lognorm_full.json`
-> **Inspired by:** Esser et al. 2024 (Stable Diffusion 3)
-
-**What it changes:** One line — the distribution from which training times are
-drawn. Everything else (path, target, sampler, backbone) is identical to FM.
-
-#### Logit-Normal Time Sampling
-
-Instead of `t ~ U(0,1)`, draw:
-
-```
-u ~ N(μ, σ²),   t = sigmoid(u) = 1 / (1 + exp(-u))
-```
-
-The induced density on `t` is the **logit-normal**:
-
-```
-p(t) = 1 / (sqrt(2π) * σ * t*(1-t)) * exp(-(logit(t) - μ)² / (2σ²))
-```
-
-With default `μ=0, σ=1`, this **concentrates training in the intermediate
-region** of the path (roughly `t ∈ [0.1, 0.9]`), where the regression problem
-is most informative, and reduces the fraction of nearly degenerate training
-samples near `t=0` and `t=1`.
-
-**Key insight for the thesis:** FM-LN is not a new ODE or a new path. It is a
-**non-uniform importance weighting** of the same flow-matching objective.
-A model trained with FM-LN still uses the identical reverse-Euler sampler as FM.
-Any improvement in FID comes from the network learning the vector field more
-accurately, not from a better integration scheme.
-
-Both `logit_mean` and `logit_std` are configurable via `algorithm_kwargs`.
-
----
-
-### 3. Mean Flow (MF)
-
-> **Source:** `algorithms/mean_flow.py` · **Config:** `config/mf_full.json`
-> **Reference:** Geng et al. 2025, arXiv:2505.13447
-
-Mean Flow is the **central algorithm** of this thesis. Instead of predicting an
-*instantaneous* velocity at a point, MF predicts an **average velocity over an
-interval [r, t]**:
-
-```
-u(z_t, r, t) = 1/(t-r) * integral_r^t v(z_τ, τ) dτ
-```
-
-This directly gives the **displacement identity**:
-
-```
-z_r = z_t - (t-r) * u(z_t, r, t)
-```
-
-At inference with `nfe=1`, this is the headline **one-step jump**:
-
-```
-z_0 = z_1 - u(z_1, 0, 1)
-```
-
-#### The Mean Flow Identity (Training Target)
-
-Differentiating the displacement relation along the trajectory gives:
-
-```
-u(z_t, r, t) = v(z_t, t) - (t-r) * d/dt[u(z_t, r, t)]
-```
-
-where the total time derivative along the trajectory is:
-
-```
-d/dt[u] = (∂u/∂z_t)*v + ∂u/∂t
-```
-
-This requires a **Jacobian-vector product (JVP)** with tangent vector `(v, 0, 1)`.
-
-#### The r-Embedding Module
-
-The backbone signature is `f_θ(x, t)` — it takes one time input. MF needs two
-inputs: `z_t`, `r`, and `t`. The solution is a small dedicated
-**r-embedding MLP** (`algorithms/r_embed.py`):
-
-```
-REmbed:  Linear(1 → 64) → SiLU → Linear(64 → C)
-```
-
-Its output is a per-channel additive bias broadcast over (H, W) and added to
-the image tensor **before** it enters the shared backbone:
-
-```python
-def forward(self, z, r):
-    r_signal = self.net(r.unsqueeze(-1))    # (B, C)
-    return z + r_signal[:, :, None, None]   # broadcast over H, W
-```
-
-This adds **323 parameters** (the only addition to the shared backbone count),
-and is the sanctioned extension point for dual-time conditioning.
-
-#### Sampling (Displacement Identity)
-
-For `nfe` steps, construct `nfe + 1` times linearly from 1 to 0:
-
-```
-z ← z - (t_cur - t_next) * u(z, r=t_next, t=t_cur)
-```
-
-At `nfe=1`, this is the single noise-to-data jump. There is **no Euler
-sub-step inside each interval** — the network directly predicts the displacement
-over the whole requested range.
-
----
-
-### 4. Mean Flow Distillation (MF-Distill)
-
-> **Source:** `algorithms/mean_flow_distill.py`
-> **Config:** `config/mf_distill_full.json`
-
-**What it solves:** The standard Mean Flow Identity requires a JVP, which
-constrains AMP usage and roughly doubles training cost per step. MF-Distill
-eliminates this by using a **frozen FM teacher** to produce supervision targets.
-
-#### Target Construction
-
-Instead of the JVP-based Mean Flow Identity, the training target is computed
-empirically via teacher rollout:
-
-```python
-z_r = frozen_FM.euler(z_t, from=t, to=r, steps=teacher_nfe)
-u_tgt = (z_t - z_r) / (t - r)
-```
-
-- **Diagonal case** (`r ≈ t`, controlled by `p_same`): target degenerates to
-  the teacher's instantaneous velocity (single forward pass).
-- **Interval case** (`r < t`): teacher Euler-integrates from `t` down to `r`
-  in `teacher_nfe` steps; the displacement is divided by the interval length.
-
-The teacher is loaded frozen from a trained FM checkpoint; only the **student**
-(same architecture, same `r_embed`) is optimized. At inference, the teacher is
-never called — sampling uses the student's displacement identity, identical to
-standard MF.
-
----
-
-### 5. Consistency Models
-
-> **Source:** `algorithms/consistency.py`
-> **Config:** `config/consistency_full.json`
-> **Reference:** Song et al. 2023, arXiv:2303.01469
-
-Consistency Models learn a **consistency function** `f_θ(x_t, t) → x_0` that
-maps *any* point on *any* trajectory directly to the clean image at `t=0`.
-
-#### Boundary-Enforcing Parameterization
-
-```
-f_θ(x, t) = c_skip(t)*x + c_out(t)*F_θ(x, t)
-
-c_skip(t) = 1 / (1 + t²)        ensures f_θ(x, 0) = x exactly
-c_out(t)  = t / sqrt(1 + t²)
-```
-
-#### Training: Self-Consistency Distillation
-
-```
-L_CD = E[ || f_θ(x_t, t) - f_θ-(x_{t-Δt}, t-Δt) ||² ]
-```
-
-where:
-- `x_{t-Δt} = x_t - Δt * v_teacher(x_t, t)` (one frozen-teacher Euler step)
-- `f_θ-` is an **EMA** of the student network (updated after every optimizer step)
-
-At inference: one-step sampling is `f_θ(z_1, 1)` — pure noise to image in a
-single forward pass. Multi-step refinement alternates network application with
-noise re-injection.
-
----
-
-### 6. Rectified Flow Reflow
-
-> **Source:** `algorithms/reflow.py` · **Config:** `config/reflow_full.json`
-> **Reference:** Liu et al. 2022, arXiv:2209.14577
-
-A trained FM model's learned paths are **curved** in practice. Reflow
-straightens them.
-
-#### Two-Stage Process
-
-**Offline** (run `scripts/generate_reflow_pairs.py` first):
-```
-z_1 ~ N(0, I)
-x_hat_0 = FM.euler(z_1, nfe=50)      <- full FM inference
-save (z_1, x_hat_0) pairs to disk
-```
-
-**Training** (this file):
-```
-x_t = (1-t)*x_hat_0 + t*z_1          <- interpolate the SAME pair
-v   = z_1 - x_hat_0                   <- constant velocity along this pair
-loss = MSE(v_θ(x_t, t), v)
-```
-
-Because `z_1` and `x_hat_0` are now **deterministically paired**, the resulting
-ODE path is straighter, requiring fewer Euler steps at inference. The training
-loop is identical to FM — the data source changes, not the objective.
-
----
-
-## Unique Thesis Contributions
-
-This section documents the **novel implementation decisions** that distinguish
-this codebase from a straightforward reproduction of published methods.
-
----
-
-### A. Finite-Difference JVP for AMP-Compatible Mean Flow
-
-**Problem:** The Mean Flow Identity requires `d/dt[u(z_t, r, t)]`, computed via
-`torch.func.jvp`. PyTorch's functional JVP does not compose with
-`torch.cuda.amp.autocast`, forcing either disabled AMP (roughly doubling training
-time) or a precision mismatch that corrupts the target.
-
-**Solution:** A **finite-difference approximation** of the JVP using two
-standard forward passes — fully compatible with AMP:
-
-```python
-delta    = self.jvp_delta          # annealed scalar (see §C)
-z_pert   = z_t + delta * v         # perturb along trajectory tangent
-t_pert   = (t + delta).clamp(max=1.0)
-
-u_pred      = self._forward(z_t,   r, t)
-u_pred_pert = self._forward(z_pert, r, t_pert)
-dudt        = (u_pred_pert - u_pred) / delta   # O(δ) bias
-```
-
-The FD step introduces `O(delta)` bias in the target. This is controlled by
-annealing `delta` toward zero over training (see §C below).
-
----
-
-### B. Two-Path Stochastic Training
-
-Each Mean Flow training step is **stochastically routed** to one of two paths,
-controlled by `p_fd_step` (default 0.5):
-
-| Path | Probability | Method | Bias | Cost |
-|---|---|---|---|---|
-| **FD path** | `p_fd_step` | Two forward passes; finite-difference du/dt | O(δ) | 2× passes, full AMP |
-| **Diagonal path** | `1 − p_fd_step` | Force r = t; target is exactly v | Zero | 1 pass, cheapest |
-
-The diagonal path is **not** the same as the per-sample `p_same` diagonal
-forcing inside the r-sampling. Both mechanisms are independent and complementary:
-
-- `p_same` decides whether individual **samples within a batch** get `r = t`.
-- `p_fd_step` decides whether the **entire step** uses the FD path or the exact
-  diagonal target.
-
-This combination provides an unbiased gradient signal on half the steps at zero
-extra cost, while the FD steps provide the full Mean Flow Identity signal.
-
----
-
-### C. Annealed FD Perturbation
-
-The finite-difference step size `delta` is **linearly annealed** from
-`jvp_delta_start` to `jvp_delta_end` over the full training run via an
-`on_epoch_end` hook called by the trainer:
-
-```python
-@property
-def jvp_delta(self) -> float:
-    progress = self._epoch / max(self._total_epochs, 1)
-    return self.jvp_delta_start + (self.jvp_delta_end - self.jvp_delta_start) * progress
-```
-
-| Parameter | Default | Meaning |
-|---|---|---|
-| `jvp_delta_start` | `1e-2` | Large delta at epoch 0 → stable early targets |
-| `jvp_delta_end` | `1e-4` | Small delta at final epoch → low-bias targets |
-
-Early in training, a large delta provides a stable (if biased) gradient signal
-while the network is far from convergence. As training progresses and the
-network stabilises, delta shrinks to reduce approximation bias for final-quality
-targets.
-
----
-
-### D. JVP-Free Distillation via Teacher Rollout
-
-**Problem:** Computing the JVP requires differentiating through the network,
-which is expensive and AMP-incompatible. Can a student learn Mean Flow's
-interval-average prediction **without any JVP**?
-
-**Solution:** Replace the analytical JVP target with an **empirical teacher rollout**:
-
-```python
-z_r   = frozen_FM_teacher.euler(z_t, from=t, to=r, steps=teacher_nfe)
-u_tgt = (z_t - z_r) / (t - r)
-```
-
-The student sees the same training interface as MF (predicts `u(z_t, r, t)`,
-uses the same `r_embed` module, same displacement-identity sampler at inference),
-but its training targets come from running the frozen teacher rather than from
-differentiating the network.
-
-**Properties:**
-- Zero JVP cost → full AMP compatibility, roughly half the training time per step.
-- Student is **independent** of the teacher at inference.
-- Teacher rollout is wrapped in `torch.no_grad()` → no memory overhead from the
-  teacher's computation graph.
-- The `_forward` alias makes MF-Distill fully compatible with
-  `AdaptiveMeanFlowSampler`.
-
----
-
-### E. Adaptive Per-Sample NFE Allocation
-
-> **Source:** `algorithms/mean_flow_adaptive_nfe.py`
-> **CLI:** `python scripts/sample_mean_flow_extensions.py adaptive --help`
-
-A post-training inference wrapper that allocates a **different number of network
-calls to each image** based on estimated generation difficulty:
-
-```python
-# At each step, predict clean image from current state:
-velocity_to_zero = algorithm._forward(z[active], r=0, t=t_current)
-prediction = z[active] - t_current * velocity_to_zero
-
-# Measure change from previous step:
-relative_change = ||prediction - prev_prediction|| / ||prediction||
-
-# Retire this sample if converged:
-if relative_change < confidence_threshold and nfe_used >= min_nfe:
-    output[sample] = prediction
-    active[sample] = False
-```
-
-Properties:
-- Evaluates only **active (un-converged) samples** at each step, reducing GPU
-  work when most samples converge early.
-- Records `last_nfe_per_sample` (a per-image tensor) and `last_average_nfe`
-  for analysis.
-- The `r=0` clean-image prediction at every step means **early-exited samples
-  never remain at `t > 0`** — all outputs are genuine clean-image candidates.
-- Min/max NFE bounds and the confidence threshold are configurable.
-
----
-
-### F. Coarse-to-Fine Multiscale Sampling
-
-> **Source:** `algorithms/mean_flow_multiscale.py`
-> **CLI:** `python scripts/sample_mean_flow_extensions.py multiscale --help`
-> **Coarse config:** `config/mf_coarse16.json`
-
-A two-stage generation pipeline that exploits Mean Flow's interval conditioning:
-
-```
-Stage 1 (coarse model, 16x16):
-    z_coarse = MF_16x16.sample(n, nfe=coarse_nfe)
-
-Stage 2 (fine model, 32x32, starting from t_start instead of t=1):
-    z_fine = bilinear_upsample(z_coarse, 32x32)
-    for t in linspace(t_start, 0.0, fine_nfe+1):
-        displacement = MF_32x32._forward(z_fine, r=t_next, t=t_cur)
-        z_fine = z_fine - (t_cur - t_next) * displacement
-```
-
-The key insight: because MF's displacement identity works for **any sub-interval
-[r, t]**, the fine model can start at `t = 0.5` (partway through the trajectory)
-with a bilinearly upsampled coarse draft, rather than from pure noise at `t = 1`.
-This reuses coarse-level structure and focuses fine-model compute on the detail
-refinement portion of the path.
-
----
-
-### G. Configurable Logit-Normal Time Sampling
-
-Standard logit-normal implementations hard-code `μ=0, σ=1`. This project
-exposes both parameters as `algorithm_kwargs`:
-
-```json
-"algorithm_kwargs": {
-  "logit_mean": 0.0,
-  "logit_std":  1.5
-}
-```
-
-A wider `logit_std` concentrates training further toward intermediate times;
-a non-zero `logit_mean` shifts the concentration left or right along the path.
-Non-positive `logit_std` is rejected at construction time with a clear error.
-
----
-
-### H. Fairness-Enforcing Pipeline Design
-
-A contribution to **research methodology**, not just software engineering:
-
-1. **Single construction point** — `build_backbone()` is the only way to create
-   a network. FM and MF cannot accidentally diverge in architecture or parameter
-   count.
-
-2. **Protected keys guard** — `algorithm_kwargs` is filtered at runtime against
-   a set of shared controls. An algorithm cannot silently change batch size,
-   learning rate, optimizer, backbone, or evaluation settings through its own
-   configuration dictionary.
-
-3. **Metadata-validated FID cache** — the reference statistics file is checked
-   against a `.meta.json` sidecar recording the exact image count, resolution,
-   and channel count. A run requesting a different configuration raises an error
-   immediately rather than computing biased FID silently.
-
-4. **Algorithm-agnostic trainer and sampler** — `trainer.py` contains zero
-   algorithm-specific math. It calls `algorithm.training_step(batch)` and reads
-   `out["loss"]`. Every algorithm is trained identically.
-
----
 
 ## Training
 
-```bash
-# Start a new single-algorithm run. Any existing canonical run is first moved
-# into results/history/<run>_<timestamp>/ so it remains recoverable.
-python train.py --algorithm fm          --config config/fm_full.json          --mode fresh
-python train.py --algorithm fm_lognorm  --config config/fm_lognorm_full.json  --mode fresh
-python train.py --algorithm mf          --config config/mf_full.json          --mode fresh
-python train.py --algorithm mf_distill  --config config/mf_distill_full.json  --mode fresh
-python train.py --algorithm consistency --config config/consistency_full.json --mode fresh
+### Interactive selection
 
-# Continue the latest checkpoint to its configured target
-python train.py --algorithm mf --config config/mf_full.json --mode continue
-
-# Extend a completed epoch-100 run to a total of 110 epochs
-python train.py --algorithm mf --config config/mf_full.json --mode continue --epochs 110
-
-# Full tournament (all six algorithms, dependency order, skips completed runs)
-.\scripts\windows\run_full_tournament.ps1 -Dataset cifar10   # Windows
-./scripts/linux/run_full_tournament.sh  --dataset cifar10  # Linux
-
-# Start the whole tournament fresh while preserving old runs and Reflow pairs
-.\scripts\windows\run_full_tournament.ps1 -Dataset cifar10 -Mode fresh
-./scripts/linux/run_full_tournament.sh  --dataset cifar10 --mode fresh
-
-# Dry run — prints plan, starts nothing
-.\scripts\windows\run_full_tournament.ps1 -DryRun
-
-# Manual Reflow pair generation (required before training reflow)
-python scripts/generate_reflow_pairs.py ^
-  --checkpoint results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt ^
-  --config config/fm_full.json ^
-  --n-pairs 50000 ^
-  --output data/reflow_pairs_cifar10.pt
-```
-
-Checkpoints are grouped by attempt under
-`results/<experiment>_<dataset>/checkpoints/run_1/`, `run_2/`, and so on. Each
-run directory contains its `.pt` files plus `archive/` with the self-contained
-ZIP files. The underscore avoids quoting problems on Windows and Linux. Run:
+List available dataset/algorithm combinations without starting training:
 
 ```bash
-python scripts/organize_checkpoints.py          # preview legacy migration
-python scripts/organize_checkpoints.py --apply  # move flat files into run_1
+./scripts/linux/train.sh --list
 ```
 
-Migration refuses name collisions and never overwrites a checkpoint. A fresh
-run archives the previous logs/config/metrics under `results/history/` but keeps
-the complete numbered checkpoint tree in the canonical experiment directory,
-then writes into the next number. Resumption uses only the latest numbered run,
-preventing checkpoints from separate attempts from being mixed.
-Each `.pt` file is also packaged as a self-contained ZIP with weights, config,
-and metadata. Resumption restores
-model state, optimizer, scheduler, AMP scaler, counters, and RNG state.
-Checkpoint and ZIP writes are atomic: their final names appear only after the
-entire file has been flushed and the ZIP has passed a CRC check. If only a ZIP
-backup remains, extract `checkpoint.pt` and resume it explicitly with
-`python train.py ... --resume /path/to/checkpoint.pt`.
-If a canonical run directory is non-empty, direct `train.py` calls require an
-explicit `--mode continue` or `--mode fresh`; this prevents accidental metric
-mixing and checkpoint replacement. The beginner menu asks the same question.
+Preview a selection:
 
-### Mean Flow v2 error-fix workflow
+```bash
+./scripts/linux/train.sh --choice cifar10:fm --mode fresh --dry-run
+```
 
-Before launching the MF v2 probe, validate the configuration and preserved
-evidence with the static preflight:
+Start or resume interactively:
+
+```bash
+./scripts/linux/train.sh
+```
+
+### Train one configured model
+
+Linux:
+
+```bash
+./scripts/linux/run_train.sh \
+  --algorithm fm \
+  --config config/fm_full.json \
+  --mode continue \
+  --checkpoint-every 10
+```
+
+Windows PowerShell:
 
 ```powershell
-# Windows
-venv\Scripts\python.exe scripts\preflight_mf_v2.py --strict-evidence
-venv\Scripts\python.exe train.py --algorithm mf --config config\mf_full_v2.json `
-  --experiment-name mf_v2_probe --epochs 15 --mode fresh --train-only
+.\scripts\windows\run_train.ps1 `
+  -Algorithm fm `
+  -Config config/fm_full.json `
+  -Mode continue
 ```
+
+Lifecycle modes:
+
+- `continue` resumes the latest compatible numbered checkpoint.
+- `fresh` preserves prior run metadata under `results/history/` and starts a
+  new numbered checkpoint series.
+- `--train-only` skips evaluation while retaining normal checkpointing.
+
+Checkpoint compatibility is validated using saved configuration and algorithm
+provenance. Existing checkpoints are never silently overwritten.
+
+### Dataset suites
+
+Dependency-aware CIFAR-10 suite:
 
 ```bash
-# Linux
-venv/bin/python scripts/preflight_mf_v2.py --strict-evidence
-venv/bin/python train.py --algorithm mf --config config/mf_full_v2.json \
-  --experiment-name mf_v2_probe --epochs 15 --mode fresh --train-only
+./scripts/linux/train_cifar.sh --dry-run
+./scripts/linux/train_cifar.sh
 ```
 
-Omit `--strict-evidence` on a clean clone, where the gitignored original
-`results/mf_cifar10` directory is expected to be absent. `--train-only`
-disables FID reference preparation, periodic evaluation, and final sampling.
-The probe and full run use separate directories and scheduler horizons; never
-continue the 15-epoch probe as the 100-epoch experiment.
+Run either dataset or both, with a separate terminal log for every model:
 
-### Latest local tournament status
+```bash
+./scripts/linux/train_all_datasets.sh --dataset cifar10 --dry-run
+./scripts/linux/train_all_datasets.sh --dataset celeba
+./scripts/linux/train_all_datasets.sh --dataset all
+```
 
-The six-algorithm CIFAR-10 tournament completed on 18 September 2026, including
-epoch-100 checkpoints, evaluation, and aggregation. Its local transcript is
-`results/tournament_run_20260917_143512_pid10672.log`. These generated artifacts
-remain gitignored and therefore are not included in a fresh clone. Completion
-does not imply convergence: the MF run showed late loss divergence and remains
-an active analysis item in `PLAN.md`.
+The equivalent Windows entrypoint is:
 
----
+```bat
+scripts\windows\train_cifar.cmd
+```
+
+The suite resolves FM teacher checkpoints before MF-Distill and Consistency,
+and resolves or generates Reflow pairs before Reflow training.
+
+### Full tournament
+
+The tournament runner trains, evaluates, and aggregates in dependency order:
+
+```bash
+./scripts/linux/run_full_tournament.sh --dataset cifar10 --dry-run
+./scripts/linux/run_full_tournament.sh --dataset cifar10
+```
+
+```powershell
+.\scripts\windows\run_full_tournament.ps1 -Dataset cifar10 -DryRun
+.\scripts\windows\run_full_tournament.ps1 -Dataset cifar10
+```
+
+Do not launch overlapping GPU training jobs against the same result directory.
+
+## Experiment presets
+
+Canonical presets:
+
+| Dataset | Algorithm | Configuration |
+|---|---|---|
+| CIFAR-10 | FM | `config/fm_full.json` |
+| CIFAR-10 | FM-LN | `config/fm_lognorm_full.json` |
+| CIFAR-10 | Mean Flow | `config/mf_v3_exact_jvp_b128.json` |
+| CIFAR-10 | MF-Distill | `config/mf_distill_full.json` |
+| CIFAR-10 | Consistency | `config/consistency_full.json` |
+| CIFAR-10 | Reflow | `config/reflow_full.json` |
+| CelebA | FM | `config/fm_celeba64.json` |
+| CelebA | FM-LN | `config/fm_lognorm_celeba64.json` |
+| CelebA | Mean Flow | `config/mf_celeba64.json` |
+| CelebA | MF-Distill | `config/mf_distill_celeba64.json` |
+| CelebA | Consistency | `config/consistency_celeba64.json` |
+| CelebA | Reflow | `config/reflow_celeba64.json` |
+
+Additional MF presets are retained for controlled diagnostics, exact-JVP versus
+finite-difference comparison, and multiscale inference. `config/smoke_fast.json`
+is intended for quick workflow checks rather than research results.
+
+## Outputs and naming
+
+The canonical run directory is derived from configuration metadata:
+
+```text
+results/<experiment_name>_<dataset>/
+```
+
+Example:
+
+```text
+results/fm_lognorm_celeba/
+  config.json
+  run_environment.jsonl
+  logs/
+  metrics/
+    fm_lognorm_celeba.jsonl
+  samples/
+  checkpoints/
+    run_1/
+      FlowMatchingLognormAlgorithm_epoch10.pt
+      ...
+      archive/
+```
+
+Checkpoint ZIPs are self-contained and include the checkpoint payload,
+configuration, environment metadata, and epoch metadata. Raw generated results,
+datasets, checkpoint tensors, GIFs, and ZIP files are intentionally ignored by
+Git.
+
+Terminal transcripts are stored under a device-specific directory such as:
+
+```text
+training_logs/nvidia-geforce-rtx-3090-24gb/
+```
+
+An active log remains at its original open path until its writer finishes; it
+should only be reorganized afterward.
 
 ## Evaluation
 
+Evaluate one checkpoint:
+
 ```bash
-# Re-evaluate a checkpoint at all configured NFE values
-python evaluate.py --algorithm fm \
+./scripts/linux/run_evaluate.sh \
+  --algorithm fm \
   --checkpoint results/fm_cifar10/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt \
-  --config results/fm_cifar10/config.json --make-plots
-
-# Evaluate all available epoch-100 checkpoints
-.\scripts\windows\evaluate_all.ps1 -Dataset cifar10   # Windows
-./scripts/linux/evaluate_all.sh  --dataset cifar10  # Linux
-
-# Aggregate all JSONL metrics into a comparison CSV and plots
-python scripts/aggregate_results.py
+  --config results/fm_cifar10/config.json \
+  --make-plots
 ```
 
-**Metrics recorded per NFE value:**
-- FID (Frechet Inception Distance) — lower is better
-- Inception Score (mean ± std) — higher is usually better
-- Sampling time (wall clock, seconds)
-- Time per image, images per second
-- Peak GPU memory (MB)
-
-**FID reference:** the first algorithm to run builds and caches a reference
-statistics file from real dataset images. Every subsequent algorithm reuses the
-same cache. The cache is validated against a metadata sidecar; a mismatch (e.g.,
-different `num_images`) raises an error before training begins.
-
----
-
-## Outputs & Inference UI
-
-Each run writes to `results/<experiment>_<dataset>/`:
-
-```text
-config.json           Resolved configuration snapshot
-logs/                 Training log
-checkpoints/          Resumable .pt files + per-checkpoint ZIPs
-samples/              Image grids at each evaluated NFE
-metrics/              JSONL with training and evaluation records
-```
+Evaluate all available checkpoints for a dataset:
 
 ```bash
-# Visual grids from every discovered checkpoint
-python scripts/generate_checkpoint_samples.py
-
-# Adaptive Mean Flow inference (per-sample NFE allocation)
-python scripts/sample_mean_flow_extensions.py adaptive \
-  --checkpoint results/mf_cifar10/checkpoints/run_1/MeanFlowAlgorithm_epoch100.pt \
-  --config results/mf_cifar10/config.json
-
-# Coarse-to-fine cascade
-python scripts/sample_mean_flow_extensions.py multiscale --help
-
-# Local results browser and checkpoint inference UI
-python web/inference_server.py
-# Open http://127.0.0.1:8000; runs are named from their saved configs.
+./scripts/linux/evaluate_all.sh --dataset cifar10 --epoch 100 --dry-run
+./scripts/linux/evaluate_all.sh --dataset cifar10 --epoch 100
 ```
 
----
+Windows equivalents live under `scripts/windows/`.
 
-## Setup
+Evaluation is separate from training. It loads existing checkpoints and appends
+traceable metric rows containing checkpoint, sample-count, machine, and code
+identity metadata.
 
-**Windows (automatic):**
+## Aggregation, plots, GIFs, and bundles
 
-```
-Double-click scripts\windows\init.cmd
-```
-
-**Linux (automatic):**
+After training has finished, build aggregate CSV/JSONL tables and static plots:
 
 ```bash
-# 1. Clone and enter the repository
-git clone https://github.com/sheikh2583/Difussion-Model.git
-cd Difussion-Model
-
-# 2. Restore executable bits (normally preserved by Git)
-chmod +x scripts/linux/init.sh scripts/linux/train.sh scripts/*.sh
-
-# 3. Create venv/, install the correct PyTorch build and dependencies,
-#    then download CIFAR-10
-./scripts/linux/init.sh
-
-# 4. Open the model-selection menu
-./scripts/linux/train.sh
+./scripts/linux/make_summary.sh
 ```
 
-On minimal Debian/Ubuntu, Fedora/RHEL, Arch, openSUSE, or Alpine installations,
-the setup wrapper installs Python, pip, and virtual-environment support when
-they are missing. Use `sh scripts/linux/init.sh` if executable permissions were lost.
-
-### Linux initialization options
-
-The initializer is non-interactive and defaults to CIFAR-10 with automatic GPU
-detection:
+The summary launcher refuses to write while this project is training unless a
+read-only snapshot is explicitly requested:
 
 ```bash
-# Default: auto-detect CUDA/ROCm/CPU and download CIFAR-10
-./scripts/linux/init.sh
-
-# Install the environment without downloading a dataset
-./scripts/linux/init.sh --datasets none
-
-# Download CIFAR-10 and CelebA
-./scripts/linux/init.sh --datasets all
-
-# Select one dataset explicitly
-./scripts/linux/init.sh --datasets celeba
-
-# Override hardware detection when necessary
-./scripts/linux/init.sh --gpu cuda128 --datasets cifar10
-./scripts/linux/init.sh --gpu cuda121 --datasets cifar10
-./scripts/linux/init.sh --gpu cuda118 --datasets cifar10
-./scripts/linux/init.sh --gpu rocm --datasets cifar10
-./scripts/linux/init.sh --gpu cpu --datasets cifar10
+./scripts/linux/make_summary.sh --allow-running
 ```
 
-The virtual environment does not have to be activated when using the launch
-scripts. To run Python commands manually, either activate it or call its Python
-executable directly:
+Generate dataset-specific animations from existing metrics and checkpoint
+filenames without loading model tensors:
 
 ```bash
-source venv/bin/activate
-python --version
-
-# Equivalent without activation
-venv/bin/python --version
+./scripts/linux/generate_cifar10_outputs.sh
+./scripts/linux/generate_celeba_outputs.sh
 ```
 
-### Linux training commands
+Generated animations include:
 
-The interactive launcher lists every supported dataset/algorithm combination
-and automatically handles FM-teacher and Reflow-pair prerequisites:
+- NFE versus FID
+- NFE versus FID versus epoch (3D)
+- epoch versus training loss, with checkpoint markers
+
+Create portable checkpoint/results bundles containing configs, provenance,
+metrics, aggregates, and published checkpoint archives:
 
 ```bash
-# Show accepted choice names without training
-./scripts/linux/train.sh --list
-
-# Open the interactive menu
-./scripts/linux/train.sh
-
-# Preview a complete command plan without training
-./scripts/linux/train.sh \
-  --choice cifar10:fm --mode fresh --dry-run
-
-# Start a new FM run; an existing run is preserved under results/history/
-./scripts/linux/train.sh \
-  --choice cifar10:fm --mode fresh --yes
-
-# Continue the latest numbered checkpoint
-./scripts/linux/train.sh \
-  --choice cifar10:fm --mode continue --yes
-
-# Continue to a new total epoch target (not "additional epochs")
-./scripts/linux/train.sh \
-  --choice cifar10:fm --mode continue --epochs 120 --yes
+venv/bin/python scripts/package_dataset_bundles.py --dataset cifar10
+venv/bin/python scripts/package_dataset_bundles.py --dataset celeba
 ```
 
-Choice names follow `<dataset>:<algorithm>`, for example `cifar10:mf`,
-`cifar10:consistency`, `cifar10:reflow`, `celeba:fm`, and `celeba:mf_distill`.
-The special `smoke` choice runs the small workflow test.
+These reporting and packaging tools do not start, stop, pause, or signal a
+training process.
 
-Direct CLI training is also supported:
+## Results browser and inference UI
+
+Start the local server:
 
 ```bash
-venv/bin/python train.py \
-  --algorithm fm --config config/fm_full.json --mode fresh
+./scripts/linux/run_inference.sh
 ```
 
-To preview or launch the complete dependency-ordered CIFAR-10 tournament:
+Open <http://127.0.0.1:8000>.
+
+The web application provides:
+
+- a read-only catalog of discovered CIFAR-10 and CelebA runs;
+- checkpoint counts, latest loss, and available evaluation summaries;
+- config-derived algorithm and dataset labels;
+- dynamic checkpoint and NFE controls;
+- sample generation from compatible checkpoints.
+
+The server discovers runs from `results/` and does not rely on hard-coded run
+directory names.
+
+## Verification and tests
+
+Run the full CPU test suite:
 
 ```bash
-# No model execution
-./scripts/linux/run_full_tournament.sh \
-  --dataset cifar10 --mode fresh --dry-run
-
-# Actual run
-./scripts/linux/run_full_tournament.sh \
-  --dataset cifar10 --mode fresh
+python -m pytest -q
 ```
 
-Run artifacts are written under `results/<experiment>_<dataset>/`. Checkpoints
-use `checkpoints/run_N/`; metrics use append-only JSONL files under `metrics/`.
-The launchers refuse ambiguous resume/fresh behavior and the tournament uses
-`results/.lock` to prevent overlapping GPU jobs.
-
-### Linux troubleshooting
-
-- **Permission denied:** restore executable bits with the `chmod` command shown
-  above, or invoke the entry point as `sh scripts/linux/init.sh`.
-- **No `venv`/`ensurepip`:** rerun `./scripts/linux/init.sh`; the wrapper installs the
-  appropriate virtual-environment and pip packages through the detected package
-  manager. Root access or `sudo` is required only for missing system packages.
-- **GPU not detected:** check `nvidia-smi` for NVIDIA or `rocm-smi` for AMD,
-  then use an explicit `--gpu` option if auto-detection is unsuitable.
-- **DataLoader workers hang:** set `dataset.num_workers` to `0` in the selected
-  config and retry.
-- **Inspect before a long run:** use `--dry-run`, then run
-  `venv/bin/python scripts/verify_workflow.py --dataset cifar10`.
-
-**Manual / selective:**
+Validate a planned workflow without training:
 
 ```bash
-# CIFAR-10 only
-python bootstrap.py --yes
-
-# Both datasets
-python bootstrap.py --yes --datasets all
-
-# CelebA only, CPU build
-python bootstrap.py --yes --datasets celeba --gpu cpu
-
-# Override GPU detection
-python bootstrap.py --yes --gpu cuda128   # CUDA 12.8
-python bootstrap.py --yes --gpu rocm      # AMD ROCm
+venv/bin/python scripts/verify_workflow.py --dataset cifar10
+./scripts/linux/train_all.sh --dataset cifar10 --dry-run
 ```
 
-After setup, activate the environment:
+The tests cover configuration parsing, lifecycle behavior, checkpoint
+provenance, numbered checkpoint layouts, Mean Flow exact JVP behavior,
+Consistency sampling, platform entrypoints, aggregation, and web discovery.
+
+## Submission report
+
+The report source is preserved at [docs/report/main.tex](docs/report/main.tex).
+Its chapter sources, bibliography, university class/style files, and referenced
+figures are all versioned. Report figures live in `docs/assets/` and can be
+regenerated where source metrics are available with:
 
 ```bash
-source venv/bin/activate          # Linux/macOS
-.\venv\Scripts\Activate.ps1      # Windows PowerShell
+python scripts/generate_report_figures.py
 ```
 
-Before a long run, verify the full workflow:
+No slide deck is currently present in this repository.
 
-```bash
-python scripts/verify_workflow.py --dataset cifar10
-python scripts/verify_workflow.py --strict-prerequisites
-```
+## Additional documentation
 
----
-
-## Config Reference
-
-Every JSON config has the same structure. `algorithm_kwargs` is the only section
-that differs between algorithms.
-
-```jsonc
-{
-  "experiment_name": "mf",
-  "output_dir":      "./results",
-  "seed":            0,
-  "device":          "cuda",
-  "amp":             true,
-  "batch_size":      128,
-  "epochs":          100,
-  "checkpoint_frequency_epochs": 10,
-
-  "dataset": {
-    "name":       "cifar10",
-    "root":       "./data/raw",
-    "image_size": 32,
-    "num_workers": 4
-  },
-
-  "backbone": {
-    "name":           "simple_unet",
-    "in_channels":    3,
-    "base_channels":  64,
-    "channel_mults":  [1, 2, 2],
-    "num_res_blocks": 2,
-    "time_embed_dim": 256
-  },
-
-  "optim": {
-    "optimizer":     "adamw",
-    "learning_rate": 0.0002,
-    "weight_decay":  0.0,
-    "scheduler":     "none"
-  },
-
-  "evaluation": {
-    "metrics":               ["fid", "is"],
-    "num_generated_samples": 5000,
-    "nfe_values":            [1, 5, 10, 20, 50, 100],
-    "eval_frequency_epochs": 25,
-    "fid_reference_cache":   "./results/metrics/fid_reference_stats.npz"
-  },
-
-  // Algorithm-specific only — cannot shadow any key above
-  "algorithm_kwargs": {}
-}
-```
-
-**Algorithm-specific `algorithm_kwargs`:**
-
-| Algorithm | Key | Default | Meaning |
-|---|---|---|---|
-| `fm_lognorm` | `logit_mean` | `0.0` | Mean of Gaussian before sigmoid |
-| `fm_lognorm` | `logit_std` | `1.0` | Std of Gaussian before sigmoid (must be > 0) |
-| `mf` | `p_same` | `0.25` | Probability of forcing r = t per sample |
-| `mf` | `jvp_delta_start` | `1e-2` | Initial FD perturbation size |
-| `mf` | `jvp_delta_end` | `1e-4` | Final FD perturbation size (after annealing) |
-| `mf` | `p_fd_step` | `0.5` | Probability of FD path per training step |
-| `mf_distill` | `teacher_checkpoint` | *(required)* | Path to trained FM .pt checkpoint |
-| `mf_distill` | `teacher_nfe` | `4` | Euler steps for teacher rollout per step |
-| `mf_distill` | `p_same` | `0.25` | Probability of diagonal shortcut |
-| `consistency` | `teacher_checkpoint` | *(required)* | Path to trained FM .pt checkpoint |
-| `consistency` | `ema_decay` | `0.999` | EMA decay for target network |
-| `consistency` | `consistency_weight` | `1.0` | Loss scale |
-| `consistency` | `n_timesteps` | `18` | Discrete time schedule steps |
-| `reflow` | `pairs_path` | *(required)* | Path to .pt file of (z1, x0) pairs |
-
----
-
-## Further Reading
-
-| Document | Contents |
+| Document | Purpose |
 |---|---|
-| `docs/THEORY_NOTES.md` | Mathematical derivations, proofs, and literature references |
-| `docs/PROJECT_INTERVIEW_GUIDE.md` | Full algorithm walkthrough for thesis defense/interview |
-| `docs/IMPLEMENTATION_CHANGES.md` | Engineering changelog and verification record |
-| `docs/TRAINING_TIME_ESTIMATES.md` | Per-GPU time and memory budgets |
-| `docs/CONSISTENCY_TUNING_NOTES.md` | Consistency Model training tips |
+| [START_HERE.md](START_HERE.md) | Short operational entrypoint |
+| [scripts/README.md](scripts/README.md) | Linux/Windows command map |
+| [docs/THEORY_NOTES.md](docs/THEORY_NOTES.md) | Algorithm derivations and references |
+| [docs/IMPLEMENTATION_CHANGES.md](docs/IMPLEMENTATION_CHANGES.md) | Engineering and verification history |
+| [docs/TRAINING_TIME_ESTIMATES.md](docs/TRAINING_TIME_ESTIMATES.md) | GPU time and memory estimates |
+| [docs/CONSISTENCY_TUNING_NOTES.md](docs/CONSISTENCY_TUNING_NOTES.md) | Consistency training guidance |
+| [docs/LINUX_VERIFICATION.md](docs/LINUX_VERIFICATION.md) | Linux environment verification checklist |
+
+## Safety notes
+
+- `results/`, raw datasets, checkpoint tensors, exports, and generated media are
+  intentionally Git-ignored.
+- Training logs are research evidence; do not delete or relocate an actively
+  written log.
+- Use `--dry-run` before long training or evaluation workflows.
+- Use `continue` for recovery and `fresh` only when a new run is intended.
+- Never evaluate, aggregate, or package by terminating an active trainer.
