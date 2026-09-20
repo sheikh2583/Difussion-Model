@@ -101,4 +101,22 @@ def test_linux_reporting_helpers_are_training_safe() -> None:
         text = (LINUX_DIR / name).read_text(encoding="utf-8")
         assert "scripts/generate_result_gifs.py" in text
         assert f"--dataset {dataset}" in text
+        assert "pgrep" in text
+        assert "--allow-running" in text
+        assert "--dry-run" in text
         assert "kill" not in text
+
+
+def test_windows_reporting_helpers_are_training_safe() -> None:
+    expected = {
+        "make_summary.ps1": "scripts/aggregate_results.py",
+        "generate_cifar10_outputs.ps1": '"cifar10"',
+        "generate_celeba_outputs.ps1": '"celeba"',
+    }
+    for name, command in expected.items():
+        text = (WINDOWS_DIR / name).read_text(encoding="utf-8")
+        assert command in text
+        assert "Get-CimInstance Win32_Process" in text
+        assert "AllowRunning" in text
+        assert "DryRun" in text
+        assert "Stop-Process" not in text

@@ -8,9 +8,12 @@ training implementation.
 | Initialize CIFAR-10 | `./scripts/linux/init.sh` | `scripts\windows\init.cmd` |
 | Interactive training | `./scripts/linux/train.sh` | `scripts\windows\train.cmd` |
 | Train/resume CIFAR-10 suite | `./scripts/linux/train_cifar.sh` | `scripts\windows\train_cifar.cmd` |
-| Build aggregate summary | `./scripts/linux/make_summary.sh` | `venv\Scripts\python.exe scripts\aggregate_results.py` |
+| Build aggregate summary | `./scripts/linux/make_summary.sh` | `.\scripts\windows\make_summary.ps1` |
 | Build dataset bundles | `venv/bin/python scripts/package_dataset_bundles.py` | `venv\Scripts\python.exe scripts\package_dataset_bundles.py` |
-| Generate result GIFs | `./scripts/linux/generate_cifar10_outputs.sh` | `venv\Scripts\python.exe scripts\generate_result_gifs.py --dataset cifar10` |
+| Build compact thesis context | `./scripts/linux/make_thesis_context.sh` | `.\scripts\windows\make_thesis_context.ps1` |
+| Generate CIFAR-10 GIFs | `./scripts/linux/generate_cifar10_outputs.sh` | `.\scripts\windows\generate_cifar10_outputs.ps1` |
+| Generate CelebA GIFs | `./scripts/linux/generate_celeba_outputs.sh` | `.\scripts\windows\generate_celeba_outputs.ps1` |
+| Verify project layout | `python scripts/verify_project_layout.py` | `python scripts\verify_project_layout.py` |
 
 See the platform-specific README before the first run:
 
@@ -19,3 +22,7 @@ See the platform-specific README before the first run:
 
 All launchers resolve the repository root from their own location, so they work
 even when the clone is stored in a path containing spaces.
+
+The compact thesis context ZIP is intended for external reviewers and agents.
+It includes source, configs, report material, metrics, provenance, plots,
+samples, and training logs, but excludes raw datasets and checkpoint binaries.

@@ -308,8 +308,28 @@ venv/bin/python scripts/package_dataset_bundles.py --dataset cifar10
 venv/bin/python scripts/package_dataset_bundles.py --dataset celeba
 ```
 
+For external agents or thesis reviewers who need evidence but not multi-gigabyte
+model binaries, build the compact context package after training:
+
+```bash
+./scripts/linux/make_thesis_context.sh --dry-run
+./scripts/linux/make_thesis_context.sh
+```
+
+The archive contains source, configs, tests, report material, run provenance,
+metrics, plots, samples, and training transcripts. It excludes datasets, the
+virtual environment, raw checkpoints, checkpoint ZIPs, and global FID caches.
+
 These reporting and packaging tools do not start, stop, pause, or signal a
 training process.
+
+Windows reporting entrypoints provide the same safeguards:
+
+```powershell
+.\scripts\windows\make_summary.ps1 -DryRun
+.\scripts\windows\generate_cifar10_outputs.ps1 -DryRun
+.\scripts\windows\generate_celeba_outputs.ps1 -DryRun
+```
 
 ## Results browser and inference UI
 
@@ -345,7 +365,13 @@ Validate a planned workflow without training:
 ```bash
 venv/bin/python scripts/verify_workflow.py --dataset cifar10
 ./scripts/linux/train_all.sh --dataset cifar10 --dry-run
+python scripts/verify_project_layout.py
 ```
+
+The layout verifier is read-only and safe during training. It checks platform
+file placement, configuration naming, documentation links, launcher formats,
+Git ignore rules, report completeness, and reports active trainer PIDs. Use
+`--fail-if-training` as a gate before a future structural migration.
 
 The tests cover configuration parsing, lifecycle behavior, checkpoint
 provenance, numbered checkpoint layouts, Mean Flow exact JVP behavior,

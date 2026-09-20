@@ -31,3 +31,19 @@ directory, so training and evaluation logic remains shared with Linux.
 
 The CIFAR-10 configurations save every 10 epochs. Outputs are stored under
 `results\<algorithm>_cifar10\` and are ignored by Git.
+
+## Reporting and verification
+
+Preview output commands without writing anything:
+
+```powershell
+.\scripts\windows\make_summary.ps1 -DryRun
+.\scripts\windows\generate_cifar10_outputs.ps1 -DryRun
+.\scripts\windows\generate_celeba_outputs.ps1 -DryRun
+.\scripts\windows\make_thesis_context.ps1 -DryRun
+python scripts\verify_project_layout.py
+```
+
+The reporting wrappers refuse to modify generated outputs while training is
+active unless `-AllowRunning` is explicitly supplied for a read-only snapshot.
+They never stop or signal a training process.

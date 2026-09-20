@@ -63,9 +63,28 @@ After training finishes, rebuild aggregate tables and dataset-specific GIFs:
 ./scripts/linux/generate_cifar10_outputs.sh
 ./scripts/linux/generate_celeba_outputs.sh
 venv/bin/python scripts/package_dataset_bundles.py
+./scripts/linux/make_thesis_context.sh
 ```
 
 These tools use existing metrics, configs, and atomically published checkpoint
 archives. They never start, stop, signal, or modify a training process. The
 summary helper refuses to run during training unless `--allow-running` is
 explicitly supplied; `--dry-run` prints its command without writing outputs.
+The animation launchers follow the same `--dry-run` and `--allow-running`
+convention.
+
+`make_thesis_context.sh` produces a compact package for external thesis
+discussion. Preview its exact inventory with `--dry-run`; it excludes raw
+datasets, checkpoint tensors, checkpoint ZIPs, and FID caches.
+
+Run the read-only repository health check at any time:
+
+```bash
+python scripts/verify_project_layout.py
+```
+
+Before a structural migration, require training to be stopped:
+
+```bash
+python scripts/verify_project_layout.py --fail-if-training
+```
