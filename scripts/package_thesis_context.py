@@ -22,7 +22,7 @@ from verify_project_layout import active_training_processes
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = PROJECT_ROOT / "results" / "exports" / "thesis_context.zip"
+DEFAULT_OUTPUT = PROJECT_ROOT / "thesis_context.zip"
 EXCLUDED_PARTS = {".git", "venv", "__pycache__"}
 EXCLUDED_SUFFIXES = {".pt", ".zip", ".npz"}
 

@@ -30,9 +30,13 @@ results/
 *.pdf
 *.pptx
 *.zip
+!thesis_context.zip
 *.gif
 thesis_dashboard.html
 ProjectForClaude.zip
+
+# Deliberately versioned, generated thesis handoff artifacts.
+!THESIS_SUMMARY.md
 
 # Agent conversation files
 AGENTS.md

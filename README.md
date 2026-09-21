@@ -316,6 +316,10 @@ model binaries, build the compact context package after training:
 ./scripts/linux/make_thesis_context.sh
 ```
 
+The reporting command writes `THESIS_SUMMARY.md`, and the context packager
+writes `thesis_context.zip`; both are placed in the repository root and are
+intentionally Git-trackable.
+
 The archive contains source, configs, tests, report material, run provenance,
 metrics, plots, samples, and training transcripts. It excludes datasets, the
 virtual environment, raw checkpoints, checkpoint ZIPs, and global FID caches.

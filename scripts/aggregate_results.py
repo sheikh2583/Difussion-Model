@@ -38,6 +38,11 @@ def parse_args() -> argparse.Namespace:
         "--output-dir", default="results/aggregate",
         help="Directory for combined JSONL, CSV, and plots.",
     )
+    parser.add_argument(
+        "--markdown-output",
+        default=str(PROJECT_ROOT / "THESIS_SUMMARY.md"),
+        help="Path for the concise Markdown thesis summary.",
+    )
     return parser.parse_args()
 
 
@@ -206,6 +211,10 @@ def build_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "source_experiment": next(
                 (row.get("experiment") for row in algorithm_records), None
             ),
+            "dataset": next(
+                (row.get("dataset") for row in algorithm_records if row.get("dataset")),
+                None,
+            ),
             "machine_label": next(
                 (row.get("machine_label") or row.get("hostname")
                  for row in algorithm_records
@@ -266,6 +275,72 @@ def build_summary(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "is_at_100": (evaluations.get(100) or {}).get("is_mean"),
         })
     return rows
+
+
+def markdown_value(value: Any, digits: int | None = None) -> str:
+    """Format a compact, pipe-safe Markdown table value."""
+    if value is None or value == "":
+        return "—"
+    if isinstance(value, float) and digits is not None:
+        return f"{value:.{digits}f}"
+    return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def write_markdown_summary(
+    path: Path,
+    summary: list[dict[str, Any]],
+    training_cost_rows: list[dict[str, Any]],
+) -> None:
+    """Write a stable, human-readable thesis snapshot from aggregate rows."""
+    lines = [
+        "# Thesis Results Summary",
+        "",
+        "Generated from the canonical experiment metric files by "
+        "`scripts/aggregate_results.py`. Rerun the generator after active training "
+        "finishes to produce the final snapshot.",
+        "",
+        "## Evaluation metrics",
+        "",
+        "| Dataset | Experiment | Algorithm | Train epoch | Eval epoch | Samples | "
+        "FID@1 | FID@5 | FID@10 | FID@20 | FID@50 | IS@20 |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in summary:
+        values = [
+            markdown_value(row.get("dataset")),
+            markdown_value(row.get("source_experiment")),
+            markdown_value(row.get("algorithm_class")),
+            markdown_value(row.get("last_epoch")),
+            markdown_value(row.get("eval_epoch")),
+            markdown_value(row.get("num_generated_samples")),
+            markdown_value(row.get("fid_at_1"), 3),
+            markdown_value(row.get("fid_at_5"), 3),
+            markdown_value(row.get("fid_at_10"), 3),
+            markdown_value(row.get("fid_at_20"), 3),
+            markdown_value(row.get("fid_at_50"), 3),
+            markdown_value(row.get("is_at_20"), 3),
+        ]
+        lines.append("| " + " | ".join(values) + " |")
+
+    lines.extend([
+        "",
+        "## Training cost",
+        "",
+        "| Experiment | Algorithm | Epochs | Training hours | Peak GPU memory (MiB) |",
+        "|---|---|---:|---:|---:|",
+    ])
+    for row in training_cost_rows:
+        values = [
+            markdown_value(row.get("experiment")),
+            markdown_value(row.get("algorithm")),
+            markdown_value(row.get("epochs")),
+            markdown_value(row.get("total_training_hours"), 2),
+            markdown_value(row.get("peak_gpu_mb"), 1),
+        ]
+        lines.append("| " + " | ".join(values) + " |")
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 ALGORITHM_LABELS = {
@@ -480,6 +555,7 @@ def main() -> int:
     args = parse_args()
     results_root = Path(args.results_root).resolve()
     output_dir = Path(args.output_dir).resolve()
+    markdown_path = Path(args.markdown_output).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     combined_path = output_dir / "combined_metrics.jsonl"
 
@@ -539,11 +615,14 @@ def main() -> int:
             writer.writeheader()
             writer.writerows(training_cost_rows)
 
+    write_markdown_summary(markdown_path, summary, training_cost_rows)
+
     render_plots(combined_path, output_dir / "plots", records)
     print(f"Aggregated {len(records)} records from {len(inputs)} files.")
     print(f"Combined metrics: {combined_path}")
     print(f"Summary table:    {summary_path}")
     print(f"Training costs:   {training_cost_path}")
+    print(f"Markdown summary: {markdown_path}")
     print(f"Plots:            {output_dir / 'plots'}")
     return 0
 

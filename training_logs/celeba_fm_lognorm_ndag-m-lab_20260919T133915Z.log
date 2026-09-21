@@ -130,3 +130,9 @@ Files already downloaded and verified
 2026-09-21 03:17:15,198 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=86 loss=0.072094 time=599.031s peak_mem=4450.9MB
 2026-09-21 03:27:23,335 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=87 loss=0.072232 time=608.136s peak_mem=4450.9MB
 2026-09-21 03:37:28,930 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=88 loss=0.072193 time=605.595s peak_mem=4450.9MB
+2026-09-21 03:47:27,474 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=89 loss=0.072097 time=598.543s peak_mem=4450.9MB
+2026-09-21 03:57:14,419 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=90 loss=0.072109 time=586.936s peak_mem=4450.9MB
+2026-09-21 03:57:14,541 [INFO] trainer.FlowMatchingLognormAlgorithm: Checkpoint saved -> results/fm_lognorm_celeba/checkpoints/run_2/FlowMatchingLognormAlgorithm_epoch90.pt
+2026-09-21 03:57:14,720 [INFO] trainer.FlowMatchingLognormAlgorithm: Checkpoint archive -> results/fm_lognorm_celeba/checkpoints/run_2/archive/FlowMatchingLognormAlgorithm_epoch90.zip
+2026-09-21 04:07:02,950 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=91 loss=0.072119 time=588.230s peak_mem=4450.9MB
+2026-09-21 04:16:27,392 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=92 loss=0.072005 time=564.442s peak_mem=4450.9MB

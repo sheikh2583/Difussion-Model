@@ -138,3 +138,7 @@ Files already downloaded and verified
 2026-09-21 03:18:49,401 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=92 loss=0.072005 time=595.813s peak_mem=4450.9MB
 2026-09-21 03:28:55,640 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=93 loss=0.072135 time=606.238s peak_mem=4450.9MB
 2026-09-21 03:38:52,992 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=94 loss=0.072151 time=597.351s peak_mem=4450.9MB
+2026-09-21 03:48:46,829 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=95 loss=0.072090 time=593.837s peak_mem=4450.9MB
+2026-09-21 03:58:25,927 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=96 loss=0.072134 time=579.097s peak_mem=4450.9MB
+2026-09-21 04:08:04,963 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=97 loss=0.072098 time=579.035s peak_mem=4450.9MB
+2026-09-21 04:17:29,603 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=98 loss=0.072109 time=564.639s peak_mem=4450.9MB

@@ -76,6 +76,8 @@ convention.
 `make_thesis_context.sh` produces a compact package for external thesis
 discussion. Preview its exact inventory with `--dry-run`; it excludes raw
 datasets, checkpoint tensors, checkpoint ZIPs, and FID caches.
+The generated `thesis_context.zip` and reporting-generated
+`THESIS_SUMMARY.md` are written to the repository root and are Git-trackable.
 
 Run the read-only repository health check at any time:
 
