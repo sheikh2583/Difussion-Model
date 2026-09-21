@@ -155,7 +155,8 @@ def main() -> int:
                 "It contains source, configuration, tests, report material, run provenance, "
                 "metrics, plots, sample images, and training transcripts. Large model and "
                 "dataset binaries are deliberately excluded. See `CONTEXT_MANIFEST.json` "
-                "for the complete inventory and SHA-256 hashes.\n",
+                "for the complete inventory and SHA-256 hashes. For the proposed latent-space "
+                "architecture discussion, begin with `CLAUDE_DISCUSSION_PROMPT.md`.\n",
             )
         with zipfile.ZipFile(temporary_path) as archive:
             bad_member = archive.testzip()
