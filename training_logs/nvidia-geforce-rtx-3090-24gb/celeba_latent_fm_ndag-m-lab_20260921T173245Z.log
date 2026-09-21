@@ -1,0 +1,23 @@
+[fresh] No previous run artifacts found; starting at epoch 1.
+[checkpoints] Active checkpoint series: run_1
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/fm_celeba_latent.json
+[startup] algorithm: fm
+[startup] experiment: fm
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_celeba_latent
+[startup] batch_size: 64
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0002
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.25
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: NDAG-M-Lab-RTX3090
+[startup] code_identity: ab80fbd13d7654c7ac6123512ffb46cab7282e2b
+2026-09-21 23:33:31,812 [INFO] trainer.FlowMatchingAlgorithm: epoch=1 loss=1.200011 time=43.788s peak_mem=407.9MB
+2026-09-21 23:34:15,450 [INFO] trainer.FlowMatchingAlgorithm: epoch=2 loss=1.126527 time=43.637s peak_mem=407.9MB
+2026-09-21 23:34:58,618 [INFO] trainer.FlowMatchingAlgorithm: epoch=3 loss=1.108111 time=43.167s peak_mem=407.9MB
