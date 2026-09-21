@@ -44,9 +44,9 @@ class BaseAlgorithm(ABC):
     def sample(self, n_samples: int, nfe: int, device: torch.device) -> torch.Tensor:
         """
         Generate `n_samples` images using `nfe` function evaluations.
-        Must return a tensor of shape (n_samples, C, H, W) in the same
-        value range as the training data (i.e. [-1, 1] given the
-        normalization used in data/cifar10.py).
+        Must return a tensor of shape (n_samples, C, H, W) in the training
+        representation: pixel presets use [-1, 1], while latent presets use
+        finite, unbounded normalized codec coordinates.
 
         NFE is an experimental measurement, not a guarantee of
         equivalent internal work across algorithms.
@@ -80,6 +80,20 @@ class BaseAlgorithm(ABC):
 
     def load_checkpoint_state(self, state: Optional[Dict[str, Any]]) -> None:
         """Restore algorithm-owned state; defaults to no additional state."""
+
+    def _finalize_sample(self, sample: torch.Tensor) -> torch.Tensor:
+        """Apply the representation-specific output policy.
+
+        Existing backbones do not carry ``sample_clamp`` and therefore retain
+        the historical pixel-space clamp. Latent presets explicitly disable
+        it, in which case non-finite output is rejected rather than silently
+        corrupting a cache, decoder call, or metric.
+        """
+        if getattr(self.model.cfg, "sample_clamp", True):
+            return sample.clamp(-1.0, 1.0)
+        if not torch.isfinite(sample).all():
+            raise FloatingPointError("Generated latent sample contains NaN or Inf values")
+        return sample
 
     def name(self) -> str:
         return type(self).__name__

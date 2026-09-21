@@ -43,6 +43,12 @@ class ResultRecord:
     checkpoint_path: Optional[str] = None
     num_generated_samples: Optional[int] = None
 
+    # Latent experiment timing fields added 2026-09-21: separate backbone
+    # sampling time (NFE measurement) from decoder time so they are reported
+    # independently per AGENTS.md contract.  None in all pixel-space records.
+    backbone_sampling_time: Optional[float] = None
+    decoder_time: Optional[float] = None
+
 
 class ResultsWriter:
     def __init__(self, output_dir: str, experiment_name: str):

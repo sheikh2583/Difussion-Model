@@ -14,7 +14,7 @@ The backbone is trained to predict v given (x_t, t). At sampling time
 we integrate the learned ODE backward from t=1 (pure noise) to t=0
 (data) using the Euler method with `nfe` steps.
 
-All image tensors are in [-1, 1] (the project-wide convention).
+Pixel tensors are in [-1, 1]; latent presets use normalized codec tensors.
 """
 
 from typing import Any, Dict
@@ -129,7 +129,7 @@ class FlowMatchingLognormAlgorithm(BaseAlgorithm):
             device:    Target device.
 
         Returns:
-            Tensor of shape (n_samples, C, H, W), clamped to [-1, 1].
+            Tensor finalized according to the configured representation.
         """
         # Determine image shape from backbone configuration
         C = self.model.cfg.in_channels          # number of image channels (3 for CIFAR-10)
@@ -160,7 +160,5 @@ class FlowMatchingLognormAlgorithm(BaseAlgorithm):
                 # x ← x - v * step   (since t is decreasing, we subtract)
                 x = x - v * step
 
-        # --- Step 4: clamp to project back into the valid image range [-1, 1] ---
-        # Small numerical drift from Euler integration can push values slightly
-        # outside the range; clamping avoids artefacts in downstream metrics
-        return x.clamp(-1.0, 1.0)
+        # Pixel presets clamp to [-1,1]; normalized latent presets stay unbounded.
+        return self._finalize_sample(x)

@@ -90,3 +90,19 @@ Before a structural migration, require training to be stopped:
 ```bash
 python scripts/verify_project_layout.py --fail-if-training
 ```
+
+## Self-trained CelebA codec fallback
+
+Only if the pretrained factor-4 codec is rejected, preview and then launch the
+scratch KL-VAE trainer with:
+
+```bash
+./scripts/linux/train_scratch_codec.sh --dry-run
+./scripts/linux/train_scratch_codec.sh
+```
+
+The launcher uses the recommended RTX 3090 starting preset (batch 128, 60
+epochs, AdamW at `1e-4`, weight decay `1e-4`, AMP, gradient clipping `1.0`, and
+KL warmup `1e-5` to `1e-4` over 20 epochs). It resumes the numerically latest
+five-epoch checkpoint automatically and refuses to overwrite checkpoints in
+fresh mode. Use `--help` to see safe path and batch-size overrides.

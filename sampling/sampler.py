@@ -2,7 +2,20 @@
 Generic sampling engine. Contains ZERO algorithm-specific sampling
 mathematics — it only calls algorithm.sample(n, nfe, device) and
 measures wall-clock time / throughput / memory around that call.
+
+Latent extension (2026-09-21)
+─────────────────────────────
+Four-channel tensors (normalised latents) are NEVER passed to save_image().
+If the generated output has a channel count other than 3, the grid save is
+skipped with an explicit log message.  Decoded reconstruction and sample
+grids for latent experiments are produced separately by validate_codec.py
+and scripts/smoke_latent.py.
+
+The generate_for_evaluation() method is unchanged: it returns whatever
+algorithm.sample() produces (normalised latents for latent configs) and
+leaves decoding to the Evaluator.
 """
+import logging
 import os
 from typing import List
 
@@ -12,6 +25,8 @@ from torchvision.utils import save_image
 from algorithms.base import BaseAlgorithm
 from utils.results import ResultRecord, ResultsWriter
 from utils.timing import timer, peak_gpu_memory_mb, reset_peak_gpu_memory
+
+_logger = logging.getLogger(__name__)
 
 
 class Sampler:
@@ -73,13 +88,37 @@ class Sampler:
             if save_grid:
                 grid_path = os.path.join(
                     self.samples_dir, f"{self.algorithm.name()}_nfe{nfe}.png")
-                save_image(images[:grid_size], grid_path, normalize=True, value_range=(-1, 1))
+                # ── 4-channel guard (latent experiment safety) ────────────────
+                # Normalised latents have 4 channels and are unbounded; passing
+                # them to save_image would produce a meaningless / misleading PNG.
+                # Decoded RGB grids for latent experiments are written by
+                # validate_codec.py (reconstruction grid) and
+                # scripts/smoke_latent.py (sample grid with real codec).
+                if images.shape[1] != 3:
+                    _logger.warning(
+                        "Skipping grid save for NFE=%d: generated tensor has %d "
+                        "channels (expected 3 for RGB). Four-channel latent tensors "
+                        "must not be saved directly as image grids. Decoded sample "
+                        "grids are produced by scripts/smoke_latent.py.",
+                        nfe,
+                        images.shape[1],
+                    )
+                else:
+                    save_image(
+                        images[:grid_size], grid_path,
+                        normalize=True, value_range=(-1, 1)
+                    )
 
     @torch.no_grad()
     def generate_for_evaluation(
         self, n_samples: int, nfe: int, batch_size: int = 32
     ) -> torch.Tensor:
-        """Generate in bounded accelerator batches and return CPU images."""
+        """Generate in bounded accelerator batches and return CPU tensors.
+
+        For pixel experiments: returns (N, 3, H, W) float32 in [-1, 1].
+        For latent experiments: returns (N, 4, H', W') float32 normalised latents.
+        The Evaluator is responsible for decoding latents before FID/IS.
+        """
         if n_samples < 1:
             raise ValueError(f"n_samples must be >= 1, got {n_samples}")
         if nfe < 1:

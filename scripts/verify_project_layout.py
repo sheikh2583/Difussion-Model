@@ -78,7 +78,7 @@ def config_errors(root: Path) -> list[str]:
         dataset_name = str(dataset.get("name", "")).strip() if isinstance(dataset, dict) else ""
         if not experiment:
             errors.append(f"Missing experiment_name: {path.relative_to(root)}")
-        if dataset_name not in {"cifar10", "celeba"}:
+        if dataset_name not in {"cifar10", "celeba", "celeba_latent"}:
             errors.append(f"Invalid dataset name in {path.relative_to(root)}: {dataset_name!r}")
         if dataset_name and experiment.endswith(f"_{dataset_name}"):
             errors.append(

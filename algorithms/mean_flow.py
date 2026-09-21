@@ -252,4 +252,4 @@ class MeanFlowAlgorithm(BaseAlgorithm):
                 u   = self._forward(z, r_b, t_b)
                 z   = z - (t_cur - t_next) * u
 
-        return z.clamp(-1.0, 1.0)
+        return self._finalize_sample(z)

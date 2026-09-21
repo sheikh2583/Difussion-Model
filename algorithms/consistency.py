@@ -239,4 +239,4 @@ class ConsistencyAlgorithm(BaseAlgorithm):
                     else:
                         x = x_0_hat
 
-        return x.clamp(-1.0, 1.0)
+        return self._finalize_sample(x)

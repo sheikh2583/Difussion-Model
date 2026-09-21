@@ -22,6 +22,10 @@ class BackboneConfig:
     channel_mults: List[int] = field(default_factory=lambda: [1, 2, 2])
     num_res_blocks: int = 2
     time_embed_dim: int = 256
+    # Pixel-space runs preserve the historical [-1, 1] sample clamp. Latent
+    # runs disable it because normalized codec latents are intentionally
+    # unbounded.
+    sample_clamp: bool = True
 
 
 @dataclass
@@ -30,6 +34,11 @@ class DatasetConfig:
     root: str = "./data/raw"
     image_size: int = 32
     num_workers: int = 4
+    # Optional fields used by content-addressed latent datasets. Empty values
+    # keep every existing pixel configuration unchanged.
+    cache_dir: str = ""
+    split: str = ""
+    codec_checkpoint: str = ""
 
 
 @dataclass

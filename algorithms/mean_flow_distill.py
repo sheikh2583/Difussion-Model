@@ -201,4 +201,4 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
                 r_b = torch.full((n_samples,), t_next, device=device, dtype=torch.float32)
                 z   = z - (t_cur - t_next) * self._student_forward(z, r_b, t_b)
 
-        return z.clamp(-1.0, 1.0)
+        return self._finalize_sample(z)

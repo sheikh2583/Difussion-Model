@@ -8,6 +8,7 @@ entry in DATASET_REGISTRY — nothing else changes.
 Supported dataset names (cfg.dataset.name):
     "cifar10"  — CIFAR-10 32×32 (original)
     "celeba"   — CelebA, center-cropped and resized to cfg.dataset.image_size
+    "celeba_latent" — verified normalized 4x16x16 CelebA latent cache
 """
 
 from config.config import DatasetConfig, ExperimentConfig
@@ -31,6 +32,12 @@ def _cifar10(cfg: DatasetConfig, batch_size: int, seed: int):
 @_register("celeba")
 def _celeba(cfg: DatasetConfig, batch_size: int, seed: int):
     from data.celeba import get_dataloaders
+    return get_dataloaders(cfg, batch_size, seed)
+
+
+@_register("celeba_latent")
+def _celeba_latent(cfg: DatasetConfig, batch_size: int, seed: int):
+    from data.celeba_latent import get_dataloaders
     return get_dataloaders(cfg, batch_size, seed)
 
 

@@ -12,7 +12,7 @@ Generated from the canonical experiment metric files by `scripts/aggregate_resul
 | cifar10 | fm_cifar10 | FlowMatchingAlgorithm | 100 | — | unknown | — | — | — | — | — | — |
 | cifar10 | fm_cifar10 | FlowMatchingAlgorithm | — | 100 | 5000 | 380.620 | 58.568 | 47.243 | 45.467 | 43.427 | 6.008 |
 | celeba | fm_lognorm_celeba | FlowMatchingLognormAlgorithm | 98 | 80 | 5000 | 215.889 | 35.888 | 23.292 | 19.557 | 17.349 | 2.598 |
-| celeba | fm_lognorm_celeba | FlowMatchingLognormAlgorithm | 92 | — | unknown | — | — | — | — | — | — |
+| celeba | fm_lognorm_celeba | FlowMatchingLognormAlgorithm | 100 | 100 | 5000 | 193.165 | 30.538 | 19.580 | 16.555 | 15.304 | 2.674 |
 | cifar10 | fm_lognorm_cifar10 | FlowMatchingLognormAlgorithm | 100 | — | unknown | — | — | — | — | — | — |
 | cifar10 | fm_lognorm_cifar10 | FlowMatchingLognormAlgorithm | — | 100 | 5000 | 384.190 | 57.260 | 44.183 | 38.601 | 35.400 | 6.522 |
 | cifar10 | mf_cifar10 | MeanFlowAlgorithm | 100 | 100 | 5000 | 94.418 | 85.936 | 87.868 | 89.565 | — | 4.151 |
@@ -30,7 +30,7 @@ Generated from the canonical experiment metric files by `scripts/aggregate_resul
 | consistency_cifar10 | ConsistencyAlgorithm | 100 | 1.88 | 4569.8 |
 | fm_celeba | FlowMatchingAlgorithm | 100 | 16.15 | 5230.9 |
 | fm_cifar10 | FlowMatchingAlgorithm | 100 | 0.59 | 2250.9 |
-| fm_lognorm_celeba | FlowMatchingLognormAlgorithm | 98 | 15.78 | 5226.6 |
+| fm_lognorm_celeba | FlowMatchingLognormAlgorithm | 100 | 16.10 | 5226.6 |
 | fm_lognorm_cifar10 | FlowMatchingLognormAlgorithm | 100 | 0.59 | 2250.9 |
 | mf_cifar10 | MeanFlowAlgorithm | 100 | 0.80 | 2207.8 |
 | mf_distill_cifar10 | MeanFlowDistillAlgorithm | 100 | 3.09 | 3316.2 |
