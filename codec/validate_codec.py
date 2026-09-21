@@ -4,7 +4,7 @@ codec/validate_codec.py — Operator-run codec validation and checkpoint creatio
 OPERATOR USE ONLY — do not execute during agent implementation.
 
 This script:
-  1. Loads a pretrained KL-f4 codec from the source weights directory.
+  1. Loads a pretrained factor-8 AutoencoderKL from the source weights directory.
   2. Verifies encode/decode shapes and pixel-range for a small validation batch.
   3. Computes frozen per-channel statistics from the CelebA TRAINING set.
   4. Evaluates reconstruction quality on 5,000 CelebA validation images:
@@ -31,15 +31,15 @@ Prerequisites:
   1. Download the pretrained codec:
        from huggingface_hub import snapshot_download
        snapshot_download(
-           repo_id="CompVis/ldm-celebahq-256",
-           local_dir="./data/pretrained/ldm-celebahq-256",
+           repo_id="stabilityai/sd-vae-ft-mse",
+           local_dir="./data/pretrained/sd-vae-ft-mse",
        )
   2. Ensure CelebA is available at --celeba-root (auto-downloads if missing).
 
 Run:
     python codec/validate_codec.py \\
-        --codec-source CompVis/ldm-celebahq-256 \\
-        --codec-source-path ./data/pretrained/ldm-celebahq-256/vae \\
+        --codec-source stabilityai/sd-vae-ft-mse \\
+        --codec-source-path ./data/pretrained/sd-vae-ft-mse \\
         --celeba-root ./data/raw \\
         --output-dir ./results/codecs \\
         --batch-size 32 \\
@@ -64,11 +64,14 @@ def _main() -> int:
     from torchvision.utils import save_image
 
     args = _parse_args()
+    args.codec_source_revision = _resolve_source_revision(
+        args.codec_source_path, args.codec_source_revision
+    )
     device = torch.device(args.device)
     os.makedirs(args.output_dir, exist_ok=True)
 
     print(f"\n{'='*70}")
-    print("  Codec validation — CompVis kl-f4")
+    print("  Codec validation — frozen pretrained AutoencoderKL")
     print(f"{'='*70}")
     print(f"  Source path  : {args.codec_source_path}")
     print(f"  CelebA root  : {args.celeba_root}")
@@ -83,6 +86,7 @@ def _main() -> int:
     codec = PretrainedKLVAE.from_pretrained(
         source_path=args.codec_source_path,
         device=device,
+        codec_source=args.codec_source,
         codec_source_revision=args.codec_source_revision,
         native_scaling_factor=args.native_scaling_factor,
     )
@@ -94,7 +98,8 @@ def _main() -> int:
     print("[2/6] Structural shape and range validation …")
     from codec.base import REQUIRED_LATENT_CHANNELS, REQUIRED_PIXEL_SIZE, REQUIRED_SPATIAL_FACTOR
     _structural_check(codec, device, REQUIRED_PIXEL_SIZE, REQUIRED_LATENT_CHANNELS, REQUIRED_SPATIAL_FACTOR)
-    print("    ✓ Encode shape: (B,3,64,64) → (B,4,16,16)")
+    latent_size = REQUIRED_PIXEL_SIZE // codec.spatial_factor
+    print(f"    ✓ Encode shape: (B,3,64,64) → (B,4,{latent_size},{latent_size})")
     print("    ✓ Decode range: [-1, 1]")
     print("    ✓ Round-trip latent shape preserved")
 
@@ -301,15 +306,15 @@ def _eval_reconstruction(codec, val_loader, device, n_images, batch_size):
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Validate a pretrained KL-f4 codec and create a codec checkpoint."
+        description="Validate a pretrained factor-8 AutoencoderKL and create a codec checkpoint."
     )
-    p.add_argument("--codec-source", default="CompVis/ldm-celebahq-256",
+    p.add_argument("--codec-source", default="stabilityai/sd-vae-ft-mse",
                    help="Human-readable codec origin (recorded in checkpoint metadata)")
     p.add_argument("--codec-source-path", required=True,
                    help="Local path to the pretrained VAE directory (contains config.json)")
     p.add_argument("--codec-source-revision", default="local",
-                   help="Revision string to record (e.g. git SHA or 'local')")
-    p.add_argument("--native-scaling-factor", type=float, default=1.0,
+                   help="Revision to record; 'auto' reads source_manifest.json")
+    p.add_argument("--native-scaling-factor", type=float, default=0.18215,
                    help="Native scaling factor applied to encoder outputs")
     p.add_argument("--celeba-root", default="./data/raw",
                    help="Root directory containing CelebA (auto-downloaded if absent)")
@@ -321,6 +326,23 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--device", default="cuda", help="'cuda' or 'cpu'")
     return p.parse_args()
+
+
+def _resolve_source_revision(source_path: str, requested: str) -> str:
+    if requested != "auto":
+        return requested
+    manifest_path = os.path.join(source_path, "source_manifest.json")
+    try:
+        with open(manifest_path, encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        revision = manifest["resolved_revision"]
+    except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise SystemExit(
+            f"--codec-source-revision auto requires a valid {manifest_path}: {exc}"
+        ) from exc
+    if not isinstance(revision, str) or not revision:
+        raise SystemExit(f"Invalid resolved_revision in {manifest_path}")
+    return revision
 
 
 if __name__ == "__main__":

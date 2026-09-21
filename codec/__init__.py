@@ -1,5 +1,5 @@
 """
-codec — pretrained and scratch KL-f4 codec backends.
+codec — frozen pretrained factor-8 and historical scratch factor-4 backends.
 
 Public surface:
 

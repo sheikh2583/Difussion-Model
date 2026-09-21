@@ -25,10 +25,10 @@ from codec.base import BaseCodec
 
 # ── Fake codec (no diffusers, CPU only) ──────────────────────────────────────
 class _FakeCodec(BaseCodec):
-    """Decode: returns zeros in (B,3,64,64); encode: returns zeros in (B,4,16,16)."""
+    """Decode: returns zeros in (B,3,64,64); encode: returns factor-8 latents."""
 
     def encode_mean(self, images):
-        return torch.zeros(images.shape[0], 4, 16, 16)
+        return torch.zeros(images.shape[0], 4, 8, 8)
 
     def decode(self, z):
         return torch.zeros(z.shape[0], 3, 64, 64)
@@ -58,31 +58,31 @@ class TestDecodeLatentsBatched:
 
     def test_output_shape_exact_multiple(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(64, 4, 16, 16)
+        latents = torch.randn(64, 4, 8, 8)
         out = self._decode(codec, latents, decode_batch_size=32)
         assert out.shape == (64, 3, 64, 64)
 
     def test_output_shape_non_multiple(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(70, 4, 16, 16)  # 70 = 2*32 + 6
+        latents = torch.randn(70, 4, 8, 8)  # 70 = 2*32 + 6
         out = self._decode(codec, latents, decode_batch_size=32)
         assert out.shape == (70, 3, 64, 64)
 
     def test_output_shape_smaller_than_batch(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(10, 4, 16, 16)
+        latents = torch.randn(10, 4, 8, 8)
         out = self._decode(codec, latents, decode_batch_size=32)
         assert out.shape == (10, 3, 64, 64)
 
     def test_output_dtype_float32(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(8, 4, 16, 16)
+        latents = torch.randn(8, 4, 8, 8)
         out = self._decode(codec, latents)
         assert out.dtype == torch.float32
 
     def test_single_sample(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(1, 4, 16, 16)
+        latents = torch.randn(1, 4, 8, 8)
         out = self._decode(codec, latents, decode_batch_size=32)
         assert out.shape == (1, 3, 64, 64)
 
@@ -219,7 +219,7 @@ class TestEvaluatorTimingRecords:
                 dataset=DatasetConfig(
                     name="celeba_latent",
                     root="./data/raw",
-                    image_size=16,
+                    image_size=8,
                     cache_dir=os.path.join(tmp, "content_addressed_cache_root"),
                     codec_checkpoint=checkpoint,
                 ),

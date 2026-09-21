@@ -19,7 +19,6 @@ from torch.utils.data import DataLoader, Dataset
 from config.config import DatasetConfig
 
 
-EXPECTED_SHAPE = (4, 16, 16)
 _SPLIT_ALIASES = {"validation": "valid", "val": "valid"}
 
 
@@ -85,7 +84,10 @@ def _codec_metadata(checkpoint: Path) -> dict[str, Any]:
     if not isinstance(payload, dict) or not isinstance(payload.get("metadata"), dict):
         raise ValueError(f"Codec checkpoint has no metadata identity: {checkpoint}")
     metadata = payload["metadata"]
-    required = ("codec_weights_sha256", "posterior_mode", "codec_source_revision")
+    required = (
+        "codec_weights_sha256", "posterior_mode", "codec_source_revision",
+        "latent_channels", "spatial_factor", "pixel_size",
+    )
     missing = [key for key in required if not metadata.get(key)]
     if missing:
         raise ValueError(f"Codec checkpoint metadata is missing identity fields: {missing}")
@@ -102,9 +104,9 @@ def _producer_content_hash(codec_metadata: dict[str, Any], split: str) -> str:
         ("posterior_mode", codec_metadata["posterior_mode"]),
         ("normalization_schema", "v1_mean_std_frozen_train"),
         ("preprocessing_schema", "celeba_center_crop_178_resize_64_norm_m1p1"),
-        ("latent_channels", 4),
-        ("spatial_factor", 4),
-        ("pixel_size", 64),
+        ("latent_channels", codec_metadata["latent_channels"]),
+        ("spatial_factor", codec_metadata["spatial_factor"]),
+        ("pixel_size", codec_metadata["pixel_size"]),
     )
     for label, value in fields:
         digest.update(
@@ -182,12 +184,14 @@ def resolve_cache_manifest(cfg: DatasetConfig, split: str) -> tuple[Path, dict[s
     return matching[0]
 
 
-def _validate_manifest_metadata(manifest: dict[str, Any], split: str) -> None:
+def _validate_manifest_metadata(
+    manifest: dict[str, Any], split: str, codec_metadata: dict[str, Any]
+) -> None:
     expected: tuple[tuple[tuple[str, ...], Any, str], ...] = (
         (("posterior_mode", "codec.posterior_mode"), "mean", "posterior_mode"),
-        (("latent_channels", "shape.channels", "codec.latent_channels"), 4, "latent_channels"),
-        (("spatial_factor", "codec.spatial_factor"), 4, "spatial_factor"),
-        (("pixel_size", "codec.pixel_size"), 64, "pixel_size"),
+        (("latent_channels", "shape.channels", "codec.latent_channels"), codec_metadata["latent_channels"], "latent_channels"),
+        (("spatial_factor", "codec.spatial_factor"), codec_metadata["spatial_factor"], "spatial_factor"),
+        (("pixel_size", "codec.pixel_size"), codec_metadata["pixel_size"], "pixel_size"),
     )
     for paths, wanted, label in expected:
         got = _nested(manifest, *paths)
@@ -230,7 +234,8 @@ class CelebALatentDataset(Dataset):
     def __init__(self, cfg: DatasetConfig, split: str | None = None):
         self.split = _canonical_split(split or cfg.split or "train")
         manifest_path, self.manifest = resolve_cache_manifest(cfg, self.split)
-        _validate_manifest_metadata(self.manifest, self.split)
+        codec_metadata = _codec_metadata(Path(cfg.codec_checkpoint))
+        _validate_manifest_metadata(self.manifest, self.split, codec_metadata)
 
         filename = f"latents_{self.split}.pt"
         file_hashes = self.manifest.get("file_hashes")
@@ -256,9 +261,12 @@ class CelebALatentDataset(Dataset):
         latents = _load_tensor(tensor_path)
         if latents.dtype != torch.float32:
             raise TypeError(f"Latent cache must be float32, got {latents.dtype}")
-        if latents.ndim != 4 or tuple(latents.shape[1:]) != EXPECTED_SHAPE:
+        latent_size = int(codec_metadata["pixel_size"]) // int(codec_metadata["spatial_factor"])
+        expected_shape = (int(codec_metadata["latent_channels"]), latent_size, latent_size)
+        if latents.ndim != 4 or tuple(latents.shape[1:]) != expected_shape:
             raise ValueError(
-                f"Latent cache must have shape (N,4,16,16), got {tuple(latents.shape)}"
+                f"Latent cache must have shape (N,{expected_shape[0]},"
+                f"{expected_shape[1]},{expected_shape[2]}), got {tuple(latents.shape)}"
             )
         if latents.shape[0] < 1 or not torch.isfinite(latents).all():
             raise ValueError("Latent cache must be non-empty and contain only finite values")

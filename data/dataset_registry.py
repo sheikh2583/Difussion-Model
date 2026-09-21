@@ -8,7 +8,7 @@ entry in DATASET_REGISTRY — nothing else changes.
 Supported dataset names (cfg.dataset.name):
     "cifar10"  — CIFAR-10 32×32 (original)
     "celeba"   — CelebA, center-cropped and resized to cfg.dataset.image_size
-    "celeba_latent" — verified normalized 4x16x16 CelebA latent cache
+    "celeba_latent" — verified normalized codec-shaped CelebA latent cache
 """
 
 from config.config import DatasetConfig, ExperimentConfig

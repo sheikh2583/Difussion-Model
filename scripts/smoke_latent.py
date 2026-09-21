@@ -123,11 +123,11 @@ def _run_static() -> int:
         base = {
             "schema_version": 1,
             "codec_type": "pretrained_kl_vae",
-            "codec_source": "CompVis/ldm-celebahq-256",
+            "codec_source": "stabilityai/sd-vae-ft-mse",
             "codec_source_revision": "abc123",
             "codec_weights_sha256": "deadbeef",
             "latent_channels": 4,
-            "spatial_factor": 4,
+            "spatial_factor": 8,
             "pixel_size": 64,
             "posterior_mode": "mean",
             "native_scaling_factor": 1.0,
@@ -157,15 +157,14 @@ def _run_static() -> int:
         except CodecCheckpointError:
             pass
 
-    def _reject_factor8():
-        meta = _make_valid_meta(spatial_factor=8)
+    def _reject_unsupported_factor():
+        meta = _make_valid_meta(spatial_factor=2)
         try:
             validate_checkpoint_metadata(meta)
             raise AssertionError("Should have raised CodecCheckpointError")
         except CodecCheckpointError as exc:
-            # Must mention factor-8 and SD 1.x in the error
             msg = str(exc)
-            assert "8" in msg, f"Error message should mention factor 8: {msg}"
+            assert "2" in msg, f"Error message should mention factor 2: {msg}"
 
     def _reject_unfrozen_stats():
         meta = _make_valid_meta(stats_frozen=False, latent_mean=None, latent_std=None)
@@ -199,7 +198,7 @@ def _run_static() -> int:
     for name, fn in [
         ("reject missing schema_version", _reject_missing_schema_version),
         ("reject unsupported schema_version=99", _reject_wrong_schema_version),
-        ("reject spatial_factor=8 with SD-1.x note", _reject_factor8),
+        ("reject unsupported spatial_factor=2", _reject_unsupported_factor),
         ("reject stats_frozen=False when require_frozen=True", _reject_unfrozen_stats),
         ("reject non-positive latent_std", _reject_nonpositive_std),
         ("reject wrong latent_channels", _reject_wrong_channels),
@@ -216,7 +215,7 @@ def _run_static() -> int:
 
         class _MockCodec(BaseCodec):
             def encode_mean(self, images):
-                return torch.randn(images.shape[0], 4, 16, 16)
+                return torch.randn(images.shape[0], 4, 8, 8)
             def decode(self, z):
                 return torch.randn(z.shape[0], 3, 64, 64)
             def save(self, path): pass
@@ -229,7 +228,7 @@ def _run_static() -> int:
         codec._latent_std  = std
         codec._stats_frozen = True
 
-        z = torch.randn(4, 4, 16, 16) * 2 + 0.5
+        z = torch.randn(4, 4, 8, 8) * 2 + 0.5
         z_norm = codec.normalise(z)
         z_back = codec.denormalise(z_norm)
         assert torch.allclose(z, z_back, atol=1e-5), \
@@ -242,7 +241,7 @@ def _run_static() -> int:
         from codec.base import BaseCodec
 
         class _MockCodec(BaseCodec):
-            def encode_mean(self, images): return torch.zeros(images.shape[0], 4, 16, 16)
+            def encode_mean(self, images): return torch.zeros(images.shape[0], 4, 8, 8)
             def decode(self, z): return torch.ones(z.shape[0], 3, 64, 64)
             def save(self, path): pass
 
@@ -251,7 +250,7 @@ def _run_static() -> int:
         codec._latent_std  = torch.ones(1, 4, 1, 1)
         codec._stats_frozen = True
 
-        z_norm = torch.randn(2, 4, 16, 16)
+        z_norm = torch.randn(2, 4, 8, 8)
         out = codec.decode_normalised(z_norm)
         assert out.shape == (2, 3, 64, 64), f"Wrong shape: {out.shape}"
 
@@ -301,7 +300,7 @@ def _run_static() -> int:
         from codec.base import BaseCodec
 
         class _FakeCodec(BaseCodec):
-            def encode_mean(self, images): return torch.zeros(images.shape[0], 4, 16, 16)
+            def encode_mean(self, images): return torch.zeros(images.shape[0], 4, 8, 8)
             def decode(self, z): return torch.ones(z.shape[0], 3, 64, 64)
             def save(self, path): pass
             # _vae not present — _decode_latents_batched handles this gracefully
@@ -322,7 +321,7 @@ def _run_static() -> int:
             return torch.cat(chunks, dim=0)
 
         n = 70  # more than one batch
-        z_norm = torch.randn(n, 4, 16, 16)
+        z_norm = torch.randn(n, 4, 8, 8)
         out = _decode_latents_batched_cpu(codec, z_norm, decode_batch_size=32)
         assert out.shape == (n, 3, 64, 64), f"Wrong output shape: {out.shape}"
 
@@ -340,7 +339,7 @@ def _run_static() -> int:
         class _FakeAlg(BaseAlgorithm):
             def training_step(self, batch): return {"loss": torch.tensor(0.0)}
             def sample(self, n, nfe, device):
-                return torch.randn(n, 4, 16, 16)  # 4-channel latent
+                return torch.randn(n, 4, 8, 8)  # factor-8, 4-channel latent
 
         with tempfile.TemporaryDirectory() as tmp:
             alg = _FakeAlg(model=torch.nn.Linear(1, 1))
@@ -471,7 +470,7 @@ def _run_full(args) -> int:
         from codec.codec_factory import load_codec
         codec = load_codec(args.codec_path, device, require_frozen=True)
         assert codec.latent_channels == 4
-        assert codec.spatial_factor == 4
+        assert codec.spatial_factor == 8
         assert codec.pixel_size == 64
         assert codec.stats_frozen is True
         assert codec.posterior_mode == "mean"
@@ -484,7 +483,7 @@ def _run_full(args) -> int:
         codec = load_codec(args.codec_path, device, require_frozen=True)
         dummy = torch.zeros(2, 3, 64, 64, device=device)
         z = codec.encode_mean(dummy)
-        assert z.shape == (2, 4, 16, 16), f"Encode shape: {z.shape}"
+        assert z.shape == (2, 4, 8, 8), f"Encode shape: {z.shape}"
         z_norm = codec.normalise(z)
         pixels = codec.decode_normalised(z_norm)
         assert pixels.shape == (2, 3, 64, 64), f"Decode shape: {pixels.shape}"
@@ -502,7 +501,7 @@ def _run_full(args) -> int:
             manifest = json.load(f)
         assert manifest.get("schema_version") == 1
         assert manifest.get("latent_channels") == 4
-        assert manifest.get("spatial_factor") == 4
+        assert manifest.get("spatial_factor") == 8
         # Verify train latent file
         train_path = os.path.join(args.latent_cache_dir, "latents_train.pt")
         if os.path.isfile(train_path):

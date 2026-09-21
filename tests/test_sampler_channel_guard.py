@@ -24,7 +24,7 @@ class _LatentAlg(BaseAlgorithm):
     """Returns 4-channel normalised latents."""
     def training_step(self, batch): return {"loss": torch.tensor(0.0)}
     def sample(self, n, nfe, device):
-        return torch.randn(n, 4, 16, 16)
+        return torch.randn(n, 4, 8, 8)
 
 
 class _PixelAlg(BaseAlgorithm):

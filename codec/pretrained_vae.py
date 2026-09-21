@@ -1,18 +1,14 @@
 """
-codec/pretrained_vae.py — Frozen pretrained factor-4 KL autoencoder.
+codec/pretrained_vae.py — Frozen pretrained factor-8 KL autoencoder.
 
 Pinned architecture
 ───────────────────
-CompVis kl-f4: a pure KL autoencoder with a spatial downsampling factor of
-EXACTLY 4 (64×64 pixels → 16×16 latents, 4 channels).  This is NOT the same
-as the Stable Diffusion 1.x VAE, which has a factor-8 design and would produce
-8×8 latents from 64×64 input — using that checkpoint here would silently break
-the experiment and is explicitly prohibited by the AGENTS.md contract.
+Stability AI's SD VAE fine-tuned for MSE reconstruction maps 64×64 RGB pixels
+to four-channel 8×8 posterior-mean latents. The encoder and decoder stay frozen.
 
 Pinned source
 ─────────────
-    HuggingFace repo : CompVis/ldm-celebahq-256
-    Sub-path         : vae  (contains config.json + diffusion_pytorch_model.bin)
+    HuggingFace repo : stabilityai/sd-vae-ft-mse
     Revision         : main (pin to a specific commit for reproducibility)
     Factor verified  : shape assertion at load time — any mismatch raises immediately
 
@@ -22,15 +18,15 @@ The weights must be downloaded before this module can load a codec:
 
     from huggingface_hub import snapshot_download
     snapshot_download(
-        repo_id="CompVis/ldm-celebahq-256",
-        local_dir="./data/pretrained/ldm-celebahq-256",
+        repo_id="stabilityai/sd-vae-ft-mse",
+        local_dir="./data/pretrained/sd-vae-ft-mse",
     )
 
 Then validate and create the codec checkpoint:
 
     python codec/validate_codec.py \\
-        --codec-source CompVis/ldm-celebahq-256 \\
-        --codec-source-path ./data/pretrained/ldm-celebahq-256/vae \\
+        --codec-source stabilityai/sd-vae-ft-mse \\
+        --codec-source-path ./data/pretrained/sd-vae-ft-mse \\
         --celeba-root ./data/raw \\
         --output-dir ./results/codecs
 
@@ -78,22 +74,18 @@ def _require_diffusers() -> None:
 
 
 # ── Source constants ───────────────────────────────────────────────────────────
-_CODEC_SOURCE: str = "CompVis/ldm-celebahq-256"
-_CODEC_SUBPATH: str = "vae"
+_CODEC_SOURCE: str = "stabilityai/sd-vae-ft-mse"
 _CODEC_TYPE: str = "pretrained_kl_vae"
-# Native scaling factor for KL-f4.  The CompVis LDM codebook uses a learned
-# scaling parameter; we record it in the checkpoint rather than hardcoding so
-# future codec variants can use different values without code changes.
-# The KL-f4 autoencoder from CompVis/ldm-celebahq-256 uses scaling_factor=1.0
-# because it was calibrated on a different distribution than the SD 1.x VAE.
-# validate_codec.py measures and records the actual value; we default here to
-# 1.0 as the correct value for this architecture.
-_DEFAULT_NATIVE_SCALING_FACTOR: float = 1.0
+# The SD VAE configuration records 0.18215 for diffusion-model latent scaling.
+# Reconstruction itself is invariant when encode and decode apply reciprocal
+# scaling. Recording it keeps the cached representation explicit and compatible
+# with the pretrained model family.
+_DEFAULT_NATIVE_SCALING_FACTOR: float = 0.18215
 
 
 class PretrainedKLVAE(BaseCodec):
     """
-    Frozen pretrained factor-4 KL autoencoder (CompVis kl-f4).
+    Frozen pretrained factor-8 KL autoencoder.
 
     Encoder and decoder are frozen in eval mode.  No gradients flow through
     this codec.  Only the generative backbone is trained.
@@ -107,7 +99,7 @@ class PretrainedKLVAE(BaseCodec):
     From the raw pretrained source (operator validation only):
 
         codec = PretrainedKLVAE.from_pretrained(
-            source_path="./data/pretrained/ldm-celebahq-256/vae",
+            source_path="./data/pretrained/sd-vae-ft-mse",
             device=device,
         )
     """
@@ -145,6 +137,7 @@ class PretrainedKLVAE(BaseCodec):
         cls,
         source_path: str,
         device: torch.device,
+        codec_source: str = _CODEC_SOURCE,
         codec_source_revision: str = "local",
         native_scaling_factor: float = _DEFAULT_NATIVE_SCALING_FACTOR,
     ) -> "PretrainedKLVAE":
@@ -170,18 +163,14 @@ class PretrainedKLVAE(BaseCodec):
                 f"Download the weights first:\n"
                 f"  from huggingface_hub import snapshot_download\n"
                 f"  snapshot_download(repo_id='{_CODEC_SOURCE}', "
-                f"local_dir='./data/pretrained/ldm-celebahq-256')\n"
-                f"Then point --codec-source-path to the 'vae' subdirectory."
+                f"local_dir='./data/pretrained/sd-vae-ft-mse')"
             )
         vae = _AutoencoderKL.from_pretrained(source_path)
-        weights_sha = cls._sha256_of_state_dict({
-            **vae.encoder.state_dict(),
-            **vae.decoder.state_dict(),
-        })
+        weights_sha = cls._vae_weights_sha256(vae)
         return cls(
             vae=vae,
             native_scaling_factor=native_scaling_factor,
-            codec_source=_CODEC_SOURCE,
+            codec_source=codec_source,
             codec_source_revision=codec_source_revision,
             codec_weights_sha256=weights_sha,
             device=device,
@@ -233,10 +222,7 @@ class PretrainedKLVAE(BaseCodec):
         vae = _AutoencoderKL.from_pretrained(source_path)
 
         # Verify the weight digest to detect silent weight replacement.
-        actual_sha = cls._sha256_of_state_dict({
-            **vae.encoder.state_dict(),
-            **vae.decoder.state_dict(),
-        })
+        actual_sha = cls._vae_weights_sha256(vae)
         stored_sha = meta.get("codec_weights_sha256", "")
         if actual_sha != stored_sha:
             raise CodecCheckpointError(
@@ -267,7 +253,7 @@ class PretrainedKLVAE(BaseCodec):
     # ── Shape verification ────────────────────────────────────────────────────
     def _verify_factor(self) -> None:
         """
-        Assert that this VAE actually produces (B, 4, 16, 16) from (B, 3, 64, 64).
+        Assert that this VAE produces (B, 4, 8, 8) from (B, 3, 64, 64).
         Any mismatch fails immediately rather than silently producing wrong latents.
         """
         with torch.no_grad():
@@ -286,11 +272,16 @@ class PretrainedKLVAE(BaseCodec):
                     f"  Expected output shape : "
                     f"(1, {REQUIRED_LATENT_CHANNELS}, {expected_h}, {expected_h})\n"
                     f"  Actual output shape   : {tuple(z.shape)}\n"
-                    f"This codec has spatial_factor != {REQUIRED_SPATIAL_FACTOR}.\n"
-                    f"  NOTE: The Stable Diffusion 1.x VAE is normally factor-8 and\n"
-                    f"  would produce (1,4,8,8) from (1,3,64,64).  Do NOT use it here.\n"
-                    f"  Use the CompVis kl-f4 checkpoint from '{_CODEC_SOURCE}'."
+                    f"This codec has spatial_factor != {REQUIRED_SPATIAL_FACTOR}."
                 )
+            self.spatial_factor = REQUIRED_SPATIAL_FACTOR
+
+    @staticmethod
+    def _vae_weights_sha256(vae) -> str:
+        # Hash the complete VAE, including quant_conv and post_quant_conv; both
+        # affect the encoded/decoded representation and therefore cache identity.
+        state = {f"vae.{key}": value for key, value in vae.state_dict().items()}
+        return BaseCodec._sha256_of_state_dict(state)
 
     # ── BaseCodec implementation ──────────────────────────────────────────────
     @torch.no_grad()
@@ -299,7 +290,7 @@ class PretrainedKLVAE(BaseCodec):
         Deterministic posterior-mean encoding.
 
         Input  : (B, 3, 64, 64) float32 in [-1, 1]
-        Output : (B, 4, 16, 16) float32 — native scaled latents
+        Output : (B, 4, 8, 8) float32 — native scaled latents
         """
         self._assert_pixel_input(images)
         images = images.to(self._device)
@@ -312,7 +303,7 @@ class PretrainedKLVAE(BaseCodec):
         """
         Decode native-scaled latents → pixels in [-1, 1].
 
-        Input  : (B, 4, 16, 16) float32 — native scaled latents
+        Input  : (B, 4, 8, 8) float32 — native scaled latents
         Output : (B, 3, 64, 64) float32 clamped to [-1, 1]
         """
         self._assert_latent_input(scaled_latents, name="scaled_latents")
@@ -347,7 +338,7 @@ class PretrainedKLVAE(BaseCodec):
             "codec_source_revision": self._codec_source_revision,
             "codec_weights_sha256": self._codec_weights_sha256,
             "latent_channels": REQUIRED_LATENT_CHANNELS,
-            "spatial_factor": REQUIRED_SPATIAL_FACTOR,
+            "spatial_factor": self.spatial_factor,
             "pixel_size": REQUIRED_PIXEL_SIZE,
             "posterior_mode": self.posterior_mode,
             "native_scaling_factor": self._native_scaling_factor,

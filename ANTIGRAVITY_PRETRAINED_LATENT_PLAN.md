@@ -1,5 +1,11 @@
 # Prompt for Antigravity: Frozen Pretrained Codec and Pixel-Boundary Integration
 
+> **Superseded architecture note (2026-09-21):** The user explicitly selected
+> the standard frozen pretrained VAE path after the scratch experiment failed
+> its gate. The active implementation uses `stabilityai/sd-vae-ft-mse`, a
+> factor-8 `AutoencoderKL`, producing `(B,4,8,8)` from CelebA-64. The text below
+> is retained as historical planning context and is no longer the live contract.
+
 You are the Antigravity/Claude agent working concurrently with Codex in the
 same repository and filesystem. There is no Git workflow in this phase.
 

@@ -29,7 +29,7 @@ from utils.checkpoints import extract_model_state
 from utils.device import resolve_device
 
 
-PAIR_SHAPE = (4, 16, 16)
+PAIR_SHAPE = (4, 8, 8)
 SCHEMA_VERSION = 1
 
 
@@ -106,8 +106,8 @@ def atomic_json_save(payload: Mapping[str, Any], path: Path) -> None:
 def _validate_fm_config(cfg: ExperimentConfig) -> None:
     if cfg.dataset.name != "celeba_latent":
         raise ValueError(f"Expected dataset.name='celeba_latent', got {cfg.dataset.name!r}")
-    if cfg.dataset.image_size != 16 or cfg.backbone.in_channels != 4:
-        raise ValueError("Latent FM config must specify four channels at spatial size 16")
+    if cfg.dataset.image_size != 8 or cfg.backbone.in_channels != 4:
+        raise ValueError("Latent FM config must specify four channels at spatial size 8")
     if cfg.backbone.sample_clamp:
         raise ValueError("Latent FM config must set backbone.sample_clamp=false")
 

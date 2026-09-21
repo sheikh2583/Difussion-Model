@@ -15,7 +15,7 @@ Required keys in every saved checkpoint dict:
     codec_source_revision   str   git commit, tag, or content hash
     codec_weights_sha256    str   hex SHA-256 of the serialised encoder+decoder weights
     latent_channels         int   must equal REQUIRED_LATENT_CHANNELS (4)
-    spatial_factor          int   must equal REQUIRED_SPATIAL_FACTOR (4)
+    spatial_factor          int   supported factor (8 primary; 4 historical scratch)
     pixel_size              int   must equal REQUIRED_PIXEL_SIZE (64)
     posterior_mode          str   "mean"
     native_scaling_factor   float positive finite scalar
@@ -28,8 +28,8 @@ Required keys in every saved checkpoint dict:
 Shape / range conventions
 ──────────────────────────
     pixel input     : (B, 3, 64, 64)  in [-1, 1]
-    native latent   : (B, 4, 16, 16)  in the codec's own scaling convention
-    normalised latent: (B, 4, 16, 16) approximately zero-mean / unit std per channel
+    native latent   : (B, 4, 8, 8) for the primary pretrained codec
+    normalised latent: same shape, approximately zero-mean / unit std per channel
 
 Normalization is frozen once compute_and_freeze_stats() has been called on the
 training-set distribution.  Subsequent inference callers must never recompute it.
@@ -45,8 +45,9 @@ import torch.nn as nn
 # ── Hard-wired experiment constants ──────────────────────────────────────────
 CHECKPOINT_SCHEMA_VERSION: int = 1
 REQUIRED_LATENT_CHANNELS: int = 4
-REQUIRED_SPATIAL_FACTOR: int = 4      # 64 → 16
+REQUIRED_SPATIAL_FACTOR: int = 8      # primary pretrained path: 64 → 8
 REQUIRED_PIXEL_SIZE: int = 64
+SUPPORTED_SPATIAL_FACTORS = frozenset({4, 8})
 
 _SUPPORTED_SCHEMA_VERSIONS = frozenset({1})
 _SUPPORTED_POSTERIOR_MODES = frozenset({"mean"})
@@ -118,11 +119,11 @@ def validate_checkpoint_metadata(
             f"latent_channels={lc!r} but experiment requires {REQUIRED_LATENT_CHANNELS}. "
             f"This codec produces the wrong latent shape."
         )
-    if sf != REQUIRED_SPATIAL_FACTOR:
+    if sf not in SUPPORTED_SPATIAL_FACTORS:
         _fail(
-            f"spatial_factor={sf!r} but experiment requires {REQUIRED_SPATIAL_FACTOR}. "
-            f"Note: SD 1.x VAE is normally factor-8 (8×8 latents from 64×64 input) "
-            f"and must NOT be used here — use a genuine factor-4 KL checkpoint."
+            f"spatial_factor={sf!r}; supported factors are "
+            f"{sorted(SUPPORTED_SPATIAL_FACTORS)}. The primary frozen pretrained "
+            f"AutoencoderKL uses factor {REQUIRED_SPATIAL_FACTOR}."
         )
     if ps != REQUIRED_PIXEL_SIZE:
         _fail(
@@ -184,8 +185,8 @@ class BaseCodec(ABC):
 
     Conventions:
         • pixel input  : (B, 3, 64, 64) float32 in [-1, 1]
-        • native latent: (B, 4, 16, 16) float32 in the codec's own scale
-        • normalised   : (B, 4, 16, 16) float32 ≈ N(0,1) per channel
+        • native latent: (B, 4, H/spatial_factor, W/spatial_factor)
+        • normalised   : same shape, approximately N(0,1) per channel
 
     All tensors returned by methods in this class live on the same device
     as the codec.  Callers should not assume any particular device.
@@ -344,10 +345,10 @@ class BaseCodec(ABC):
                 else:
                     images = batch
                 images = images.to(device)
-                z = self.encode_mean(images)  # (B, 4, 16, 16)
+                z = self.encode_mean(images)
                 all_latents.append(z.cpu())
 
-        latents = torch.cat(all_latents, dim=0)  # (N, 4, 16, 16)
+        latents = torch.cat(all_latents, dim=0)
         # Compute per-channel mean and std over all batch and spatial axes.
         # latents has shape (N, C, H, W) → reduce over dims 0, 2, 3.
         mean = latents.mean(dim=(0, 2, 3), keepdim=True)   # (1, C, 1, 1)

@@ -24,7 +24,7 @@ Directory layout
 ────────────────
   <output_dir>/
     latents_<hash>/               ← final atomic publish
-      latents_train.pt            ← (N, 4, 16, 16) float32 normalised
+      latents_train.pt            ← (N, 4, H, W) float32 normalised
       latents_valid.pt
       manifest.json               ← full metadata + SHA-256 hashes
 
@@ -159,7 +159,7 @@ def _main() -> int:
 
 
 def _encode_split(codec, loader, device) -> "torch.Tensor":
-    """Encode all images in a DataLoader and return (N, 4, 16, 16) normalised float32."""
+    """Encode all images and return normalized float32 latents."""
     import torch
     all_latents = []
     with torch.no_grad():
@@ -187,13 +187,11 @@ def _build_content_hash(codec, split: str) -> str:
       • normalization_schema     — "v1_mean_std_frozen_train"
       • preprocessing_schema     — "celeba_center_crop_178_resize_64_norm_m1p1"
       • latent_channels          — 4
-      • spatial_factor           — 4
+      • spatial_factor           — codec-defined (8 for the primary VAE)
       • pixel_size               — 64
 
     Each field is hashed with a separator to prevent cross-field collisions.
     """
-    from codec.base import REQUIRED_LATENT_CHANNELS, REQUIRED_PIXEL_SIZE, REQUIRED_SPATIAL_FACTOR
-
     h = hashlib.sha256()
 
     def _feed(label: str, value: str) -> None:
@@ -206,9 +204,9 @@ def _build_content_hash(codec, split: str) -> str:
     _feed("posterior_mode",        codec.posterior_mode)
     _feed("normalization_schema",  _NORMALIZATION_SCHEMA)
     _feed("preprocessing_schema",  _PREPROCESSING_SCHEMA)
-    _feed("latent_channels",       str(REQUIRED_LATENT_CHANNELS))
-    _feed("spatial_factor",        str(REQUIRED_SPATIAL_FACTOR))
-    _feed("pixel_size",            str(REQUIRED_PIXEL_SIZE))
+    _feed("latent_channels",       str(codec.latent_channels))
+    _feed("spatial_factor",        str(codec.spatial_factor))
+    _feed("pixel_size",            str(codec.pixel_size))
 
     return h.hexdigest()
 
@@ -225,7 +223,6 @@ def _sha256_file(path: str) -> str:
 
 def _build_manifest(codec, args, content_hash, file_hashes, splits_encoded) -> dict:
     """Build the manifest dict stored alongside the cached latents."""
-    from codec.base import REQUIRED_LATENT_CHANNELS, REQUIRED_PIXEL_SIZE, REQUIRED_SPATIAL_FACTOR
     import datetime
 
     codec_src = getattr(codec, "_codec_source", "unknown")
@@ -243,9 +240,9 @@ def _build_manifest(codec, args, content_hash, file_hashes, splits_encoded) -> d
         "posterior_mode": codec.posterior_mode,
         "normalization_schema": _NORMALIZATION_SCHEMA,
         "preprocessing_schema": _PREPROCESSING_SCHEMA,
-        "latent_channels": REQUIRED_LATENT_CHANNELS,
-        "spatial_factor": REQUIRED_SPATIAL_FACTOR,
-        "pixel_size": REQUIRED_PIXEL_SIZE,
+        "latent_channels": codec.latent_channels,
+        "spatial_factor": codec.spatial_factor,
+        "pixel_size": codec.pixel_size,
         "latent_mean": codec._stats_to_list(codec.latent_mean),
         "latent_std": codec._stats_to_list(codec.latent_std),
         "splits": [s for s, _ in splits_encoded],

@@ -91,17 +91,45 @@ Before a structural migration, require training to be stopped:
 python scripts/verify_project_layout.py --fail-if-training
 ```
 
-## Self-trained CelebA codec fallback
+## Pretrained CelebA latent codec (primary path)
 
-Only if the pretrained factor-4 codec is rejected, preview and then launch the
-scratch KL-VAE trainer with:
+The active latent experiment uses the frozen `stabilityai/sd-vae-ft-mse`
+AutoencoderKL. It maps 64x64 RGB images to four-channel 8x8 latents; every
+algorithm then trains its own randomly initialized latent U-Net.
+
+Preview the exact download and validation commands, then run them:
+
+```bash
+./scripts/linux/prepare_pretrained_codec.sh --dry-run
+./scripts/linux/prepare_pretrained_codec.sh
+```
+
+On success, continue with the accepted checkpoint:
+
+```bash
+venv/bin/python codec/cache_latents.py \
+  --codec-path results/codec_celeba_pretrained/accepted_codec.pt \
+  --celeba-root data/raw --output-dir data/latent_cache \
+  --split both --device cuda
+```
+
+The preparation launcher resolves `main` to an immutable Hugging Face commit,
+records it in `source_manifest.json`, saves a timestamped validation log, and
+exits nonzero if the reconstruction gate fails.
+
+## Rejected self-trained CelebA codec experiment
+
+The completed scratch factor-4 codec run is retained as a thesis result, but it
+failed the reconstruction-FID gate and must not be resumed or substituted for
+the primary codec. The old launcher remains available only for reproducibility
+of that historical experiment; running it would create a new experiment.
 
 ```bash
 ./scripts/linux/train_scratch_codec.sh --dry-run
 ./scripts/linux/train_scratch_codec.sh
 ```
 
-The launcher uses the recommended RTX 3090 starting preset (batch 128, 60
+The historical launcher uses the RTX 3090 preset (batch 128, 60
 epochs, AdamW at `1e-4`, weight decay `1e-4`, AMP, gradient clipping `1.0`, and
 KL warmup `1e-5` to `1e-4` over 20 epochs). It resumes the numerically latest
 five-epoch checkpoint automatically and refuses to overwrite checkpoints in

@@ -22,6 +22,8 @@ from codec.base import (
     validate_checkpoint_metadata,
 )
 
+LATENT_SIZE = REQUIRED_PIXEL_SIZE // REQUIRED_SPATIAL_FACTOR
+
 
 # ── Minimal concrete subclass for testing ────────────────────────────────────
 class _MockCodec(BaseCodec):
@@ -29,7 +31,7 @@ class _MockCodec(BaseCodec):
 
     def encode_mean(self, images: torch.Tensor) -> torch.Tensor:
         B = images.shape[0]
-        return torch.zeros(B, REQUIRED_LATENT_CHANNELS, 16, 16)
+        return torch.zeros(B, REQUIRED_LATENT_CHANNELS, LATENT_SIZE, LATENT_SIZE)
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         B = z.shape[0]
@@ -55,7 +57,7 @@ class _NonConstantCodec(BaseCodec):
         # Produce 4 channels with different offsets so each channel has variance.
         offsets = torch.tensor([0.0, 0.1, -0.1, 0.2], device=images.device)
         z = base.expand(B, 4, 1, 1) + offsets.view(1, 4, 1, 1)
-        return z.expand(B, 4, 16, 16).contiguous()
+        return z.expand(B, 4, LATENT_SIZE, LATENT_SIZE).contiguous()
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         B = z.shape[0]
@@ -71,7 +73,7 @@ def _valid_meta(**overrides) -> dict:
     base = {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
         "codec_type": "pretrained_kl_vae",
-        "codec_source": "CompVis/ldm-celebahq-256",
+        "codec_source": "stabilityai/sd-vae-ft-mse",
         "codec_source_revision": "abc123",
         "codec_weights_sha256": "deadbeef",
         "latent_channels": REQUIRED_LATENT_CHANNELS,
@@ -126,13 +128,15 @@ class TestValidateCheckpointMetadata:
         with pytest.raises(CodecCheckpointError, match="latent_channels"):
             validate_checkpoint_metadata(_valid_meta(latent_channels=8))
 
-    def test_rejects_factor8_with_sd1x_note(self):
-        with pytest.raises(CodecCheckpointError) as exc_info:
-            validate_checkpoint_metadata(_valid_meta(spatial_factor=8))
-        msg = str(exc_info.value)
-        assert "8" in msg  # must mention the wrong factor
-        # Must also warn about SD 1.x (factor-8 note in the contract)
-        assert "SD" in msg or "factor" in msg.lower() or "stable" in msg.lower()
+    def test_accepts_primary_factor8(self):
+        validate_checkpoint_metadata(_valid_meta(spatial_factor=8))
+
+    def test_accepts_historical_scratch_factor4(self):
+        validate_checkpoint_metadata(_valid_meta(spatial_factor=4))
+
+    def test_rejects_unsupported_factor(self):
+        with pytest.raises(CodecCheckpointError, match="spatial_factor"):
+            validate_checkpoint_metadata(_valid_meta(spatial_factor=2))
 
     def test_rejects_wrong_pixel_size(self):
         with pytest.raises(CodecCheckpointError, match="pixel_size"):
@@ -204,7 +208,7 @@ class TestBaseCodecNormalization:
 
     def test_normalise_denormalise_roundtrip(self):
         codec = self._codec_with_stats()
-        z = torch.randn(4, 4, 16, 16)
+        z = torch.randn(4, 4, LATENT_SIZE, LATENT_SIZE)
         z_back = codec.denormalise(codec.normalise(z))
         assert torch.allclose(z, z_back, atol=1e-5), \
             f"Round-trip error: {(z - z_back).abs().max():.2e}"
@@ -220,7 +224,7 @@ class TestBaseCodecNormalization:
 
     def test_decode_normalised_shape(self):
         codec = self._codec_with_stats()
-        z_norm = torch.randn(3, 4, 16, 16)
+        z_norm = torch.randn(3, 4, LATENT_SIZE, LATENT_SIZE)
         out = codec.decode_normalised(z_norm)
         assert out.shape == (3, 3, REQUIRED_PIXEL_SIZE, REQUIRED_PIXEL_SIZE)
 

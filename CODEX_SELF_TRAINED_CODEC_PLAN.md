@@ -1,5 +1,11 @@
 # Prompt for Codex: Scratch Codec and Latent-Native Training Side
 
+> **Historical experiment note (2026-09-21):** This plan produced the factor-4
+> scratch codec whose completed run failed the reconstruction-FID acceptance
+> gate. It must not be resumed. The active primary path is the frozen factor-8
+> `stabilityai/sd-vae-ft-mse` AutoencoderKL with `(B,4,8,8)` latents; the shared
+> randomly initialized latent U-Net is still trained separately per algorithm.
+
 You are the Codex agent working concurrently with Antigravity/Claude in the
 same repository and filesystem. There is no Git workflow in this phase.
 

@@ -30,7 +30,7 @@ def _valid_meta(**overrides) -> dict:
     base = {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
         "codec_type": "pretrained_kl_vae",
-        "codec_source": "CompVis/ldm-celebahq-256",
+        "codec_source": "stabilityai/sd-vae-ft-mse",
         "codec_source_revision": "abc123",
         "codec_weights_sha256": "deadbeef",
         "latent_channels": REQUIRED_LATENT_CHANNELS,
@@ -97,8 +97,8 @@ class TestLoadCodecErrors:
         finally:
             os.unlink(path)
 
-    def test_factor8_raises_with_sd1x_note(self):
-        path = _write_checkpoint({"metadata": _valid_meta(spatial_factor=8)})
+    def test_unsupported_spatial_factor_raises(self):
+        path = _write_checkpoint({"metadata": _valid_meta(spatial_factor=2)})
         try:
             with pytest.raises(CodecCheckpointError):
                 load_codec(path, torch.device("cpu"))
