@@ -1,5 +1,5 @@
 """
-codec — frozen pretrained factor-8 and historical scratch factor-4 backends.
+codec — frozen CelebA-HQ VQ-f4 and historical rejected codec backends.
 
 Public surface:
 

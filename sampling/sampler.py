@@ -5,9 +5,9 @@ measures wall-clock time / throughput / memory around that call.
 
 Latent extension (2026-09-21)
 ─────────────────────────────
-Four-channel tensors (normalised latents) are NEVER passed to save_image().
-If the generated output has a channel count other than 3, the grid save is
-skipped with an explicit log message.  Decoded reconstruction and sample
+Normalized latent tensors are NEVER passed to save_image(), including the
+three-channel VQ-f4 representation. Representation is identified by the
+backbone's sample_clamp policy, not channel count. Decoded reconstruction and sample
 grids for latent experiments are produced separately by validate_codec.py
 and scripts/smoke_latent.py.
 
@@ -88,20 +88,23 @@ class Sampler:
             if save_grid:
                 grid_path = os.path.join(
                     self.samples_dir, f"{self.algorithm.name()}_nfe{nfe}.png")
-                # ── 4-channel guard (latent experiment safety) ────────────────
-                # Normalised latents have 4 channels and are unbounded; passing
-                # them to save_image would produce a meaningless / misleading PNG.
+                # ── Representation guard (latent experiment safety) ──────────
+                # VQ-f4 latents also have three channels, so channel count alone
+                # cannot distinguish them from RGB pixels.
                 # Decoded RGB grids for latent experiments are written by
                 # validate_codec.py (reconstruction grid) and
                 # scripts/smoke_latent.py (sample grid with real codec).
-                if images.shape[1] != 3:
+                model_cfg = getattr(self.algorithm.model, "cfg", None)
+                is_latent = not getattr(model_cfg, "sample_clamp", True)
+                if is_latent or images.shape[1] != 3:
                     _logger.warning(
                         "Skipping grid save for NFE=%d: generated tensor has %d "
-                        "channels (expected 3 for RGB). Four-channel latent tensors "
-                        "must not be saved directly as image grids. Decoded sample "
+                        "channels and latent=%s. Normalized latent tensors must not "
+                        "be saved directly as image grids. Decoded sample "
                         "grids are produced by scripts/smoke_latent.py.",
                         nfe,
                         images.shape[1],
+                        is_latent,
                     )
                 else:
                     save_image(
@@ -116,7 +119,7 @@ class Sampler:
         """Generate in bounded accelerator batches and return CPU tensors.
 
         For pixel experiments: returns (N, 3, H, W) float32 in [-1, 1].
-        For latent experiments: returns (N, 4, H', W') float32 normalised latents.
+        For latent experiments: returns (N, C, H', W') float32 normalized latents.
         The Evaluator is responsible for decoding latents before FID/IS.
         """
         if n_samples < 1:

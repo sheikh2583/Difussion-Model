@@ -23,6 +23,15 @@ tmp/
 # Large Files & Directories (Local Data/Outputs)
 # Keep Python packages under data/ and models/ tracked; ignore only artifacts.
 data/raw/
+# Generated latent tensors and downloaded model weights stay local. Keep the
+# small config/source manifests under data/pretrained/ eligible for tracking.
+data/latent_cache/
+data/pretrained/**/*.bin
+data/pretrained/**/README.md
+*.pt
+*.pth
+*.ckpt
+*.safetensors
 data/reflow_pairs_*.pt
 data/history/
 models/checkpoints/
@@ -42,3 +51,5 @@ ProjectForClaude.zip
 AGENTS.md
 PLAN.md
 CROSS_TRACK.md
+*_PLAN.md
+BLOCKER_DECISIONS.md

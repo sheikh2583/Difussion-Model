@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "repo_id": "stabilityai/sd-vae-ft-mse",
+  "requested_revision": "main",
+  "resolved_revision": "31f26fdeee1355a5c34592e401dd41e45d25a493"
+}

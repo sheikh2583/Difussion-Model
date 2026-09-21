@@ -12,7 +12,7 @@ The cache directory name is derived from a content hash that covers:
   • codec_weights_sha256  (encoder/decoder identity)
   • codec_source_revision
   • split                 ("train" | "valid")
-  • posterior_mode        ("mean")
+  • posterior_mode        ("quantized" for VQ, "mean" for KL)
   • normalization_schema  ("v1" — mean-std normalisation with frozen training stats)
   • preprocessing_schema  ("celeba_center_crop_178_resize_64_norm_m1p1")
 
@@ -183,11 +183,11 @@ def _build_content_hash(codec, split: str) -> str:
       • codec_weights_sha256     — encoder/decoder weight identity
       • codec_source_revision    — source commit/tag
       • split                    — "train", "valid", or "both"
-      • posterior_mode           — "mean"
+      • posterior_mode           — codec-defined deterministic policy
       • normalization_schema     — "v1_mean_std_frozen_train"
       • preprocessing_schema     — "celeba_center_crop_178_resize_64_norm_m1p1"
-      • latent_channels          — 4
-      • spatial_factor           — codec-defined (8 for the primary VAE)
+      • latent_channels          — codec-defined (3 for primary VQ-f4)
+      • spatial_factor           — codec-defined (4 for primary VQ-f4)
       • pixel_size               — 64
 
     Each field is hashed with a separator to prevent cross-field collisions.

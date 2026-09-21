@@ -26,8 +26,8 @@ class ConstantBackbone(nn.Module):
     def __init__(self, *, sample_clamp: bool):
         super().__init__()
         self.anchor = nn.Parameter(torch.tensor(0.0))
-        self.cfg = SimpleNamespace(in_channels=4, sample_clamp=sample_clamp)
-        self._expected_image_size = 8
+        self.cfg = SimpleNamespace(in_channels=3, sample_clamp=sample_clamp)
+        self._expected_image_size = 16
 
     def forward(self, inputs: torch.Tensor, time: torch.Tensor) -> torch.Tensor:
         del time
@@ -77,8 +77,8 @@ def test_every_json_config_parses_and_latent_run_names_are_isolated() -> None:
     assert len(latent_names) == 6
     assert latent_names.isdisjoint(pixel_names)
     assert all(
-        cfg.dataset.image_size == 8
-        and cfg.backbone.in_channels == 4
+        cfg.dataset.image_size == 16
+        and cfg.backbone.in_channels == 3
         and not cfg.backbone.sample_clamp
         for cfg in latent
     )
@@ -172,7 +172,7 @@ def _algorithm_pair(cls, tmp_path: Path):
     if cls is ReflowAlgorithm:
         pairs = tmp_path / "pairs.pt"
         torch.save(
-            {"z1": torch.randn(2, 4, 8, 8), "x0": torch.randn(2, 4, 8, 8)},
+            {"z1": torch.randn(2, 3, 16, 16), "x0": torch.randn(2, 3, 16, 16)},
             pairs,
         )
         kwargs["pairs_path"] = str(pairs)
@@ -202,7 +202,7 @@ def test_all_algorithms_preserve_pixel_clamp_and_leave_latents_unbounded(
 
 def test_reflow_mock_integration_and_chunk_assembly(tmp_path: Path) -> None:
     model = ConstantBackbone(sample_clamp=False)
-    z1 = torch.zeros(2, 4, 8, 8)
+    z1 = torch.zeros(2, 3, 16, 16)
     x0 = integrate_fm(model, z1, nfe=2)
     assert torch.equal(x0, torch.full_like(x0, 10.0))
 
@@ -212,10 +212,10 @@ def test_reflow_mock_integration_and_chunk_assembly(tmp_path: Path) -> None:
         count = end - start
         torch.save(
             {"start": start, "end": end,
-             "z1": torch.full((count, 4, 8, 8), float(start)),
-             "x0": torch.full((count, 4, 8, 8), float(end))},
+             "z1": torch.full((count, 3, 16, 16), float(start)),
+             "x0": torch.full((count, 3, 16, 16), float(end))},
             chunk_dir / f"chunk_{start:08d}_{end:08d}.pt",
         )
     payload = assemble_chunks(chunk_dir, {"pair_count": 3, "chunk_size": 2})
     assert set(payload) == {"z1", "x0", "metadata"}
-    assert payload["z1"].shape == payload["x0"].shape == (3, 4, 8, 8)
+    assert payload["z1"].shape == payload["x0"].shape == (3, 3, 16, 16)

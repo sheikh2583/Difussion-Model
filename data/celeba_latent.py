@@ -188,7 +188,7 @@ def _validate_manifest_metadata(
     manifest: dict[str, Any], split: str, codec_metadata: dict[str, Any]
 ) -> None:
     expected: tuple[tuple[tuple[str, ...], Any, str], ...] = (
-        (("posterior_mode", "codec.posterior_mode"), "mean", "posterior_mode"),
+        (("posterior_mode", "codec.posterior_mode"), codec_metadata["posterior_mode"], "posterior_mode"),
         (("latent_channels", "shape.channels", "codec.latent_channels"), codec_metadata["latent_channels"], "latent_channels"),
         (("spatial_factor", "codec.spatial_factor"), codec_metadata["spatial_factor"], "spatial_factor"),
         (("pixel_size", "codec.pixel_size"), codec_metadata["pixel_size"], "pixel_size"),

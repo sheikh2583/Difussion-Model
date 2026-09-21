@@ -30,7 +30,7 @@ from codec.base import (
     validate_checkpoint_metadata,
 )
 
-_SUPPORTED_CODEC_TYPES = frozenset({"pretrained_kl_vae", "scratch_kl_vae"})
+_SUPPORTED_CODEC_TYPES = frozenset({"pretrained_vq_f4", "scratch_kl_vae"})
 
 
 def load_codec(
@@ -52,7 +52,7 @@ def load_codec(
 
     Returns
     -------
-    An instance of PretrainedKLVAE or ScratchKLVAE, both satisfying BaseCodec.
+    A pretrained or scratch codec satisfying BaseCodec.
 
     Raises
     ------
@@ -92,15 +92,14 @@ def load_codec(
         )
 
     # ── Dispatch to the correct backend ──────────────────────────────────────
-    if codec_type == "pretrained_kl_vae":
-        # Lazy import so a missing 'diffusers' dep only affects this path.
+    if codec_type == "pretrained_vq_f4":
         try:
-            from codec.pretrained_vae import PretrainedKLVAE
+            from codec.pretrained_vae import PretrainedVQCodec
         except ImportError as exc:
             raise ImportError(
-                f"Cannot load pretrained_kl_vae codec from '{path}': {exc}"
+                f"Cannot load pretrained_vq_f4 codec from '{path}': {exc}"
             ) from exc
-        return PretrainedKLVAE.from_checkpoint(
+        return PretrainedVQCodec.from_checkpoint(
             path, device, require_frozen=require_frozen
         )
 

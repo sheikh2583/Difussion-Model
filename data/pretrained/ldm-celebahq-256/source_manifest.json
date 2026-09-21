@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "repo_id": "CompVis/ldm-celebahq-256",
+  "subfolder": "vqvae",
+  "requested_revision": "main",
+  "resolved_revision": "03978f22272a3c2502da709c3940e227c9714bdd"
+}

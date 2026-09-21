@@ -54,10 +54,9 @@ class _NonConstantCodec(BaseCodec):
         # images: (B, 3, 64, 64) → reduce to scalar per image then expand.
         base = images.float().mean(dim=(1, 2, 3), keepdim=True)  # (B, 1, 1, 1)
         base = base.expand(B, 1, 1, 1)
-        # Produce 4 channels with different offsets so each channel has variance.
-        offsets = torch.tensor([0.0, 0.1, -0.1, 0.2], device=images.device)
-        z = base.expand(B, 4, 1, 1) + offsets.view(1, 4, 1, 1)
-        return z.expand(B, 4, LATENT_SIZE, LATENT_SIZE).contiguous()
+        offsets = torch.tensor([0.0, 0.1, -0.1], device=images.device)
+        z = base.expand(B, 3, 1, 1) + offsets.view(1, 3, 1, 1)
+        return z.expand(B, 3, LATENT_SIZE, LATENT_SIZE).contiguous()
 
     def decode(self, z: torch.Tensor) -> torch.Tensor:
         B = z.shape[0]
@@ -72,18 +71,18 @@ class _NonConstantCodec(BaseCodec):
 def _valid_meta(**overrides) -> dict:
     base = {
         "schema_version": CHECKPOINT_SCHEMA_VERSION,
-        "codec_type": "pretrained_kl_vae",
-        "codec_source": "stabilityai/sd-vae-ft-mse",
+        "codec_type": "pretrained_vq_f4",
+        "codec_source": "CompVis/ldm-celebahq-256",
         "codec_source_revision": "abc123",
         "codec_weights_sha256": "deadbeef",
         "latent_channels": REQUIRED_LATENT_CHANNELS,
         "spatial_factor": REQUIRED_SPATIAL_FACTOR,
         "pixel_size": REQUIRED_PIXEL_SIZE,
-        "posterior_mode": "mean",
+        "posterior_mode": "quantized",
         "native_scaling_factor": 1.0,
         "stats_frozen": True,
-        "latent_mean": [[[[0.1]], [[0.2]], [[-0.3]], [[0.4]]]],
-        "latent_std":  [[[[0.9]], [[0.8]],  [[0.7]], [[0.6]]]],
+        "latent_mean": [[[[0.1]], [[0.2]], [[-0.3]]]],
+        "latent_std":  [[[[0.9]], [[0.8]], [[0.7]]]],
         "dataset": "celeba",
         "image_size": 64,
     }
@@ -128,10 +127,10 @@ class TestValidateCheckpointMetadata:
         with pytest.raises(CodecCheckpointError, match="latent_channels"):
             validate_checkpoint_metadata(_valid_meta(latent_channels=8))
 
-    def test_accepts_primary_factor8(self):
+    def test_accepts_historical_factor8(self):
         validate_checkpoint_metadata(_valid_meta(spatial_factor=8))
 
-    def test_accepts_historical_scratch_factor4(self):
+    def test_accepts_primary_factor4(self):
         validate_checkpoint_metadata(_valid_meta(spatial_factor=4))
 
     def test_rejects_unsupported_factor(self):
@@ -172,13 +171,13 @@ class TestValidateCheckpointMetadata:
 
     def test_rejects_nonpositive_latent_std(self):
         meta = _valid_meta()
-        meta["latent_std"] = [[[[0.0]], [[0.8]], [[0.7]], [[0.6]]]]
+        meta["latent_std"] = [[[[0.0]], [[0.8]], [[0.7]]]]
         with pytest.raises(CodecCheckpointError, match="latent_std"):
             validate_checkpoint_metadata(meta)
 
     def test_rejects_negative_latent_std(self):
         meta = _valid_meta()
-        meta["latent_std"] = [[[[-0.1]], [[0.8]], [[0.7]], [[0.6]]]]
+        meta["latent_std"] = [[[[-0.1]], [[0.8]], [[0.7]]]]
         with pytest.raises(CodecCheckpointError, match="latent_std"):
             validate_checkpoint_metadata(meta)
 
@@ -201,14 +200,14 @@ class TestBaseCodecNormalization:
 
     def _codec_with_stats(self) -> _MockCodec:
         codec = _MockCodec()
-        codec._latent_mean = torch.tensor([[[[0.1]], [[0.2]], [[-0.3]], [[0.4]]]])
-        codec._latent_std  = torch.tensor([[[[0.9]], [[0.8]],  [[0.7]], [[0.6]]]])
+        codec._latent_mean = torch.tensor([[[[0.1]], [[0.2]], [[-0.3]]]])
+        codec._latent_std  = torch.tensor([[[[0.9]], [[0.8]], [[0.7]]]])
         codec._stats_frozen = True
         return codec
 
     def test_normalise_denormalise_roundtrip(self):
         codec = self._codec_with_stats()
-        z = torch.randn(4, 4, LATENT_SIZE, LATENT_SIZE)
+        z = torch.randn(4, 3, LATENT_SIZE, LATENT_SIZE)
         z_back = codec.denormalise(codec.normalise(z))
         assert torch.allclose(z, z_back, atol=1e-5), \
             f"Round-trip error: {(z - z_back).abs().max():.2e}"
@@ -224,7 +223,7 @@ class TestBaseCodecNormalization:
 
     def test_decode_normalised_shape(self):
         codec = self._codec_with_stats()
-        z_norm = torch.randn(3, 4, LATENT_SIZE, LATENT_SIZE)
+        z_norm = torch.randn(3, 3, LATENT_SIZE, LATENT_SIZE)
         out = codec.decode_normalised(z_norm)
         assert out.shape == (3, 3, REQUIRED_PIXEL_SIZE, REQUIRED_PIXEL_SIZE)
 

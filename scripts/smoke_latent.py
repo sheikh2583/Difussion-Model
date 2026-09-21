@@ -122,18 +122,18 @@ def _run_static() -> int:
     def _make_valid_meta(**overrides):
         base = {
             "schema_version": 1,
-            "codec_type": "pretrained_kl_vae",
-            "codec_source": "stabilityai/sd-vae-ft-mse",
+            "codec_type": "pretrained_vq_f4",
+            "codec_source": "CompVis/ldm-celebahq-256",
             "codec_source_revision": "abc123",
             "codec_weights_sha256": "deadbeef",
-            "latent_channels": 4,
-            "spatial_factor": 8,
+            "latent_channels": 3,
+            "spatial_factor": 4,
             "pixel_size": 64,
-            "posterior_mode": "mean",
+            "posterior_mode": "quantized",
             "native_scaling_factor": 1.0,
             "stats_frozen": True,
-            "latent_mean": [[[[0.1]], [[0.2]], [[0.3]], [[0.4]]]],
-            "latent_std":  [[[[0.9]], [[0.8]], [[0.7]], [[0.6]]]],
+            "latent_mean": [[[[0.1]], [[0.2]], [[0.3]]]],
+            "latent_std":  [[[[0.9]], [[0.8]], [[0.7]]]],
             "dataset": "celeba",
             "image_size": 64,
         }
@@ -176,7 +176,7 @@ def _run_static() -> int:
 
     def _reject_nonpositive_std():
         meta = _make_valid_meta(
-            latent_std=[[[[0.0]], [[0.8]], [[0.7]], [[0.6]]]]
+            latent_std=[[[[0.0]], [[0.8]], [[0.7]]]]
         )
         try:
             validate_checkpoint_metadata(meta)
@@ -215,20 +215,20 @@ def _run_static() -> int:
 
         class _MockCodec(BaseCodec):
             def encode_mean(self, images):
-                return torch.randn(images.shape[0], 4, 8, 8)
+                return torch.randn(images.shape[0], 3, 16, 16)
             def decode(self, z):
                 return torch.randn(z.shape[0], 3, 64, 64)
             def save(self, path): pass
 
         codec = _MockCodec()
         # Manually inject frozen stats
-        mean = torch.tensor([[[[0.1]], [[0.2]], [[-0.3]], [[0.4]]]])
-        std  = torch.tensor([[[[0.9]], [[0.8]], [[0.7]],  [[0.6]]]])
+        mean = torch.tensor([[[[0.1]], [[0.2]], [[-0.3]]]])
+        std  = torch.tensor([[[[0.9]], [[0.8]], [[0.7]]]])
         codec._latent_mean = mean
         codec._latent_std  = std
         codec._stats_frozen = True
 
-        z = torch.randn(4, 4, 8, 8) * 2 + 0.5
+        z = torch.randn(4, 3, 16, 16) * 2 + 0.5
         z_norm = codec.normalise(z)
         z_back = codec.denormalise(z_norm)
         assert torch.allclose(z, z_back, atol=1e-5), \
@@ -241,16 +241,16 @@ def _run_static() -> int:
         from codec.base import BaseCodec
 
         class _MockCodec(BaseCodec):
-            def encode_mean(self, images): return torch.zeros(images.shape[0], 4, 8, 8)
+            def encode_mean(self, images): return torch.zeros(images.shape[0], 3, 16, 16)
             def decode(self, z): return torch.ones(z.shape[0], 3, 64, 64)
             def save(self, path): pass
 
         codec = _MockCodec()
-        codec._latent_mean = torch.zeros(1, 4, 1, 1)
-        codec._latent_std  = torch.ones(1, 4, 1, 1)
+        codec._latent_mean = torch.zeros(1, 3, 1, 1)
+        codec._latent_std  = torch.ones(1, 3, 1, 1)
         codec._stats_frozen = True
 
-        z_norm = torch.randn(2, 4, 8, 8)
+        z_norm = torch.randn(2, 3, 16, 16)
         out = codec.decode_normalised(z_norm)
         assert out.shape == (2, 3, 64, 64), f"Wrong shape: {out.shape}"
 
@@ -300,14 +300,14 @@ def _run_static() -> int:
         from codec.base import BaseCodec
 
         class _FakeCodec(BaseCodec):
-            def encode_mean(self, images): return torch.zeros(images.shape[0], 4, 8, 8)
+            def encode_mean(self, images): return torch.zeros(images.shape[0], 3, 16, 16)
             def decode(self, z): return torch.ones(z.shape[0], 3, 64, 64)
             def save(self, path): pass
             # _vae not present — _decode_latents_batched handles this gracefully
 
         codec = _FakeCodec()
-        codec._latent_mean = torch.zeros(1, 4, 1, 1)
-        codec._latent_std  = torch.ones(1, 4, 1, 1)
+        codec._latent_mean = torch.zeros(1, 3, 1, 1)
+        codec._latent_std  = torch.ones(1, 3, 1, 1)
         codec._stats_frozen = True
 
         # Monkey-patch device detection (no _vae on FakeCodec)
@@ -321,28 +321,31 @@ def _run_static() -> int:
             return torch.cat(chunks, dim=0)
 
         n = 70  # more than one batch
-        z_norm = torch.randn(n, 4, 8, 8)
+        z_norm = torch.randn(n, 3, 16, 16)
         out = _decode_latents_batched_cpu(codec, z_norm, decode_batch_size=32)
         assert out.shape == (n, 3, 64, 64), f"Wrong output shape: {out.shape}"
 
     _check("batched decode returns (N,3,64,64)", _batched_decode_shape)
 
-    # ── 6. Four-channel grid suppression ────────────────────────────────────
-    _log.info("\n[ Four-Channel Grid Safety ]")
+    # ── 6. Latent grid suppression ──────────────────────────────────────────
+    _log.info("\n[ Latent Grid Safety ]")
 
-    def _four_channel_no_save():
-        """Sampler.run() must not call save_image for 4-channel tensors."""
+    def _latent_no_save():
+        """Sampler.run() must not save three-channel normalized latents."""
         import tempfile, unittest.mock
+        from types import SimpleNamespace
         from algorithms.base import BaseAlgorithm
         from sampling.sampler import Sampler
 
         class _FakeAlg(BaseAlgorithm):
             def training_step(self, batch): return {"loss": torch.tensor(0.0)}
             def sample(self, n, nfe, device):
-                return torch.randn(n, 4, 8, 8)  # factor-8, 4-channel latent
+                return torch.randn(n, 3, 16, 16)
 
         with tempfile.TemporaryDirectory() as tmp:
-            alg = _FakeAlg(model=torch.nn.Linear(1, 1))
+            model = torch.nn.Linear(1, 1)
+            model.cfg = SimpleNamespace(sample_clamp=False)
+            alg = _FakeAlg(model=model)
             sampler = Sampler(alg, torch.device("cpu"), tmp, "test", seed=0)
 
             saved_calls = []
@@ -351,7 +354,7 @@ def _run_static() -> int:
                 sampler.run(n_samples=2, nfe_values=[1], save_grid=True)
 
             assert len(saved_calls) == 0, \
-                f"save_image was called {len(saved_calls)} times for 4-channel output"
+                f"save_image was called {len(saved_calls)} times for latent output"
 
     def _three_channel_saves():
         """Sampler.run() still calls save_image for 3-channel RGB output."""
@@ -377,7 +380,7 @@ def _run_static() -> int:
                 f"save_image called {len(saved_calls)} times (expected 1) for RGB output"
 
     for name, fn in [
-        ("4-channel latent: save_image NOT called", _four_channel_no_save),
+        ("3-channel latent: save_image NOT called", _latent_no_save),
         ("3-channel RGB: save_image IS called", _three_channel_saves),
     ]:
         _check(name, fn)
@@ -469,11 +472,11 @@ def _run_full(args) -> int:
     def _check_codec_schema():
         from codec.codec_factory import load_codec
         codec = load_codec(args.codec_path, device, require_frozen=True)
-        assert codec.latent_channels == 4
-        assert codec.spatial_factor == 8
+        assert codec.latent_channels == 3
+        assert codec.spatial_factor == 4
         assert codec.pixel_size == 64
         assert codec.stats_frozen is True
-        assert codec.posterior_mode == "mean"
+        assert codec.posterior_mode == "quantized"
     _check("codec schema + identity valid", _check_codec_schema)
 
     # 2. Real encode/normalize/decode shape, range
@@ -483,7 +486,7 @@ def _run_full(args) -> int:
         codec = load_codec(args.codec_path, device, require_frozen=True)
         dummy = torch.zeros(2, 3, 64, 64, device=device)
         z = codec.encode_mean(dummy)
-        assert z.shape == (2, 4, 8, 8), f"Encode shape: {z.shape}"
+        assert z.shape == (2, 3, 16, 16), f"Encode shape: {z.shape}"
         z_norm = codec.normalise(z)
         pixels = codec.decode_normalised(z_norm)
         assert pixels.shape == (2, 3, 64, 64), f"Decode shape: {pixels.shape}"
@@ -500,13 +503,13 @@ def _run_full(args) -> int:
         with open(manifest_path) as f:
             manifest = json.load(f)
         assert manifest.get("schema_version") == 1
-        assert manifest.get("latent_channels") == 4
-        assert manifest.get("spatial_factor") == 8
+        assert manifest.get("latent_channels") == 3
+        assert manifest.get("spatial_factor") == 4
         # Verify train latent file
         train_path = os.path.join(args.latent_cache_dir, "latents_train.pt")
         if os.path.isfile(train_path):
             latents = torch.load(train_path, map_location="cpu", weights_only=False)
-            assert latents.ndim == 4 and latents.shape[1] == 4, \
+            assert latents.ndim == 4 and tuple(latents.shape[1:]) == (3, 16, 16), \
                 f"Train latents shape: {latents.shape}"
     _check("latent cache manifest and shape", _check_cache_manifest)
 
@@ -525,7 +528,7 @@ def _run_full(args) -> int:
     # 5–7: Algorithm smoke tests (operator verifies these exist; skipping here)
     _skip("[5/9] Per-algorithm training step + sample", "requires complete algorithm configs")
     _skip("[6/9] Latent sample unclamped + decodes correctly", "depends on step 5")
-    _skip("[7/9] Sampler 4-channel grid suppression in full mode", "validated in static mode")
+    _skip("[7/9] Normalized-latent grid suppression in full mode", "validated in static mode")
 
     # 8. All configs parse
     _log.info("[8/9] All config/*.json files parse …")

@@ -25,10 +25,13 @@ from codec.base import BaseCodec
 
 # ── Fake codec (no diffusers, CPU only) ──────────────────────────────────────
 class _FakeCodec(BaseCodec):
-    """Decode: returns zeros in (B,3,64,64); encode: returns factor-8 latents."""
+    """Decode: returns pixels; encode: returns face-codec VQ-f4 latents."""
+
+    latent_channels = 3
+    spatial_factor = 4
 
     def encode_mean(self, images):
-        return torch.zeros(images.shape[0], 4, 8, 8)
+        return torch.zeros(images.shape[0], 3, 16, 16)
 
     def decode(self, z):
         return torch.zeros(z.shape[0], 3, 64, 64)
@@ -39,8 +42,8 @@ class _FakeCodec(BaseCodec):
 
 def _fake_codec_with_stats() -> _FakeCodec:
     codec = _FakeCodec()
-    codec._latent_mean = torch.zeros(1, 4, 1, 1)
-    codec._latent_std  = torch.ones(1, 4, 1, 1)
+    codec._latent_mean = torch.zeros(1, 3, 1, 1)
+    codec._latent_std  = torch.ones(1, 3, 1, 1)
     codec._stats_frozen = True
     return codec
 
@@ -58,31 +61,31 @@ class TestDecodeLatentsBatched:
 
     def test_output_shape_exact_multiple(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(64, 4, 8, 8)
+        latents = torch.randn(64, 3, 16, 16)
         out = self._decode(codec, latents, decode_batch_size=32)
         assert out.shape == (64, 3, 64, 64)
 
     def test_output_shape_non_multiple(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(70, 4, 8, 8)  # 70 = 2*32 + 6
+        latents = torch.randn(70, 3, 16, 16)  # 70 = 2*32 + 6
         out = self._decode(codec, latents, decode_batch_size=32)
         assert out.shape == (70, 3, 64, 64)
 
     def test_output_shape_smaller_than_batch(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(10, 4, 8, 8)
+        latents = torch.randn(10, 3, 16, 16)
         out = self._decode(codec, latents, decode_batch_size=32)
         assert out.shape == (10, 3, 64, 64)
 
     def test_output_dtype_float32(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(8, 4, 8, 8)
+        latents = torch.randn(8, 3, 16, 16)
         out = self._decode(codec, latents)
         assert out.dtype == torch.float32
 
     def test_single_sample(self):
         codec = _fake_codec_with_stats()
-        latents = torch.randn(1, 4, 8, 8)
+        latents = torch.randn(1, 3, 16, 16)
         out = self._decode(codec, latents, decode_batch_size=32)
         assert out.shape == (1, 3, 64, 64)
 
@@ -219,11 +222,11 @@ class TestEvaluatorTimingRecords:
                 dataset=DatasetConfig(
                     name="celeba_latent",
                     root="./data/raw",
-                    image_size=8,
+                    image_size=16,
                     cache_dir=os.path.join(tmp, "content_addressed_cache_root"),
                     codec_checkpoint=checkpoint,
                 ),
-                backbone=BackboneConfig(in_channels=4, sample_clamp=False),
+                backbone=BackboneConfig(in_channels=3, sample_clamp=False),
                 evaluation=EvalConfig(metrics=[]),
             )
             sentinel = object()

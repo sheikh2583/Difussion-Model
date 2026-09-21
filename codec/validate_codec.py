@@ -4,7 +4,7 @@ codec/validate_codec.py — Operator-run codec validation and checkpoint creatio
 OPERATOR USE ONLY — do not execute during agent implementation.
 
 This script:
-  1. Loads a pretrained factor-8 AutoencoderKL from the source weights directory.
+  1. Loads the face-specific pretrained factor-4 VQ codec.
   2. Verifies encode/decode shapes and pixel-range for a small validation batch.
   3. Computes frozen per-channel statistics from the CelebA TRAINING set.
   4. Evaluates reconstruction quality on 5,000 CelebA validation images:
@@ -15,7 +15,8 @@ This script:
        - A codec checkpoint (.pt) containing metadata and frozen stats.
        - A reconstruction grid (.png).
        - A validation report (.json).
-  6. Exits nonzero on any failure.
+  6. Exits nonzero on any failure unless the operator explicitly accepts only
+     the rFID/PSNR quality shortfall for latent training.
 
 PROJECT GATE NOTE
 ─────────────────
@@ -31,15 +32,15 @@ Prerequisites:
   1. Download the pretrained codec:
        from huggingface_hub import snapshot_download
        snapshot_download(
-           repo_id="stabilityai/sd-vae-ft-mse",
-           local_dir="./data/pretrained/sd-vae-ft-mse",
+           repo_id="CompVis/ldm-celebahq-256",
+           local_dir="./data/pretrained/ldm-celebahq-256",
        )
   2. Ensure CelebA is available at --celeba-root (auto-downloads if missing).
 
 Run:
     python codec/validate_codec.py \\
-        --codec-source stabilityai/sd-vae-ft-mse \\
-        --codec-source-path ./data/pretrained/sd-vae-ft-mse \\
+        --codec-source CompVis/ldm-celebahq-256 \\
+        --codec-source-path ./data/pretrained/ldm-celebahq-256/vqvae \\
         --celeba-root ./data/raw \\
         --output-dir ./results/codecs \\
         --batch-size 32 \\
@@ -71,7 +72,7 @@ def _main() -> int:
     os.makedirs(args.output_dir, exist_ok=True)
 
     print(f"\n{'='*70}")
-    print("  Codec validation — frozen pretrained AutoencoderKL")
+    print("  Codec validation — frozen CelebA-HQ VQ-f4")
     print(f"{'='*70}")
     print(f"  Source path  : {args.codec_source_path}")
     print(f"  CelebA root  : {args.celeba_root}")
@@ -82,16 +83,14 @@ def _main() -> int:
 
     # ── Step 1: Load codec from source weights ──────────────────────────────
     print("[1/6] Loading codec from source weights …")
-    from codec.pretrained_vae import PretrainedKLVAE
-    codec = PretrainedKLVAE.from_pretrained(
+    from codec.pretrained_vae import PretrainedVQCodec
+    codec = PretrainedVQCodec.from_pretrained(
         source_path=args.codec_source_path,
         device=device,
         codec_source=args.codec_source,
         codec_source_revision=args.codec_source_revision,
         native_scaling_factor=args.native_scaling_factor,
     )
-    # Store source path for save()
-    codec._source_path = os.path.abspath(args.codec_source_path)
     print(f"    ✓ Codec loaded ({codec._codec_source})")
 
     # ── Step 2: Structural shape/range check ───────────────────────────────
@@ -99,7 +98,10 @@ def _main() -> int:
     from codec.base import REQUIRED_LATENT_CHANNELS, REQUIRED_PIXEL_SIZE, REQUIRED_SPATIAL_FACTOR
     _structural_check(codec, device, REQUIRED_PIXEL_SIZE, REQUIRED_LATENT_CHANNELS, REQUIRED_SPATIAL_FACTOR)
     latent_size = REQUIRED_PIXEL_SIZE // codec.spatial_factor
-    print(f"    ✓ Encode shape: (B,3,64,64) → (B,4,{latent_size},{latent_size})")
+    print(
+        f"    ✓ Encode shape: (B,3,64,64) → "
+        f"(B,{REQUIRED_LATENT_CHANNELS},{latent_size},{latent_size})"
+    )
     print("    ✓ Decode range: [-1, 1]")
     print("    ✓ Round-trip latent shape preserved")
 
@@ -174,6 +176,12 @@ def _main() -> int:
         print(f"    ✓ Reconstruction grid → {grid_path}")
 
     # JSON report
+    quality_gate_passed = len(failures) == 0
+    accepted_for_latent_training, acceptance_policy = _resolve_acceptance(
+        failures,
+        accept_quality_failure=args.accept_quality_failure,
+        acceptance_reason=args.acceptance_reason,
+    )
     report = {
         "codec_source": codec._codec_source,
         "codec_source_revision": codec._codec_source_revision,
@@ -196,7 +204,14 @@ def _main() -> int:
             "These thresholds are PROJECT-SPECIFIC GATES for this latent diffusion "
             "study and are NOT universal literature thresholds."
         ),
-        "passed": len(failures) == 0,
+        # ``passed`` remains the unmodified quality-gate result for backwards
+        # compatibility. Acceptance is separate and can only differ after an
+        # explicit, recorded operator override.
+        "passed": quality_gate_passed,
+        "quality_gate_passed": quality_gate_passed,
+        "accepted_for_latent_training": accepted_for_latent_training,
+        "acceptance_policy": acceptance_policy,
+        "acceptance_reason": args.acceptance_reason.strip() or None,
         "failures": failures,
     }
     report_path = os.path.join(args.output_dir, "validation_report.json")
@@ -204,7 +219,7 @@ def _main() -> int:
         json.dump(report, f, indent=2)
     print(f"    ✓ Validation report → {report_path}")
 
-    if failures:
+    if failures and not accepted_for_latent_training:
         print(f"\n  [FAIL] Codec did not pass project gates:")
         for msg in failures:
             print(f"    • {msg}")
@@ -212,13 +227,23 @@ def _main() -> int:
         print("  Consult ANTIGRAVITY_PRETRAINED_LATENT_PLAN.md for the fallback plan.")
         return 1
 
+    if failures:
+        print("\n  [OVERRIDE] Reconstruction quality gates did not pass.")
+        for msg in failures:
+            print(f"    • {msg}")
+        print("  Publishing the codec for latent training under an explicit operator override.")
+        print(f"  Recorded reason: {args.acceptance_reason.strip()}")
+
     # Write the accepted codec checkpoint
     codec_path = os.path.join(args.output_dir, "accepted_codec.pt")
-    codec.save(codec_path)
+    codec.save(codec_path, validation_metadata=report)
     print(f"    ✓ Codec checkpoint → {codec_path}")
 
     print(f"\n{'='*70}")
-    print("  ALL GATES PASSED — codec accepted")
+    if quality_gate_passed:
+        print("  ALL QUALITY GATES PASSED — codec accepted")
+    else:
+        print("  QUALITY GATE OVERRIDDEN — codec accepted for latent training")
     print(f"  Accepted checkpoint : {codec_path}")
     print(f"{'='*70}\n")
     return 0
@@ -304,17 +329,33 @@ def _eval_reconstruction(codec, val_loader, device, n_images, batch_size):
     return fid_score, psnr_db, grid_originals, grid_recons
 
 
-def _parse_args() -> argparse.Namespace:
+def _resolve_acceptance(
+    failures: list[str], *, accept_quality_failure: bool, acceptance_reason: str
+) -> tuple[bool, str]:
+    """Keep quality measurement distinct from an explicit training decision."""
+    if not failures:
+        return True, "quality_gate_passed"
+    if not accept_quality_failure:
+        return False, "quality_gate_rejected"
+    if not acceptance_reason.strip():
+        raise ValueError(
+            "--accept-quality-failure requires a non-empty --acceptance-reason "
+            "so the failed quality gate is auditable"
+        )
+    return True, "explicit_operator_override"
+
+
+def _parse_args(argv=None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Validate a pretrained factor-8 AutoencoderKL and create a codec checkpoint."
+        description="Validate the pretrained CelebA-HQ VQ-f4 codec."
     )
-    p.add_argument("--codec-source", default="stabilityai/sd-vae-ft-mse",
+    p.add_argument("--codec-source", default="CompVis/ldm-celebahq-256",
                    help="Human-readable codec origin (recorded in checkpoint metadata)")
     p.add_argument("--codec-source-path", required=True,
                    help="Local path to the pretrained VAE directory (contains config.json)")
     p.add_argument("--codec-source-revision", default="local",
                    help="Revision to record; 'auto' reads source_manifest.json")
-    p.add_argument("--native-scaling-factor", type=float, default=0.18215,
+    p.add_argument("--native-scaling-factor", type=float, default=1.0,
                    help="Native scaling factor applied to encoder outputs")
     p.add_argument("--celeba-root", default="./data/raw",
                    help="Root directory containing CelebA (auto-downloaded if absent)")
@@ -325,7 +366,25 @@ def _parse_args() -> argparse.Namespace:
                    help="Number of validation images for rFID/PSNR evaluation")
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--device", default="cuda", help="'cuda' or 'cpu'")
-    return p.parse_args()
+    p.add_argument(
+        "--accept-quality-failure",
+        action="store_true",
+        help=(
+            "Publish accepted_codec.pt despite rFID/PSNR failure. Structural "
+            "and latent-std checks remain mandatory; requires --acceptance-reason."
+        ),
+    )
+    p.add_argument(
+        "--acceptance-reason",
+        default="",
+        help="Recorded justification for --accept-quality-failure.",
+    )
+    args = p.parse_args(argv)
+    if args.accept_quality_failure and not args.acceptance_reason.strip():
+        p.error("--accept-quality-failure requires --acceptance-reason")
+    if args.acceptance_reason.strip() and not args.accept_quality_failure:
+        p.error("--acceptance-reason requires --accept-quality-failure")
+    return args
 
 
 def _resolve_source_revision(source_path: str, requested: str) -> str:

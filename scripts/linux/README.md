@@ -93,29 +93,36 @@ python scripts/verify_project_layout.py --fail-if-training
 
 ## Pretrained CelebA latent codec (primary path)
 
-The active latent experiment uses the frozen `stabilityai/sd-vae-ft-mse`
-AutoencoderKL. It maps 64x64 RGB images to four-channel 8x8 latents; every
+The active latent experiment uses the frozen `CompVis/ldm-celebahq-256`
+VQ-f4 codec. It maps 64x64 RGB images to three-channel 16x16 quantized latents; every
 algorithm then trains its own randomly initialized latent U-Net.
 
 Preview the exact download and validation commands, then run them:
 
 ```bash
-./scripts/linux/prepare_pretrained_codec.sh --dry-run
-./scripts/linux/prepare_pretrained_codec.sh
+./scripts/linux/prepare_pretrained_codec.sh --dry-run \
+  --accept-quality-failure \
+  --acceptance-reason "User selected the face-specific VQ-f4 latent experiment despite the measured reconstruction ceiling"
+./scripts/linux/prepare_pretrained_codec.sh \
+  --accept-quality-failure \
+  --acceptance-reason "User selected the face-specific VQ-f4 latent experiment despite the measured reconstruction ceiling"
 ```
 
 On success, continue with the accepted checkpoint:
 
 ```bash
 venv/bin/python codec/cache_latents.py \
-  --codec-path results/codec_celeba_pretrained/accepted_codec.pt \
+  --codec-path results/codecs/celeba_vq_f4/accepted_codec.pt \
   --celeba-root data/raw --output-dir data/latent_cache \
   --split both --device cuda
 ```
 
 The preparation launcher resolves `main` to an immutable Hugging Face commit,
 records it in `source_manifest.json`, saves a timestamped validation log, and
-exits nonzero if the reconstruction gate fails.
+exits nonzero if a structural or latent-statistics check fails. The explicit
+quality override preserves the failed rFID/PSNR values in both the validation
+report and accepted checkpoint while allowing the selected latent experiment
+to proceed.
 
 ## Rejected self-trained CelebA codec experiment
 

@@ -10,25 +10,25 @@ Checkpoint schema (schema_version=1)
 Required keys in every saved checkpoint dict:
 
     schema_version          int   must equal CHECKPOINT_SCHEMA_VERSION (1)
-    codec_type              str   "pretrained_kl_vae" | "scratch_kl_vae"
+    codec_type              str   "pretrained_vq_f4" | historical codec types
     codec_source            str   human-readable origin (HuggingFace repo id, path, …)
     codec_source_revision   str   git commit, tag, or content hash
     codec_weights_sha256    str   hex SHA-256 of the serialised encoder+decoder weights
-    latent_channels         int   must equal REQUIRED_LATENT_CHANNELS (4)
-    spatial_factor          int   supported factor (8 primary; 4 historical scratch)
+    latent_channels         int   supported count (3 primary; 4 historical)
+    spatial_factor          int   supported factor (4 primary; 8 historical)
     pixel_size              int   must equal REQUIRED_PIXEL_SIZE (64)
-    posterior_mode          str   "mean"
+    posterior_mode          str   "quantized" for VQ or "mean" for KL
     native_scaling_factor   float positive finite scalar
     stats_frozen            bool  True means latent_mean/latent_std are training-set stats
-    latent_mean             list  shape (1, 4, 1, 1) — serialised as nested list
-    latent_std              list  shape (1, 4, 1, 1) — serialised as nested list; all > 0
+    latent_mean             list  shape (1, C, 1, 1) — serialised as nested list
+    latent_std              list  shape (1, C, 1, 1) — serialised as nested list; all > 0
     dataset                 str   dataset the statistics were frozen on (e.g. "celeba")
     image_size              int   pixel dimension the codec was calibrated on
 
 Shape / range conventions
 ──────────────────────────
     pixel input     : (B, 3, 64, 64)  in [-1, 1]
-    native latent   : (B, 4, 8, 8) for the primary pretrained codec
+    native latent   : (B, 3, 16, 16) for the primary pretrained codec
     normalised latent: same shape, approximately zero-mean / unit std per channel
 
 Normalization is frozen once compute_and_freeze_stats() has been called on the
@@ -44,13 +44,14 @@ import torch.nn as nn
 
 # ── Hard-wired experiment constants ──────────────────────────────────────────
 CHECKPOINT_SCHEMA_VERSION: int = 1
-REQUIRED_LATENT_CHANNELS: int = 4
-REQUIRED_SPATIAL_FACTOR: int = 8      # primary pretrained path: 64 → 8
+REQUIRED_LATENT_CHANNELS: int = 3
+REQUIRED_SPATIAL_FACTOR: int = 4      # primary CelebA-HQ VQ path: 64 → 16
 REQUIRED_PIXEL_SIZE: int = 64
+SUPPORTED_LATENT_CHANNELS = frozenset({3, 4})
 SUPPORTED_SPATIAL_FACTORS = frozenset({4, 8})
 
 _SUPPORTED_SCHEMA_VERSIONS = frozenset({1})
-_SUPPORTED_POSTERIOR_MODES = frozenset({"mean"})
+_SUPPORTED_POSTERIOR_MODES = frozenset({"mean", "quantized"})
 
 
 # ── Exception ─────────────────────────────────────────────────────────────────
@@ -114,16 +115,17 @@ def validate_checkpoint_metadata(
     lc = meta.get("latent_channels")
     sf = meta.get("spatial_factor")
     ps = meta.get("pixel_size")
-    if lc != REQUIRED_LATENT_CHANNELS:
+    if lc not in SUPPORTED_LATENT_CHANNELS:
         _fail(
-            f"latent_channels={lc!r} but experiment requires {REQUIRED_LATENT_CHANNELS}. "
-            f"This codec produces the wrong latent shape."
+            f"latent_channels={lc!r}; supported counts are "
+            f"{sorted(SUPPORTED_LATENT_CHANNELS)}. The primary CelebA-HQ codec "
+            f"uses {REQUIRED_LATENT_CHANNELS}."
         )
     if sf not in SUPPORTED_SPATIAL_FACTORS:
         _fail(
             f"spatial_factor={sf!r}; supported factors are "
             f"{sorted(SUPPORTED_SPATIAL_FACTORS)}. The primary frozen pretrained "
-            f"AutoencoderKL uses factor {REQUIRED_SPATIAL_FACTOR}."
+            f"CelebA-HQ VQ codec uses factor {REQUIRED_SPATIAL_FACTOR}."
         )
     if ps != REQUIRED_PIXEL_SIZE:
         _fail(
@@ -156,10 +158,10 @@ def validate_checkpoint_metadata(
                 t = torch.tensor(raw, dtype=torch.float32)
             except Exception as exc:
                 _fail(f"cannot deserialise '{stat_key}': {exc}")
-            if t.shape != (1, REQUIRED_LATENT_CHANNELS, 1, 1):
+            if t.shape != (1, lc, 1, 1):
                 _fail(
                     f"'{stat_key}' has shape {tuple(t.shape)} but expected "
-                    f"(1, {REQUIRED_LATENT_CHANNELS}, 1, 1)"
+                    f"(1, {lc}, 1, 1)"
                 )
             if not t.isfinite().all().item():
                 _fail(f"'{stat_key}' contains non-finite values")
@@ -185,7 +187,7 @@ class BaseCodec(ABC):
 
     Conventions:
         • pixel input  : (B, 3, 64, 64) float32 in [-1, 1]
-        • native latent: (B, 4, H/spatial_factor, W/spatial_factor)
+        • native latent: (B, C, H/spatial_factor, W/spatial_factor)
         • normalised   : same shape, approximately N(0,1) per channel
 
     All tensors returned by methods in this class live on the same device
@@ -239,7 +241,7 @@ class BaseCodec(ABC):
 
         Returns
         -------
-        (B, 4, H//spatial_factor, W//spatial_factor) float32
+        (B, C, H//spatial_factor, W//spatial_factor) float32
             Native scaled latents (before normalization).
         """
         raise NotImplementedError
@@ -251,7 +253,7 @@ class BaseCodec(ABC):
 
         Parameters
         ----------
-        scaled_latents : (B, 4, H', W') float32 in the codec's native scale
+        scaled_latents : (B, C, H', W') float32 in the codec's native scale
 
         Returns
         -------
@@ -277,11 +279,11 @@ class BaseCodec(ABC):
 
         Parameters
         ----------
-        scaled_latents : (B, 4, H', W') float32
+        scaled_latents : (B, C, H', W') float32
 
         Returns
         -------
-        (B, 4, H', W') float32 — normalised latents (unbounded, never clamped)
+        (B, C, H', W') float32 — normalised latents (unbounded, never clamped)
         """
         return (scaled_latents - self.latent_mean) / self.latent_std
 
@@ -291,11 +293,11 @@ class BaseCodec(ABC):
 
         Parameters
         ----------
-        normalised_latents : (B, 4, H', W') float32
+        normalised_latents : (B, C, H', W') float32
 
         Returns
         -------
-        (B, 4, H', W') float32 — native scaled latents
+        (B, C, H', W') float32 — native scaled latents
         """
         return normalised_latents * self.latent_std + self.latent_mean
 
@@ -305,7 +307,7 @@ class BaseCodec(ABC):
 
         Parameters
         ----------
-        normalised_latents : (B, 4, H', W') float32
+        normalised_latents : (B, C, H', W') float32
 
         Returns
         -------
@@ -362,8 +364,8 @@ class BaseCodec(ABC):
             )
 
         # Reshape to (1, C, 1, 1) to match the required checkpoint shape.
-        self._latent_mean = mean.reshape(1, REQUIRED_LATENT_CHANNELS, 1, 1)
-        self._latent_std = std.reshape(1, REQUIRED_LATENT_CHANNELS, 1, 1)
+        self._latent_mean = mean.reshape(1, self.latent_channels, 1, 1)
+        self._latent_std = std.reshape(1, self.latent_channels, 1, 1)
         self._stats_frozen = True
 
     # ── Helpers for subclasses ────────────────────────────────────────────────
@@ -406,11 +408,11 @@ class BaseCodec(ABC):
         """
         mean = self._stats_from_list(latent_mean_raw, device)
         std = self._stats_from_list(latent_std_raw, device)
-        if mean.shape != (1, REQUIRED_LATENT_CHANNELS, 1, 1):
+        if mean.shape != (1, self.latent_channels, 1, 1):
             raise CodecCheckpointError(
                 f"latent_mean shape mismatch: got {tuple(mean.shape)}"
             )
-        if std.shape != (1, REQUIRED_LATENT_CHANNELS, 1, 1):
+        if std.shape != (1, self.latent_channels, 1, 1):
             raise CodecCheckpointError(
                 f"latent_std shape mismatch: got {tuple(std.shape)}"
             )
@@ -431,8 +433,8 @@ class BaseCodec(ABC):
 
     def _assert_latent_input(self, z: torch.Tensor, *, name: str = "latent") -> None:
         """Validate latent tensor channel count before decoding."""
-        if z.ndim != 4 or z.shape[1] != REQUIRED_LATENT_CHANNELS:
+        if z.ndim != 4 or z.shape[1] != self.latent_channels:
             raise ValueError(
-                f"Expected {name} of shape (B, {REQUIRED_LATENT_CHANNELS}, H', W'), "
+                f"Expected {name} of shape (B, {self.latent_channels}, H', W'), "
                 f"got {tuple(z.shape)}"
             )
