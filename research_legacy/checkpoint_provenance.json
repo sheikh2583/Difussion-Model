@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "backbone": {
+    "path": "models/backbone.py",
+    "introduced_commit": "5520fbe8b26ca6f71714503efaba03c9025b362a",
+    "git_blob": "d1b02c84feba4f1f4360a7adf54c3a98729824c8",
+    "finding": "identical at every checkpoint-backed commit audited"
+  },
+  "archives": [
+    {
+      "path": "checkpoint_code_snapshots/8618531_clean_mf_probe.zip",
+      "commit": "86185312c104a8cf753925a7f6fb0fef0eb74540",
+      "sha256": "c10fd78745a0d4dd6fdcaf77bbd8863ff0c2724cecf6a514839ddd8c17d3baaf",
+      "exact_clean_state": true,
+      "runs": ["results/mf_v3_exact_jvp_b128_probe_cifar10"]
+    },
+    {
+      "path": "checkpoint_code_snapshots/2ea2a5e_clean_research_runs.zip",
+      "commit": "2ea2a5e2039b73b79ac8ad0d4f51572296a255fb",
+      "sha256": "614851d16f7aa18c5c230f9a7888eccb78184b75e2ead35b0873386e3f9580a6",
+      "exact_clean_state": true,
+      "runs": [
+        "results/consistency_cifar10",
+        "results/fm_cifar10",
+        "results/fm_lognorm_cifar10",
+        "results/mf_v3_exact_jvp_b128_cifar10",
+        "results/reflow_cifar10"
+      ]
+    },
+    {
+      "path": "checkpoint_code_snapshots/c1f065a_base_for_dirty_runs.zip",
+      "commit": "c1f065aee704388850448d7347408c84833ef8c7",
+      "sha256": "363df62c27b877e7794bc636f54767a6b0ea6facf0492c0961cae1f4a77ae0bb",
+      "exact_clean_state": false,
+      "recorded_dirty_fingerprint": "af518271b20a",
+      "runs": ["results/fm_celeba", "results/mf_distill_cifar10"]
+    },
+    {
+      "path": "checkpoint_code_snapshots/e04529a_base_for_dirty_run.zip",
+      "commit": "e04529a3f533b20ac0ac9729533c3e37686e95a8",
+      "sha256": "db3068ae6cd199479c6dc8168ddb81e4a6af656d8a041a056986eb1de5fb8f98",
+      "exact_clean_state": false,
+      "recorded_dirty_fingerprint": "398e6c213a25",
+      "runs": ["results/fm_lognorm_celeba"]
+    }
+  ],
+  "unmapped_run": {
+    "path": "results/mf_cifar10",
+    "reason": "no run_environment.json survives; checkpoint provenance identifies configuration but not Git commit",
+    "backbone_compatibility": "model_state schema matches the invariant legacy backbone"
+  },
+  "checkpoint_storage": "Checkpoint tensors remain under results/*/checkpoints/run_*/ and are not duplicated here."
+}
