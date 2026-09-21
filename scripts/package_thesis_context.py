@@ -18,7 +18,10 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from verify_project_layout import active_training_processes
+try:
+    from scripts.verify_project_layout import active_training_processes
+except ModuleNotFoundError:  # Direct execution: sys.path starts at scripts/.
+    from verify_project_layout import active_training_processes
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -85,6 +88,16 @@ def context_files(root: Path) -> list[Path]:
     )
 
 
+def training_log_files(files: list[Path], root: Path) -> list[str]:
+    """Return every packaged training transcript, regardless of trainer type."""
+    return sorted(
+        path.relative_to(root).as_posix()
+        for path in files
+        if path.suffix.lower() == ".log"
+        and path.relative_to(root).parts[0] in {"results", "training_logs"}
+    )
+
+
 def digest(path: Path) -> str:
     hasher = hashlib.sha256()
     with path.open("rb") as handle:
@@ -99,6 +112,7 @@ def main() -> int:
     output = args.output.expanduser().resolve()
     training = active_training_processes(root)
     files = context_files(root)
+    packaged_training_logs = training_log_files(files, root)
     total = sum(path.stat().st_size for path in files)
 
     print(f"Files: {len(files)}")
@@ -138,6 +152,7 @@ def main() -> int:
                 "format": "diffusion-project-thesis-context-v1",
                 "created_utc": datetime.now(timezone.utc).isoformat(),
                 "training_active_during_snapshot": bool(training),
+                "training_logs": packaged_training_logs,
                 "exclusions": [
                     "raw datasets",
                     "virtual environments",

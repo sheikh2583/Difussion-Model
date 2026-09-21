@@ -169,7 +169,11 @@ def active_training_processes(root: Path) -> list[tuple[int, str]]:
             cwd = os.readlink(entry / "cwd")
         except (FileNotFoundError, PermissionError, ProcessLookupError, OSError):
             continue
-        if cwd == root_text and re.search(r"(?:^|\s|/)train\.py(?:\s|$)", command):
+        trainer_pattern = (
+            r"(?:^|\s|/)(?:train[^/\s]*\.(?:py|sh))(?:\s|$)"
+            r"|(?:^|\s)-m\s+[A-Za-z0-9_.]*train[A-Za-z0-9_.]*(?:\s|$)"
+        )
+        if cwd == root_text and re.search(trainer_pattern, command):
             matches.append((int(entry.name), command))
     return sorted(matches)
 

@@ -1,0 +1,76 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from scripts.catalog_training_logs import build_catalog, parse_log, write_catalog
+from scripts.package_thesis_context import training_log_files
+
+
+def test_scratch_codec_log_metrics_are_cataloged(tmp_path: Path) -> None:
+    log = tmp_path / "results" / "scratch_vae" / "logs" / "train.log"
+    log.parent.mkdir(parents=True)
+    log.write_text(
+        "[run] training_type=scratch_codec\n"
+        "[run] dataset=celeba\n"
+        "[run] algorithm=scratch_kl_vae\n"
+        "[run] started_utc=2026-09-21T12:00:00Z\n"
+        "epoch=60/60 beta=0.00010000 loss=0.002018\n"
+        "rFID < 5:             14.2381\n"
+        "PSNR > 30 dB:         33.7268 dB\n"
+        "minimum latent std > .1: 0.906543\n"
+        "GATE RESULT: FAIL\n"
+        "[run] finished_utc=2026-09-21T13:00:00Z\n"
+        "[run] exit_status=2\n",
+        encoding="utf-8",
+    )
+
+    record = parse_log(log.resolve(), tmp_path.resolve())
+
+    assert record["training_type"] == "scratch_codec"
+    assert record["dataset"] == "celeba"
+    assert record["algorithm"] == "scratch_kl_vae"
+    assert record["completed_epoch"] == 60
+    assert record["last_loss"] == 0.002018
+    assert record["rfid"] == 14.2381
+    assert record["psnr"] == 33.7268
+    assert record["minimum_latent_std"] == 0.906543
+    assert record["gate_result"] == "FAIL"
+    assert record["exit_status"] == "2"
+
+
+def test_unknown_logs_and_sidecar_metadata_are_preserved(tmp_path: Path) -> None:
+    central = tmp_path / "training_logs" / "new_hardware" / "novel.log"
+    central.parent.mkdir(parents=True)
+    central.write_text("a future trainer with no known format\n", encoding="utf-8")
+    run_local = tmp_path / "results" / "encoder_b" / "logs" / "run.log"
+    run_local.parent.mkdir(parents=True)
+    run_local.write_text("custom output\n", encoding="utf-8")
+    run_local.with_suffix(".log.meta.json").write_text(
+        json.dumps({"training_type": "vector_quantizer", "dataset": "celeba"}),
+        encoding="utf-8",
+    )
+
+    catalog = build_catalog(tmp_path.resolve(), (tmp_path / "results").resolve())
+
+    assert len(catalog) == 2
+    by_path = {row["path"]: row for row in catalog}
+    assert by_path["training_logs/new_hardware/novel.log"]["training_type"] == "unclassified"
+    assert by_path["results/encoder_b/logs/run.log"]["training_type"] == "vector_quantizer"
+
+
+def test_catalog_outputs_and_context_manifest_inventory(tmp_path: Path) -> None:
+    log = tmp_path / "results" / "run" / "logs" / "train.log"
+    log.parent.mkdir(parents=True)
+    log.write_text("epoch=1/2 loss=0.5\n", encoding="utf-8")
+    catalog = build_catalog(tmp_path.resolve(), (tmp_path / "results").resolve())
+    output = tmp_path / "results" / "aggregate"
+
+    write_catalog(catalog, output)
+
+    assert (output / "training_log_catalog.json").is_file()
+    assert (output / "training_log_catalog.csv").is_file()
+    assert "results/run/logs/train.log" in (
+        output / "TRAINING_LOG_INDEX.md"
+    ).read_text(encoding="utf-8")
+    assert training_log_files([log], tmp_path) == ["results/run/logs/train.log"]

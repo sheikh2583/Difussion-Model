@@ -12,8 +12,10 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
 if (-not (Test-Path $Python)) { throw "Project environment not found. Run scripts\windows\init.cmd first." }
-$Arguments = @("scripts/aggregate_results.py", "--results-root", $ResultsRoot, "--output-dir", $OutputDir)
-Write-Host "Command: $Python $($Arguments -join ' ')"
+$SummaryArguments = @("scripts/aggregate_results.py", "--results-root", $ResultsRoot, "--output-dir", $OutputDir)
+$CatalogArguments = @("scripts/catalog_training_logs.py", "--results-root", $ResultsRoot, "--output-dir", $OutputDir)
+Write-Host "Summary command: $Python $($SummaryArguments -join ' ')"
+Write-Host "Catalog command: $Python $($CatalogArguments -join ' ')"
 if ($DryRun) { exit 0 }
 
 if (-not $AllowRunning) {
@@ -25,5 +27,7 @@ if (-not $AllowRunning) {
     }
 }
 Set-Location $ProjectRoot
-& $Python @Arguments
+& $Python @SummaryArguments
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& $Python @CatalogArguments
 exit $LASTEXITCODE

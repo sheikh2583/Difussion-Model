@@ -7,7 +7,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PYTHON="$PROJECT_ROOT/venv/bin/python"
 ALLOW_RUNNING=false
 DRY_RUN=false
-ARGS=()
+RESULTS_ROOT="results"
+OUTPUT_DIR="results/aggregate"
 
 usage() {
     cat <<'EOF'
@@ -33,9 +34,12 @@ while [[ $# -gt 0 ]]; do
         --allow-running) ALLOW_RUNNING=true; shift ;;
         --dry-run) DRY_RUN=true; shift ;;
         -h|--help) usage; exit 0 ;;
-        --results-root|--output-dir)
+        --results-root)
             [[ $# -ge 2 ]] || { echo "ERROR: $1 requires a path." >&2; exit 2; }
-            ARGS+=("$1" "$2"); shift 2 ;;
+            RESULTS_ROOT="$2"; shift 2 ;;
+        --output-dir)
+            [[ $# -ge 2 ]] || { echo "ERROR: $1 requires a path." >&2; exit 2; }
+            OUTPUT_DIR="$2"; shift 2 ;;
         *) echo "ERROR: unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
 done
@@ -46,13 +50,22 @@ done
     exit 1
 }
 
-COMMAND=("$PYTHON" "$PROJECT_ROOT/scripts/aggregate_results.py" "${ARGS[@]}")
-printf 'Command:'
-printf ' %q' "${COMMAND[@]}"
+SUMMARY_COMMAND=(
+    "$PYTHON" "$PROJECT_ROOT/scripts/aggregate_results.py"
+    --results-root "$RESULTS_ROOT" --output-dir "$OUTPUT_DIR"
+)
+CATALOG_COMMAND=(
+    "$PYTHON" "$PROJECT_ROOT/scripts/catalog_training_logs.py"
+    --results-root "$RESULTS_ROOT" --output-dir "$OUTPUT_DIR"
+)
+printf 'Summary command:'
+printf ' %q' "${SUMMARY_COMMAND[@]}"
+printf '\nCatalog command:'
+printf ' %q' "${CATALOG_COMMAND[@]}"
 printf '\n'
 [[ "$DRY_RUN" == true ]] && exit 0
 
-TRAIN_PATTERN="$PROJECT_ROOT/venv/bin/python train.py"
+TRAIN_PATTERN="$PROJECT_ROOT/venv/bin/python.*(train\.py|-m .*train[^ ]*)"
 if [[ "$ALLOW_RUNNING" == false ]] && pgrep -f -- "$TRAIN_PATTERN" >/dev/null; then
     echo "Training is active; aggregate outputs were not changed." >&2
     echo "Run this after training, or add --allow-running for a read-only snapshot." >&2
@@ -60,4 +73,5 @@ if [[ "$ALLOW_RUNNING" == false ]] && pgrep -f -- "$TRAIN_PATTERN" >/dev/null; t
 fi
 
 cd "$PROJECT_ROOT"
-exec "${COMMAND[@]}"
+"${SUMMARY_COMMAND[@]}"
+exec "${CATALOG_COMMAND[@]}"

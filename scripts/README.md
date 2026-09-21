@@ -26,3 +26,11 @@ even when the clone is stored in a path containing spaces.
 The compact thesis context ZIP is intended for external reviewers and agents.
 It includes source, configs, report material, metrics, provenance, plots,
 samples, and training logs, but excludes raw datasets and checkpoint binaries.
+
+`make_summary` also rebuilds a trainer-agnostic log catalog under
+`results/aggregate/`. It scans both `training_logs/**/*.log` and run-local
+`results/**/*.log`, so scratch codecs and future training types are retained
+even when they do not use the diffusion experiment JSONL schema. New launchers
+should write `[run] training_type=...`, `[run] dataset=...`, and
+`[run] algorithm=...` headers, or place a `<log>.meta.json` sidecar next to the
+transcript. Logs without metadata are still indexed as `unclassified`.

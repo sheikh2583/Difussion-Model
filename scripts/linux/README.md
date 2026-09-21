@@ -106,3 +106,10 @@ epochs, AdamW at `1e-4`, weight decay `1e-4`, AMP, gradient clipping `1.0`, and
 KL warmup `1e-5` to `1e-4` over 20 epochs). It resumes the numerically latest
 five-epoch checkpoint automatically and refuses to overwrite checkpoints in
 fresh mode. Use `--help` to see safe path and batch-size overrides.
+
+Every scratch-codec launch writes standard `[run]` metadata and a complete
+timestamped transcript under `results/scratch_vae/logs/`. Running
+`./scripts/linux/make_summary.sh` discovers it together with every `.log` under
+`training_logs/` and `results/`, then writes a generic log catalog and Markdown
+index under `results/aggregate/`. This discovery is not tied to a fixed list of
+algorithms, so future trainer logs appear automatically.

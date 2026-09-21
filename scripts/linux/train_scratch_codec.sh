@@ -123,4 +123,21 @@ trap release_lock EXIT INT TERM
 
 LOG_FILE="$WORK_DIR/logs/train_$(date +%Y%m%d_%H%M%S)_pid$$.log"
 echo "Writing complete output to $LOG_FILE"
+{
+  echo "[run] training_type=scratch_codec"
+  echo "[run] dataset=celeba"
+  echo "[run] algorithm=scratch_kl_vae"
+  echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf '[run] command='
+  printf '%q ' "${COMMAND[@]}"
+  printf '\n'
+} | tee -a "$LOG_FILE"
+set +e
 "${COMMAND[@]}" 2>&1 | tee -a "$LOG_FILE"
+status=${PIPESTATUS[0]}
+set -e
+{
+  echo "[run] finished_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "[run] exit_status=$status"
+} | tee -a "$LOG_FILE"
+exit "$status"
