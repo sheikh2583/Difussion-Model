@@ -9,6 +9,7 @@ Generated from the canonical experiment metric files by `scripts/aggregate_resul
 | cifar10 | consistency_cifar10 | ConsistencyAlgorithm | 100 | 100 | 5000 | 130.968 | 100.845 | 95.879 | 99.635 | — | 4.333 |
 | celeba | fm_celeba | FlowMatchingAlgorithm | 100 | 100 | 5000 | 223.126 | 44.357 | 25.975 | 19.808 | 16.779 | 2.410 |
 | celeba | fm_celeba | FlowMatchingAlgorithm | 100 | 100 | 5000 | 223.126 | 44.357 | 25.975 | 19.808 | 16.779 | 2.410 |
+| celeba_latent | fm_celeba_latent | FlowMatchingAlgorithm | 14 | — | unknown | — | — | — | — | — | — |
 | cifar10 | fm_cifar10 | FlowMatchingAlgorithm | 100 | — | unknown | — | — | — | — | — | — |
 | cifar10 | fm_cifar10 | FlowMatchingAlgorithm | — | 100 | 5000 | 380.620 | 58.568 | 47.243 | 45.467 | 43.427 | 6.008 |
 | celeba | fm_lognorm_celeba | FlowMatchingLognormAlgorithm | 98 | 80 | 5000 | 215.889 | 35.888 | 23.292 | 19.557 | 17.349 | 2.598 |
@@ -29,6 +30,7 @@ Generated from the canonical experiment metric files by `scripts/aggregate_resul
 |---|---|---:|---:|---:|
 | consistency_cifar10 | ConsistencyAlgorithm | 100 | 1.88 | 4569.8 |
 | fm_celeba | FlowMatchingAlgorithm | 100 | 16.15 | 5230.9 |
+| fm_celeba_latent | FlowMatchingAlgorithm | 14 | 0.17 | 407.9 |
 | fm_cifar10 | FlowMatchingAlgorithm | 100 | 0.59 | 2250.9 |
 | fm_lognorm_celeba | FlowMatchingLognormAlgorithm | 100 | 16.10 | 5226.6 |
 | fm_lognorm_cifar10 | FlowMatchingLognormAlgorithm | 100 | 0.59 | 2250.9 |
