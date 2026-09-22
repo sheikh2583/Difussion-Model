@@ -37,6 +37,7 @@ from config.config import ExperimentConfig
 from models.backbone import build_backbone
 from utils.checkpoints import load_algorithm_state
 from utils.checkpoint_runs import latest_checkpoint_run_directory
+from utils.gpu_lock import GpuLockError, acquire_gpu_lock
 
 
 WEB_ROOT = Path(__file__).resolve().parent
@@ -105,6 +106,27 @@ _ALGO_SHORT_LABELS: dict[str, str] = {
 }
 
 _DATASET_LABELS = {"cifar10": "CIFAR-10", "celeba": "CelebA"}
+
+
+@torch.inference_mode()
+def decode_samples_for_display(samples, codec=None, batch_size: int = 32):
+    """Convert pixel states or normalized latent states into CPU RGB images."""
+    if codec is None:
+        images = samples.cpu()
+    else:
+        images = torch.cat(
+            [
+                codec.decode_normalised(samples[start : start + batch_size]).cpu()
+                for start in range(0, samples.shape[0], batch_size)
+            ],
+            dim=0,
+        )
+    if images.ndim != 4 or images.shape[1] != 3:
+        raise ValueError(
+            "Inference output must decode to RGB before display; "
+            f"got shape {tuple(images.shape)}"
+        )
+    return images
 
 
 def _infer_algo_cls_from_ckpt_dir(ckpt_dir: Path):
@@ -260,6 +282,9 @@ def model_catalog() -> list[dict]:
                 ),
                 "algorithm": spec.experiment_name,
                 "dataset": spec.dataset,
+                "representation": (
+                    "latent" if spec.dataset.endswith("_latent") else "pixel"
+                ),
                 "dataset_label": spec.dataset_label,
                 "image_size": spec.image_size,
                 "available": bool(checkpoints) and spec.config_path.is_file(),
@@ -282,6 +307,8 @@ class InferenceRuntime:
         self.lock = threading.Lock()
         self.cache_key: tuple[str, int] | None = None
         self.algorithm: BaseAlgorithm | None = None
+        self.codec = None
+        self.codec_key: str | None = None
 
     def _load(self, spec: ModelSpec, epoch: int) -> tuple[BaseAlgorithm, float]:
         key = (spec.key, epoch)
@@ -294,14 +321,28 @@ class InferenceRuntime:
         if not spec.config_path.is_file():
             raise ValueError(f"Configuration is unavailable for {spec.label}")
 
+        config = ExperimentConfig.load(str(spec.config_path))
+        codec_path: Path | None = None
+        if config.dataset.name.endswith("_latent"):
+            if not config.dataset.codec_checkpoint:
+                raise ValueError(
+                    f"Latent inference for {spec.label} requires dataset.codec_checkpoint"
+                )
+            codec_path = Path(config.dataset.codec_checkpoint).expanduser()
+            if not codec_path.is_absolute():
+                codec_path = PROJECT_ROOT / codec_path
+            codec_path = codec_path.resolve()
+
         started = time.perf_counter()
         self.algorithm = None
         self.cache_key = None
+        if codec_path is None or self.codec_key != str(codec_path):
+            self.codec = None
+            self.codec_key = None
         gc.collect()
         if self.device.type == "cuda":
             torch.cuda.empty_cache()
 
-        config = ExperimentConfig.load(str(spec.config_path))
         model = build_backbone(config.backbone, image_size=config.dataset.image_size)
         algorithm = spec.algorithm_class(model, algorithm_kwargs=config.algorithm_kwargs)
         for module in algorithm.trainable_modules():
@@ -314,7 +355,15 @@ class InferenceRuntime:
         for module in algorithm.trainable_modules():
             module.eval()
 
+        codec = self.codec
+        if codec_path is not None and codec is None:
+            from codec.codec_factory import load_codec
+
+            codec = load_codec(str(codec_path), self.device, require_frozen=True)
+
         self.algorithm = algorithm
+        self.codec = codec
+        self.codec_key = str(codec_path) if codec_path is not None else None
         self.cache_key = key
         return algorithm, time.perf_counter() - started
 
@@ -332,18 +381,28 @@ class InferenceRuntime:
 
         spec = MODEL_SPECS[model_key]
         with self.lock:
-            algorithm, load_seconds = self._load(spec, epoch)
-            torch.manual_seed(seed)
-            if self.device.type == "cuda":
-                torch.cuda.manual_seed_all(seed)
-                torch.cuda.synchronize()
+            with acquire_gpu_lock(
+                command=f"web inference: {model_key} epoch={epoch} nfe={nfe}"
+            ):
+                algorithm, load_seconds = self._load(spec, epoch)
+                torch.manual_seed(seed)
+                if self.device.type == "cuda":
+                    torch.cuda.manual_seed_all(seed)
+                    torch.cuda.synchronize()
 
-            started = time.perf_counter()
-            with torch.inference_mode():
-                images = algorithm.sample(count, nfe, self.device).cpu()
-            if self.device.type == "cuda":
-                torch.cuda.synchronize()
-            generation_seconds = time.perf_counter() - started
+                started = time.perf_counter()
+                with torch.inference_mode():
+                    samples = algorithm.sample(count, nfe, self.device)
+                if self.device.type == "cuda":
+                    torch.cuda.synchronize()
+                backbone_seconds = time.perf_counter() - started
+
+                decode_started = time.perf_counter()
+                images = decode_samples_for_display(samples, self.codec)
+                if self.device.type == "cuda":
+                    torch.cuda.synchronize()
+                decoder_seconds = time.perf_counter() - decode_started
+                generation_seconds = backbone_seconds + decoder_seconds
 
             buffer = io.BytesIO()
             save_image(
@@ -368,6 +427,8 @@ class InferenceRuntime:
             "device": str(self.device),
             "checkpoint_load_seconds": round(load_seconds, 4),
             "generation_seconds": round(generation_seconds, 4),
+            "backbone_seconds": round(backbone_seconds, 4),
+            "decoder_seconds": round(decoder_seconds, 4),
             "images_per_second": round(count / max(generation_seconds, 1e-9), 3),
         }
 
@@ -433,6 +494,8 @@ class InferenceHandler(BaseHTTPRequestHandler):
             self._send_json(result)
         except (ValueError, TypeError, json.JSONDecodeError) as error:
             self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+        except GpuLockError as error:
+            self._send_json({"error": str(error)}, HTTPStatus.CONFLICT)
         except Exception as error:
             print(f"Inference error: {error}", flush=True)
             self._send_json(

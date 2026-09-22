@@ -61,7 +61,7 @@ Outputs are stored under `results/<algorithm>_cifar10/` and are ignored by Git.
 
 ## Summaries, animations, and dataset bundles
 
-After training finishes, rebuild aggregate tables and dataset-specific GIFs:
+After training finishes, rebuild aggregate tables and dataset-specific outputs:
 
 ```bash
 ./scripts/linux/make_summary.sh
@@ -69,6 +69,7 @@ After training finishes, rebuild aggregate tables and dataset-specific GIFs:
 ./scripts/linux/generate_celeba_outputs.sh
 venv/bin/python scripts/package_dataset_bundles.py
 ./scripts/linux/make_thesis_context.sh
+./scripts/linux/refresh_thesis_context.sh --interval 300
 ```
 
 These tools use existing metrics, configs, and atomically published checkpoint
@@ -76,11 +77,23 @@ archives. They never start, stop, signal, or modify a training process. The
 summary helper refuses to run during training unless `--allow-running` is
 explicitly supplied; `--dry-run` prints its command without writing outputs.
 The animation launchers follow the same `--dry-run` and `--allow-running`
-convention.
+convention. The CelebA launcher creates separate pixel and latent GIFs, then
+uses the shared GPU lock while decoding checkpoint samples into RGB grids. If
+training is active, `--allow-running` generates metric GIFs only and skips
+checkpoint sampling.
 
 `make_thesis_context.sh` produces a compact package for external thesis
 discussion. Preview its exact inventory with `--dry-run`; it excludes raw
 datasets, checkpoint tensors, checkpoint ZIPs, and FID caches.
+It rebuilds and validates the canonical summary by default, requires the
+essential implementation files to be Git-tracked, and verifies every archived
+member by SHA-256 before replacing `thesis_context.zip`.
+Small ignored provenance records (the collaboration plans/decisions, codec
+model card, and latent-cache manifest) are included explicitly; ignored binary
+weights, tensor caches, datasets, checkpoints, and FID caches remain excluded.
+`refresh_thesis_context.sh` runs this complete operation repeatedly under a
+single-instance lock. It retries safely after failures and preserves the last
+verified ZIP.
 The generated `thesis_context.zip` and reporting-generated
 `THESIS_SUMMARY.md` are written to the repository root and are Git-trackable.
 

@@ -78,6 +78,10 @@
     .generate { grid-column: 1/-1; padding: 11px 16px; border: 0; border-radius: 10px; color: #fff; background: linear-gradient(100deg,var(--teal),var(--indigo)); font-size: .74rem; font-weight: 800; cursor: pointer; box-shadow: 0 9px 22px rgba(0,191,194,.2); transition: transform 180ms ease, opacity 180ms ease; }
     .generate:hover:not(:disabled) { transform: translateY(-1px); }
     .generate:disabled { opacity: .45; cursor: not-allowed; }
+    .playback { grid-column: 1/-1; padding: 10px 16px; border: 1px solid var(--indigo); border-radius: 10px; color: var(--indigo); background: #f7f8ff; font-size: .71rem; font-weight: 800; cursor: pointer; transition: transform 180ms ease, opacity 180ms ease; }
+    .playback:hover:not(:disabled) { transform: translateY(-1px); }
+    .playback.stop { color: #b6384c; border-color: #d86a7b; background: #fff5f7; }
+    .playback:disabled { opacity: .45; cursor: not-allowed; }
     .notice { display: none; grid-column: 1/-1; padding: 9px 10px; border: 1px dashed #c5c8d5; border-radius: 9px; color: #6f7180; background: #f2f3f7; font-size: .64rem; line-height: 1.45; }
     .notice.visible { display: block; }
 
@@ -163,6 +167,7 @@
             </div>
             <div class="notice" id="notice"></div>
             <button class="generate" id="generateButton" type="button">Generate new samples</button>
+            <button class="playback" id="playbackButton" type="button">Play checkpoint evolution</button>
           </div>
         </section>
 
@@ -172,7 +177,7 @@
             <div class="selected-loss"><strong id="lossValue">—</strong><small id="chartEpoch">Epoch —</small></div>
           </div>
           <div class="chart-wrap"><canvas id="lossChart" aria-label="Training loss with selected checkpoint highlighted"></canvas></div>
-          <p class="chart-note">Historical training loss · marker follows the selected checkpoint</p>
+          <p class="chart-note">Historical training loss · checkpoint playback uses one fixed seed and selected NFE. Noise transitions are conceptual; displayed outputs are sampled from real checkpoints.</p>
         </section>
       </aside>
     </main>
@@ -180,12 +185,13 @@
   </div>
 
   <script>
-    const state = { catalog: [], model: null, nfe: 20, busy: false, noiseFrame: null, chartFrame: null, chartEpoch: 0 };
+    const state = { catalog: [], model: null, nfe: 20, busy: false, playing: false, playbackToken: 0, noiseFrame: null, chartFrame: null, chartEpoch: 0 };
     const algorithmBar = document.getElementById("algorithmBar");
     const checkpoint = document.getElementById("checkpoint");
     const imageCount = document.getElementById("imageCount");
     const seed = document.getElementById("seed");
     const generateButton = document.getElementById("generateButton");
+    const playbackButton = document.getElementById("playbackButton");
     const notice = document.getElementById("notice");
     const status = document.getElementById("status");
     const statusText = document.getElementById("statusText");
@@ -216,6 +222,7 @@
     function setBusy(busy) {
       state.busy = busy;
       generateButton.disabled = busy || !selectedModel()?.available;
+      playbackButton.disabled = (!state.playing && busy) || !selectedModel()?.available;
       checkpoint.disabled = busy || !selectedModel()?.available;
       imageCount.disabled = busy;
       seed.disabled = busy;
@@ -223,6 +230,14 @@
       status.classList.toggle("running", busy);
       statusText.textContent = busy ? "Inferring" : "Ready";
       generateButton.textContent = busy ? "Generating…" : "Generate new samples";
+    }
+
+    function stopPlayback() {
+      state.playing = false;
+      state.playbackToken += 1;
+      playbackButton.textContent = "Play checkpoint evolution";
+      playbackButton.classList.remove("stop");
+      if (!state.busy) statusText.textContent = "Ready";
     }
 
     function renderCheckpoints(model) {
@@ -246,6 +261,7 @@
         button.textContent = `NFE ${value}`;
         button.setAttribute("aria-pressed", String(value === state.nfe));
         button.addEventListener("click", () => {
+          stopPlayback();
           state.nfe = value;
           nfeButtons().forEach(item => {
             const active = Number(item.dataset.nfe) === state.nfe;
@@ -258,6 +274,7 @@
     }
 
     function selectAlgorithm(key) {
+      stopPlayback();
       state.model = key;
       const model = selectedModel();
       document.querySelectorAll(".algorithm").forEach(button => {
@@ -349,9 +366,10 @@
       drawLossChart(0);
     }
 
-    async function generate() {
+    async function generate(automated = false) {
       const model = selectedModel();
-      if (!model?.available || state.busy) return;
+      if (!model?.available || state.busy) return false;
+      if (!automated) stopPlayback();
       let outcome = "Ready";
       setBusy(true);
       animateLossChart();
@@ -365,18 +383,43 @@
         resultImage.src = result.image; resultImage.style.display = "block"; noiseCanvas.style.display = "none";
         resultImage.classList.remove("reveal"); void resultImage.offsetWidth; resultImage.classList.add("reveal");
         stageMessage.textContent = `Output · ${result.num_images} generated image${result.num_images === 1 ? "" : "s"}`;
-        metadata.replaceChildren(makeMeta(result.model_label),makeMeta(`Epoch ${result.checkpoint_epoch}`),makeMeta(`NFE ${result.nfe}`),makeMeta(`Seed ${result.seed}`),makeMeta(`${result.generation_seconds}s`),makeMeta(`${result.images_per_second} img/s`));
+        metadata.replaceChildren(makeMeta(result.model_label),makeMeta(`Epoch ${result.checkpoint_epoch}`),makeMeta(`NFE ${result.nfe}`),makeMeta(`Seed ${result.seed}`),makeMeta(`${result.generation_seconds}s total`),makeMeta(`${result.backbone_seconds}s backbone`),makeMeta(`${result.decoder_seconds}s decoder`),makeMeta(`${result.images_per_second} img/s`));
         outcome = "Complete";
       } catch (error) {
         drawNoise(); stageMessage.textContent = error.message; metadata.replaceChildren(makeMeta("Inference failed")); outcome = "Error";
       } finally {
         cancelAnimationFrame(state.noiseFrame); setBusy(false); statusText.textContent = outcome;
       }
+      return outcome === "Complete";
     }
 
-    checkpoint.addEventListener("change",resetLossChart);
+    function wait(milliseconds) { return new Promise(resolve => setTimeout(resolve, milliseconds)); }
+
+    async function playCheckpointEvolution() {
+      if (state.playing) { stopPlayback(); return; }
+      const model = selectedModel();
+      if (!model?.available || state.busy || !model.epochs?.length) return;
+      state.playing = true;
+      const token = ++state.playbackToken;
+      playbackButton.textContent = "Stop checkpoint evolution";
+      playbackButton.classList.add("stop");
+      const epochs = [...model.epochs].sort((a,b) => a-b);
+      for (const epoch of epochs) {
+        if (!state.playing || token !== state.playbackToken || state.model !== model.key) break;
+        checkpoint.value = String(epoch);
+        resetLossChart();
+        statusText.textContent = `Playing epoch ${epoch}`;
+        const completed = await generate(true);
+        if (!completed || !state.playing || token !== state.playbackToken) break;
+        await wait(850);
+      }
+      if (token === state.playbackToken) stopPlayback();
+    }
+
+    checkpoint.addEventListener("change",()=>{ stopPlayback(); resetLossChart(); });
     document.getElementById("randomSeed").addEventListener("click",()=>{ seed.value=crypto.getRandomValues(new Uint32Array(1))[0]; });
-    generateButton.addEventListener("click",generate);
+    generateButton.addEventListener("click",()=>generate(false));
+    playbackButton.addEventListener("click",playCheckpointEvolution);
     window.addEventListener("resize",()=>drawLossChart());
 
     async function initialize() {

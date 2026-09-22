@@ -24,6 +24,8 @@ def test_linux_platform_scripts_parse_and_are_executable() -> None:
         "train_all_datasets.sh",
         "train_celeba_latent.sh",
         "make_summary.sh",
+        "make_thesis_context.sh",
+        "refresh_thesis_context.sh",
         "generate_cifar10_outputs.sh",
         "generate_celeba_outputs.sh",
     ):
@@ -34,6 +36,8 @@ def test_linux_platform_scripts_parse_and_are_executable() -> None:
             "train_all_datasets.sh",
             "train_celeba_latent.sh",
             "make_summary.sh",
+            "make_thesis_context.sh",
+            "refresh_thesis_context.sh",
             "generate_cifar10_outputs.sh",
             "generate_celeba_outputs.sh",
         ) else shell
@@ -115,10 +119,23 @@ def test_linux_reporting_helpers_are_training_safe() -> None:
     summary = (LINUX_DIR / "make_summary.sh").read_text(encoding="utf-8")
 
     assert "scripts/aggregate_results.py" in summary
+    assert "scripts/package_thesis_context.py" in summary
+    assert "--verify-inputs" in summary
     assert "pgrep" in summary
     assert "--allow-running" in summary
     assert "--dry-run" in summary
     assert "kill" not in summary
+
+    context = (LINUX_DIR / "make_thesis_context.sh").read_text(encoding="utf-8")
+    assert "make_summary.sh" in context
+    assert "scripts/package_thesis_context.py" in context
+    assert "--skip-summary" in context
+
+    refresh = (LINUX_DIR / "refresh_thesis_context.sh").read_text(encoding="utf-8")
+    assert "make_thesis_context.sh" in refresh
+    assert "flock" in refresh
+    assert "--interval" in refresh
+    assert "kill" not in refresh
 
     for name, dataset in (
         ("generate_cifar10_outputs.sh", "cifar10"),
@@ -131,6 +148,11 @@ def test_linux_reporting_helpers_are_training_safe() -> None:
         assert "--allow-running" in text
         assert "--dry-run" in text
         assert "kill" not in text
+
+    celeba = (LINUX_DIR / "generate_celeba_outputs.sh").read_text(encoding="utf-8")
+    assert "--dataset celeba_latent" in celeba
+    assert "scripts/generate_checkpoint_samples.py" in celeba
+    assert "--dataset-family celeba" in celeba
 
 
 def test_windows_reporting_helpers_are_training_safe() -> None:
@@ -146,3 +168,14 @@ def test_windows_reporting_helpers_are_training_safe() -> None:
         assert "AllowRunning" in text
         assert "DryRun" in text
         assert "Stop-Process" not in text
+
+    celeba = (WINDOWS_DIR / "generate_celeba_outputs.ps1").read_text(encoding="utf-8")
+    assert '"celeba_latent"' in celeba
+    assert "scripts/generate_checkpoint_samples.py" in celeba
+
+    windows_summary = (WINDOWS_DIR / "make_summary.ps1").read_text(encoding="utf-8")
+    assert "scripts/package_thesis_context.py" in windows_summary
+    assert '"--verify-inputs"' in windows_summary
+    windows_context = (WINDOWS_DIR / "make_thesis_context.ps1").read_text(encoding="utf-8")
+    assert "make_summary.ps1" in windows_context
+    assert "SkipSummary" in windows_context

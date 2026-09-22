@@ -9,6 +9,9 @@ Usage (run from project root, venv activated):
     # Auto-discover all runs under results/:
     python scripts/generate_checkpoint_samples.py
 
+    # Auto-discover only CelebA pixel and latent runs:
+    python scripts/generate_checkpoint_samples.py --dataset-family celeba
+
     # Specific experiments:
     python scripts/generate_checkpoint_samples.py --experiments fm_cifar10,mf_cifar10
 
@@ -24,7 +27,9 @@ Output:
 """
 
 import argparse
+import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -40,6 +45,7 @@ from config.config import ExperimentConfig
 from models.backbone import build_backbone
 from utils.checkpoint_runs import latest_checkpoint_run_directory
 from utils.checkpoints import load_algorithm_state
+from utils.gpu_lock import DEFAULT_LOCK_PATH, acquire_gpu_lock
 
 RESULTS_ROOT = "./results"
 OUT_ROOT     = "./results/checkpoint_samples"
@@ -60,7 +66,19 @@ def _build_cls_prefix_map():
     return mapping
 
 
-def discover_runs(results_root: str):
+def _run_dataset(run_dir: str) -> str | None:
+    """Read the dataset identity without constructing a training config."""
+    try:
+        payload = json.loads(Path(run_dir, "config.json").read_text(encoding="utf-8"))
+        dataset = payload.get("dataset", {})
+        if isinstance(dataset, dict) and dataset.get("name"):
+            return str(dataset["name"]).lower()
+    except (OSError, ValueError, TypeError):
+        return None
+    return None
+
+
+def discover_runs(results_root: str, dataset_family: str = "all"):
     """
     Auto-discover all experiment runs under results_root.
     A valid run directory must have a config.json and a checkpoints/ sub-dir.
@@ -74,7 +92,14 @@ def discover_runs(results_root: str):
         if (os.path.isdir(run_dir)
                 and os.path.exists(os.path.join(run_dir, "config.json"))
                 and os.path.isdir(os.path.join(run_dir, "checkpoints"))):
-            runs.append(name)
+            dataset = _run_dataset(run_dir)
+            matches_family = (
+                dataset_family == "all"
+                or dataset_family == dataset
+                or (dataset_family == "celeba" and dataset == "celeba_latent")
+            )
+            if matches_family:
+                runs.append(name)
     return runs
 
 
@@ -182,9 +207,17 @@ def process_run(experiment_name, results_root, out_root, nfe_values, n_samples, 
     except Exception as error:
         print(f"[SKIP] Could not load latent decoder for {experiment_name}: {error}")
         return
+    def checkpoint_epoch(filename):
+        match = re.search(r"_epoch(\d+)\.pt$", filename)
+        return int(match.group(1)) if match else -1
+
     ckpt_files = sorted(
-        f for f in os.listdir(ckpt_dir)
-        if f.startswith(cls_name) and f.endswith(".pt")
+        (
+            f
+            for f in os.listdir(ckpt_dir)
+            if f.startswith(cls_name) and f.endswith(".pt")
+        ),
+        key=checkpoint_epoch,
     )
 
     if not ckpt_files:
@@ -239,20 +272,31 @@ def parse_args():
         help=f"Root of experiment results (default: {RESULTS_ROOT})."
     )
     parser.add_argument(
+        "--dataset-family", choices=("all", "cifar10", "celeba"), default="all",
+        help=(
+            "Filter auto-discovery by dataset. 'celeba' includes separate pixel "
+            "and celeba_latent runs (default: all)."
+        ),
+    )
+    parser.add_argument(
         "--out-dir", type=str, default=OUT_ROOT,
         help=f"Output root for sample grids (default: {OUT_ROOT})."
+    )
+    parser.add_argument(
+        "--lock-file", type=Path, default=DEFAULT_LOCK_PATH,
+        help=f"Shared GPU workflow lock (default: {DEFAULT_LOCK_PATH}).",
     )
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
+def main(args=None):
+    args = args or parse_args()
     nfe_values = [int(x) for x in args.nfe.split(",")]
 
     if args.experiments:
         experiments = [e.strip() for e in args.experiments.split(",")]
     else:
-        experiments = discover_runs(args.results_dir)
+        experiments = discover_runs(args.results_dir, args.dataset_family)
         if not experiments:
             print(f"No valid experiment runs found under '{args.results_dir}'.")
             print("Run training first, or pass --experiments <name1,name2>.")
@@ -271,4 +315,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    cli_args = parse_args()
+    with acquire_gpu_lock(cli_args.lock_file, command="generate_checkpoint_samples.py"):
+        main(cli_args)

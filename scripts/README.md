@@ -14,7 +14,7 @@ training implementation.
 | Build dataset bundles | `venv/bin/python scripts/package_dataset_bundles.py` | `venv\Scripts\python.exe scripts\package_dataset_bundles.py` |
 | Build compact thesis context | `./scripts/linux/make_thesis_context.sh` | `.\scripts\windows\make_thesis_context.ps1` |
 | Generate CIFAR-10 GIFs | `./scripts/linux/generate_cifar10_outputs.sh` | `.\scripts\windows\generate_cifar10_outputs.ps1` |
-| Generate CelebA GIFs | `./scripts/linux/generate_celeba_outputs.sh` | `.\scripts\windows\generate_celeba_outputs.ps1` |
+| Generate CelebA pixel/latent GIFs and sample grids | `./scripts/linux/generate_celeba_outputs.sh` | `.\scripts\windows\generate_celeba_outputs.ps1` |
 | Verify project layout | `python scripts/verify_project_layout.py` | `python scripts\verify_project_layout.py` |
 
 See the platform-specific README before the first run:

@@ -13,15 +13,27 @@ for argument in "$@"; do
         *) ARGS+=("$argument") ;;
     esac
 done
-COMMAND=("$PYTHON" "$PROJECT_ROOT/scripts/generate_result_gifs.py" --dataset celeba "${ARGS[@]}")
-printf 'Command:'; printf ' %q' "${COMMAND[@]}"; printf '\n'
+PIXEL_COMMAND=("$PYTHON" "$PROJECT_ROOT/scripts/generate_result_gifs.py" --dataset celeba "${ARGS[@]}")
+LATENT_COMMAND=("$PYTHON" "$PROJECT_ROOT/scripts/generate_result_gifs.py" --dataset celeba_latent "${ARGS[@]}")
+SAMPLE_COMMAND=("$PYTHON" "$PROJECT_ROOT/scripts/generate_checkpoint_samples.py" --dataset-family celeba)
+for command_name in PIXEL_COMMAND LATENT_COMMAND SAMPLE_COMMAND; do
+    declare -n command_ref="$command_name"
+    printf 'Command:'; printf ' %q' "${command_ref[@]}"; printf '\n'
+done
 [[ "$DRY_RUN" == false ]] || exit 0
 [[ -x "$PYTHON" ]] || { echo "ERROR: project environment not found. Run ./scripts/linux/init.sh first." >&2; exit 1; }
 TRAIN_PATTERN="$PROJECT_ROOT/venv/bin/python train.py"
-if [[ "$ALLOW_RUNNING" == false ]] && pgrep -f -- "$TRAIN_PATTERN" >/dev/null; then
-    echo "Training is active; animations were not changed." >&2
-    echo "Run this after training, or add --allow-running for a read-only snapshot." >&2
-    exit 3
-fi
 cd "$PROJECT_ROOT"
-exec "${COMMAND[@]}"
+if pgrep -f -- "$TRAIN_PATTERN" >/dev/null; then
+    if [[ "$ALLOW_RUNNING" == false ]]; then
+        echo "Training is active; outputs were not changed." >&2
+        echo "Run this after training, or add --allow-running for metric-only snapshots." >&2
+        exit 3
+    fi
+    echo "Training is active; generating read-only metric animations only." >&2
+    "${PIXEL_COMMAND[@]}"
+    exec "${LATENT_COMMAND[@]}"
+fi
+"${PIXEL_COMMAND[@]}"
+"${LATENT_COMMAND[@]}"
+exec "${SAMPLE_COMMAND[@]}"

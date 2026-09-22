@@ -70,7 +70,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
-        "--dataset", choices=("cifar10", "celeba", "all"), default="all"
+        "--dataset",
+        choices=("cifar10", "celeba", "celeba_latent", "all"),
+        default="all",
     )
     parser.add_argument(
         "--experiments",
@@ -374,7 +376,11 @@ def main() -> int:
     results_root = args.results_root.expanduser().resolve()
     output_dir = args.output_dir.expanduser().resolve()
     records = load_jsonl(metrics_path)
-    datasets = ("cifar10", "celeba") if args.dataset == "all" else (args.dataset,)
+    datasets = (
+        ("cifar10", "celeba", "celeba_latent")
+        if args.dataset == "all"
+        else (args.dataset,)
+    )
     for dataset in datasets:
         experiments = set(
             args.experiments
@@ -403,7 +409,11 @@ def main() -> int:
             dataset_output / "nfe_vs_fid_vs_epoch_3d.gif",
             dataset_output / "epoch_vs_loss.gif",
         )
-        dataset_label = "CIFAR-10" if dataset == "cifar10" else "CelebA"
+        dataset_label = {
+            "cifar10": "CIFAR-10",
+            "celeba": "CelebA (pixel)",
+            "celeba_latent": "CelebA (latent)",
+        }[dataset]
         save_fid_vs_nfe(
             fid, labels, outputs[0], args.fps, args.dpi, dataset_label
         )

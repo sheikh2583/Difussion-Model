@@ -1,8 +1,13 @@
+import json
 from types import SimpleNamespace
 
 import torch
 
-from scripts.generate_checkpoint_samples import decode_for_display, load_latent_decoder
+from scripts.generate_checkpoint_samples import (
+    decode_for_display,
+    discover_runs,
+    load_latent_decoder,
+)
 
 
 class _MockCodec:
@@ -41,3 +46,23 @@ def test_non_rgb_output_is_rejected() -> None:
 def test_pixel_config_does_not_load_a_codec() -> None:
     cfg = SimpleNamespace(dataset=SimpleNamespace(name="cifar10"))
     assert load_latent_decoder(cfg, torch.device("cpu")) is None
+
+
+def _create_run(root, name: str, dataset: str) -> None:
+    run = root / name
+    (run / "checkpoints").mkdir(parents=True)
+    (run / "config.json").write_text(
+        json.dumps({"dataset": {"name": dataset}}), encoding="utf-8"
+    )
+
+
+def test_celeba_discovery_includes_pixel_and_latent_but_not_cifar(tmp_path) -> None:
+    _create_run(tmp_path, "fm_cifar10", "cifar10")
+    _create_run(tmp_path, "fm_celeba", "celeba")
+    _create_run(tmp_path, "fm_celeba_latent", "celeba_latent")
+
+    assert discover_runs(str(tmp_path), "celeba") == [
+        "fm_celeba",
+        "fm_celeba_latent",
+    ]
+    assert discover_runs(str(tmp_path), "cifar10") == ["fm_cifar10"]

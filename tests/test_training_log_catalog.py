@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import zipfile
 from pathlib import Path
 
+import pytest
+
+import scripts.package_thesis_context as context_package
 from scripts.catalog_training_logs import build_catalog, parse_log, write_catalog
 from scripts.annotate_training_log_spaces import annotate, classify_name
 from scripts.package_thesis_context import training_log_files
@@ -132,3 +137,46 @@ def test_catalog_outputs_and_context_manifest_inventory(tmp_path: Path) -> None:
         output / "TRAINING_LOG_INDEX.md"
     ).read_text(encoding="utf-8")
     assert training_log_files([log], tmp_path) == ["results/run/logs/train.log"]
+
+
+def test_context_required_inventory_covers_current_comparison_and_demo() -> None:
+    required = set(context_package.REQUIRED_SOURCE_PATHS)
+    assert "docs/COMPARISON_PROTOCOL.md" in required
+    assert "scripts/aggregate_results.py" in required
+    assert "web/inference_server.py" in required
+    assert "web/inference_ui.html" in required
+    assert "tests/test_web_catalog.py" in required
+    assert "scripts/linux/refresh_thesis_context.sh" in required
+
+    ignored_context = set(context_package.EXPLICIT_IGNORED_CONTEXT_PATHS)
+    assert "AGENTS.md" in ignored_context
+    assert "CROSS_TRACK.md" in ignored_context
+    assert "BLOCKER_DECISIONS.md" in ignored_context
+
+    aggregate = set(context_package.REQUIRED_AGGREGATE_PATHS)
+    assert "results/aggregate/algorithm_progression_vs_fm.csv" in aggregate
+    assert "results/aggregate/pixel_vs_latent.csv" in aggregate
+    assert "results/aggregate/comparison_manifest.json" in aggregate
+
+
+def test_archive_verification_checks_member_digest(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(context_package, "REQUIRED_SOURCE_PATHS", ("source.py",))
+    monkeypatch.setattr(context_package, "REQUIRED_AGGREGATE_PATHS", ())
+    monkeypatch.setattr(context_package, "EXPLICIT_IGNORED_CONTEXT_PATHS", ())
+    archive_path = tmp_path / "context.zip"
+    payload = b"print('verified')\n"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("source.py", payload)
+    manifest = {
+        "files": [{
+            "path": "source.py",
+            "bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }]
+    }
+
+    context_package.verify_archive(archive_path, manifest)
+
+    manifest["files"][0]["sha256"] = "0" * 64
+    with pytest.raises(OSError, match="digest mismatch"):
+        context_package.verify_archive(archive_path, manifest)

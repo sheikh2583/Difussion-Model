@@ -46,4 +46,6 @@ python scripts\verify_project_layout.py
 
 The reporting wrappers refuse to modify generated outputs while training is
 active unless `-AllowRunning` is explicitly supplied for a read-only snapshot.
-They never stop or signal a training process.
+They never stop or signal a training process. The CelebA wrapper keeps pixel
+and latent animations separate and generates decoded checkpoint grids only
+when training is inactive; `-AllowRunning` skips checkpoint sampling.

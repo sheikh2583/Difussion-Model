@@ -929,6 +929,11 @@ Build aggregate CSV/JSONL tables and plots after training:
 ./scripts/linux/make_summary.sh
 ```
 
+The aggregate includes controlled FM-relative progression, cross-dataset
+transfer, pixel-versus-latent pairs, quality/compute Pareto flags, and explicit
+coverage of missing experiment cells. The matching and interpretation rules
+are documented in [the controlled comparison protocol](docs/COMPARISON_PROTOCOL.md).
+
 While a project trainer is active, the launcher refuses to write unless a
 read-only snapshot was explicitly requested:
 
@@ -936,12 +941,21 @@ read-only snapshot was explicitly requested:
 ./scripts/linux/make_summary.sh --allow-running
 ```
 
-Generate dataset animations from existing metrics and checkpoint filenames:
+Generate dataset animations from existing metrics and checkpoint filenames.
+The CelebA launcher keeps pixel and latent animations separate and, when no
+trainer is active, also decodes checkpoint samples into RGB image grids:
 
 ```bash
 ./scripts/linux/generate_cifar10_outputs.sh
 ./scripts/linux/generate_celeba_outputs.sh
 ```
+
+CelebA outputs are written under
+`results/aggregate/animations/celeba/`,
+`results/aggregate/animations/celeba_latent/`, and
+`results/checkpoint_samples/<experiment>/`. During active training,
+`--allow-running` produces metric-only snapshots and deliberately skips GPU
+checkpoint sampling.
 
 Package portable evidence without global datasets or a virtual environment:
 
@@ -951,7 +965,34 @@ venv/bin/python scripts/package_dataset_bundles.py --dataset celeba
 
 ./scripts/linux/make_thesis_context.sh --dry-run
 ./scripts/linux/make_thesis_context.sh
+./scripts/linux/refresh_thesis_context.sh --interval 300
 ```
+
+`make_thesis_context.sh` is the canonical Claude Web handoff command. By
+default it first rebuilds the aggregate summary and training-log catalog, then
+requires every essential implementation/documentation file to be Git-tracked,
+checks aggregate schemas and freshness, enforces a 100 MiB uncompressed size
+ceiling, builds `thesis_context.zip` atomically, verifies ZIP CRCs, and verifies
+the size and SHA-256 digest of every packaged member. Use `--skip-summary` only
+when intentionally packaging an already-verified canonical summary. The ZIP
+contains its Git revision/worktree status, required-artifact audit, complete
+file inventory, and per-file digests in `CONTEXT_MANIFEST.json`.
+
+The compact archive deliberately excludes datasets, environments, raw `.pt`
+checkpoints, checkpoint ZIPs, and FID caches. It includes current source,
+configs, tests, comparison tables, metrics, plots, sample images, log catalog,
+training transcripts, the interactive checkpoint-demo implementation, and the
+generated thesis summary. It also explicitly includes the otherwise ignored
+collaboration/interface plans, decision record, pretrained model card, and
+latent-cache manifest because these small files explain implementation and
+codec provenance. Binary weights, latent tensors, Hugging Face cache internals,
+IDE state, and nested worktrees remain excluded.
+
+`refresh_thesis_context.sh` repeats the complete summary-and-ZIP operation in a
+single-instance loop. It defaults to five-minute intervals and refuses active
+training snapshots; add `--allow-running` only when a potentially partial,
+read-only live snapshot is intentional. Use `--once` for automation that needs
+one rigorously checked refresh and a meaningful exit status.
 
 `THESIS_SUMMARY.md` is a generated evidence snapshot, not the source of truth
 for an unfinished active run. Do not report partial latent metrics as final.
@@ -964,7 +1005,13 @@ Start the local results and inference UI:
 
 Then open <http://127.0.0.1:8000>. The UI discovers compatible runs under
 `results/`, shows checkpoints and evaluation summaries, and can generate
-samples from supported checkpoints.
+samples from supported checkpoints. In the inference view, choose the
+algorithm, NFE, image count, and fixed seed, then select **Play checkpoint
+evolution** to cycle through every saved epoch. Each checkpoint shows the
+noise-to-sample transition alongside the loss curve truncated at that epoch.
+Latent runs are decoded through their recorded frozen codec before display.
+Inference requests acquire the shared project GPU lock and therefore refuse to
+run while a training or generation workflow owns the GPU.
 
 ## Reproducibility rules
 

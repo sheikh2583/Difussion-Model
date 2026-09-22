@@ -15,6 +15,8 @@ usage() {
 Usage: ./scripts/linux/make_summary.sh [OPTIONS]
 
 Rebuild results/aggregate from the canonical metrics JSONL files.
+The canonical build also validates all inputs required by the compact handoff,
+including the explicitly selected ignored provenance records.
 
 Options:
   --results-root PATH       Metrics root (default: results)
@@ -58,10 +60,17 @@ CATALOG_COMMAND=(
     "$PYTHON" "$PROJECT_ROOT/scripts/catalog_training_logs.py"
     --results-root "$RESULTS_ROOT" --output-dir "$OUTPUT_DIR"
 )
+VERIFY_COMMAND=(
+    "$PYTHON" "$PROJECT_ROOT/scripts/package_thesis_context.py" --verify-inputs
+)
 printf 'Summary command:'
 printf ' %q' "${SUMMARY_COMMAND[@]}"
 printf '\nCatalog command:'
 printf ' %q' "${CATALOG_COMMAND[@]}"
+if [[ "$RESULTS_ROOT" == "results" && "$OUTPUT_DIR" == "results/aggregate" ]]; then
+    printf '\nVerification command:'
+    printf ' %q' "${VERIFY_COMMAND[@]}"
+fi
 printf '\n'
 [[ "$DRY_RUN" == true ]] && exit 0
 
@@ -74,4 +83,9 @@ fi
 
 cd "$PROJECT_ROOT"
 "${SUMMARY_COMMAND[@]}"
-exec "${CATALOG_COMMAND[@]}"
+"${CATALOG_COMMAND[@]}"
+if [[ "$RESULTS_ROOT" == "results" && "$OUTPUT_DIR" == "results/aggregate" ]]; then
+    "${VERIFY_COMMAND[@]}"
+else
+    echo "Custom aggregate paths built; thesis-context verification applies only to canonical paths."
+fi
