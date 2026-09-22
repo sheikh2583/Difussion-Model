@@ -106,25 +106,17 @@ if [[ "$DRY_RUN" == true ]]; then
   exit 0
 fi
 
-LOCK_FILE="results/.lock"
-mkdir -p results "$WORK_DIR/logs"
-LOCK_TOKEN="pid=$$;command=train_scratch_codec.sh;work_dir=$WORK_DIR"
-if ! (set -o noclobber; printf '%s\n' "$LOCK_TOKEN" > "$LOCK_FILE") 2>/dev/null; then
-  echo "ERROR: GPU lock already exists: $LOCK_FILE" >&2
-  cat "$LOCK_FILE" >&2
-  exit 1
-fi
-release_lock() {
-  if [[ -f "$LOCK_FILE" && "$(cat "$LOCK_FILE")" == "$LOCK_TOKEN" ]]; then
-    rm -f -- "$LOCK_FILE"
-  fi
-}
-trap release_lock EXIT INT TERM
+source scripts/linux/workflow_guard.sh
+workflow_guard_start "train_scratch_codec.sh" false \
+  --launcher scripts/linux/train_scratch_codec.sh
+CODEC_LOG_DIR="$(workflow_device_log_dir codec)"
+mkdir -p results "$CODEC_LOG_DIR"
 
-LOG_FILE="$WORK_DIR/logs/train_$(date +%Y%m%d_%H%M%S)_pid$$.log"
+LOG_FILE="$CODEC_LOG_DIR/celeba_codec_scratch_kl_vae_$(date +%Y%m%d_%H%M%S)_pid$$.log"
 echo "Writing complete output to $LOG_FILE"
 {
   echo "[run] training_type=scratch_codec"
+  echo "[run] representation_space=codec"
   echo "[run] dataset=celeba"
   echo "[run] algorithm=scratch_kl_vae"
   echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"

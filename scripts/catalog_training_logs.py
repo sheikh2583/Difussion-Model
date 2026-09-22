@@ -34,6 +34,7 @@ GATE_LINE = re.compile(r"^GATE RESULT:\s*(\S+)")
 
 FIELDS = [
     "path", "training_type", "representation_space", "dataset", "algorithm", "started_utc",
+    "machine_label", "gpu_name", "gpu_memory_gb",
     "finished_utc", "exit_status", "completed_epoch", "target_epochs",
     "last_loss", "rfid", "psnr", "minimum_latent_std", "gate_result",
     "bytes", "modified_utc", "sha256",
@@ -111,7 +112,10 @@ def parse_log(log_path: Path, project_root: Path) -> dict[str, Any]:
             match = STARTUP_FIELD.match(line)
             if match:
                 key, value = match.groups()
-                if key in {"algorithm", "dataset"} and not record.get(key):
+                if key in {
+                    "algorithm", "dataset", "machine_label", "gpu_name",
+                    "gpu_memory_gb",
+                } and not record.get(key):
                     record[key] = value
                 continue
             match = EPOCH_LINE.search(line)

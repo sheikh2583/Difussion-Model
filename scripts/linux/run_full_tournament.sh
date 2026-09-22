@@ -65,33 +65,15 @@ esac
 
 mkdir -p results
 LOG_FILE="results/tournament_run_$(date +%Y%m%d_%H%M%S)_pid$$.log"
-LOCK_FILE="results/.lock"
-LOCK_TOKEN=""
-LOCK_OWNED=false
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-release_lock() {
-  if [[ "$LOCK_OWNED" == true && -f "$LOCK_FILE" ]]; then
-    local current
-    current="$(cat "$LOCK_FILE")"
-    if [[ "$current" == "$LOCK_TOKEN" ]]; then
-      rm -f -- "$LOCK_FILE"
-    fi
-  fi
-  LOCK_OWNED=false
-}
-trap release_lock EXIT INT TERM
-
-acquire_lock() {
-  local description=$1
-  LOCK_TOKEN="pid=$$;command=run_full_tournament.sh;step=$description"
-  if ! (set -o noclobber; printf '%s\n' "$LOCK_TOKEN" > "$LOCK_FILE") 2>/dev/null; then
-    echo "ERROR: GPU lock already exists: $LOCK_FILE" >&2
-    echo "Wait for the active job, or remove it only after confirming it is stale." >&2
-    exit 1
-  fi
-  LOCK_OWNED=true
-}
+source scripts/linux/workflow_guard.sh
+IDENTITY_ARGS=(--launcher scripts/linux/run_full_tournament.sh)
+for config in config/*_full.json config/*_celeba64.json; do
+  [[ -f "$config" ]] && IDENTITY_ARGS+=(--config "$config")
+done
+workflow_guard_start "run_full_tournament.sh" "$DRY_RUN" "${IDENTITY_ARGS[@]}"
+export DIFFUSION_LIFECYCLE_MODE="$MODE"
 
 run_step() {
   local use_lock=$1 description=$2
@@ -108,12 +90,11 @@ run_step() {
     return 0
   fi
 
-  if [[ "$use_lock" == true ]]; then acquire_lock "$description"; fi
+  workflow_guard_verify_source "$DRY_RUN"
   set +e
   "$@"
   local status=$?
   set -e
-  if [[ "$use_lock" == true ]]; then release_lock; fi
   if [[ $status -ne 0 ]]; then
     echo "ERROR: step failed with exit code $status: $description" >&2
     return "$status"
@@ -142,11 +123,6 @@ run_algorithm() {
   local algorithm=$1 config=$2 run_name=$3 class_name=$4 description=$5
   local checkpoint
   checkpoint="$(resolve_checkpoint "$run_name" "$class_name")"
-  if [[ "$MODE" == "continue" && -f "$checkpoint" ]]; then
-    echo ""
-    echo "[skip] $description - checkpoint already exists: $checkpoint"
-    return 0
-  fi
   require_file "$config" "config"
   local train_args=(
     train.py --algorithm "$algorithm" --config "$config"
@@ -217,7 +193,7 @@ run_dataset() {
     echo ""
     echo "[skip] [6/7] Reflow pair generation - artifact exists: $pairs"
   else
-    # The generator acquires and releases results/.lock itself.
+    # The generator validates the inherited suite lock token.
     run_step false "[6/7] Reflow pair generation - $name" \
       "$PYTHON" scripts/generate_reflow_pairs.py \
       --checkpoint "$teacher" --config "$fm_config" \

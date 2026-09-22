@@ -14,6 +14,8 @@ Output directory is derived automatically: results/<experiment_name>_<dataset.na
 So switching datasets in the config automatically routes to a new directory.
 """
 import argparse
+import hashlib
+import os
 from pathlib import Path
 
 from algorithms import ALGORITHM_REGISTRY
@@ -32,6 +34,35 @@ from utils.checkpoint_runs import (
     next_checkpoint_run_number,
 )
 from utils.run_environment import add_config_hash, collect_run_environment
+from utils.checkpoint_provenance import build_provenance, validate_checkpoint_file
+from utils.gpu_lock import acquire_gpu_lock
+
+
+def verified_completed_checkpoint(
+    run_dir: Path,
+    *,
+    algorithm_cls,
+    algorithm_key: str,
+    cfg: ExperimentConfig,
+    run_number: int,
+) -> Path | None:
+    """Return the target checkpoint only after its provenance is validated."""
+    latest = latest_epoch_checkpoint(
+        run_dir,
+        class_name=algorithm_cls.__name__,
+        maximum_epoch=cfg.epochs,
+        run_number=run_number,
+    )
+    if latest is None or latest[0] != cfg.epochs:
+        return None
+    expected = build_provenance(cfg, algorithm_cls, algorithm_key)
+    if not validate_checkpoint_file(latest[1], expected):
+        raise SystemExit(
+            f"Cannot skip completed legacy checkpoint without verifiable provenance: "
+            f"{latest[1]}. Preserve it and use --mode fresh for a new run, or "
+            "evaluate it explicitly with evaluate.py."
+        )
+    return latest[1]
 
 
 def print_startup_summary(
@@ -72,6 +103,11 @@ def print_startup_summary(
         ),
         ("machine_label", run_environment.get("machine_label")),
         ("code_identity", run_environment.get("code_identity")),
+        ("source_identity_sha256", run_environment.get("source_identity_sha256")),
+        ("selected_config_file_sha256", run_environment.get("selected_config_file_sha256")),
+        ("lifecycle_mode", run_environment.get("lifecycle_mode")),
+        ("checkpoint_series", run_environment.get("checkpoint_series")),
+        ("parent_suite_timestamp", run_environment.get("parent_suite_timestamp")),
     )
     print("[startup] Resolved experiment configuration (before dataset loading):")
     for key, value in lines:
@@ -112,6 +148,10 @@ def parse_args():
         help=("Disable FID cache preparation, periodic evaluation, and final "
               "sampling. Intended for a short user-operated diagnostic probe."),
     )
+    parser.add_argument(
+        "--evaluate-only", action="store_true",
+        help="Run evaluation explicitly from the selected final checkpoint; do not train.",
+    )
     start_group = parser.add_mutually_exclusive_group()
     start_group.add_argument(
         "--mode",
@@ -127,8 +167,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def _main():
     args = parse_args()
+    if args.evaluate_only and args.train_only:
+        raise SystemExit("--evaluate-only and --train-only are mutually exclusive")
     cfg  = ExperimentConfig.load(args.config) if args.config else ExperimentConfig()
     if args.experiment_name:
         cfg.experiment_name = args.experiment_name
@@ -213,11 +255,37 @@ def main():
         checkpoint_run_number = next_checkpoint_run_number(canonical_run_dir)
     print(f"[checkpoints] Active checkpoint series: run_{checkpoint_run_number}")
 
+    algorithm_cls = ALGORITHM_REGISTRY[args.algorithm]
+    completed_checkpoint = (
+        verified_completed_checkpoint(
+            canonical_run_dir,
+            algorithm_cls=algorithm_cls,
+            algorithm_key=args.algorithm,
+            cfg=cfg,
+            run_number=checkpoint_run_number,
+        )
+        if args.mode == "continue" else None
+    )
+    if completed_checkpoint is not None:
+        if not args.evaluate_only:
+            print(
+                f"[continue] Verified compatible completed checkpoint; skipping "
+                f"training and implicit evaluation: {completed_checkpoint}"
+            )
+            return
+
     # Collect this once and pass the same authoritative record into the runner.
     # This happens before ExperimentRunner resolves CUDA or constructs a dataset.
     run_environment = add_config_hash(
         collect_run_environment(project_root, machine_label=args.machine_label), cfg
     )
+    run_environment.update({
+        "lifecycle_mode": args.mode or ("resume" if args.resume else "unspecified"),
+        "checkpoint_series": f"run_{checkpoint_run_number}",
+    })
+    if args.config:
+        config_bytes = Path(args.config).expanduser().resolve().read_bytes()
+        run_environment["selected_config_file_sha256"] = hashlib.sha256(config_bytes).hexdigest()
     print_startup_summary(
         config_path=args.config,
         algorithm_key=args.algorithm,
@@ -226,7 +294,6 @@ def main():
         run_environment=run_environment,
     )
 
-    algorithm_cls = ALGORITHM_REGISTRY[args.algorithm]
     runner = ExperimentRunner(
         cfg,
         algorithm_cls,
@@ -235,10 +302,22 @@ def main():
         machine_label=args.machine_label,
         run_environment=run_environment,
     )
-    if args.train_only:
+    if args.evaluate_only:
+        target = completed_checkpoint
+        if target is None:
+            raise FileNotFoundError(
+                f"No epoch-{cfg.epochs} checkpoint is available for explicit evaluation"
+            )
+        runner.evaluate_only(str(target))
+    elif args.train_only:
         runner.run_train_only(resume_checkpoint=resume_checkpoint)
     else:
         runner.run_full(resume_checkpoint=resume_checkpoint)
+
+
+def main():
+    with acquire_gpu_lock(command="train.py"):
+        _main()
 
 
 if __name__ == "__main__":

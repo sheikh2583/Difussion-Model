@@ -98,7 +98,7 @@ def collect_run_environment(
         or os.environ.get("DIFFUSION_MACHINE_LABEL")
         or _automatic_machine_label(os_name, hostname, gpu_name, gpu_memory_gb)
     )
-    return {
+    metadata = {
         "session_id": uuid.uuid4().hex,
         "session_started_utc": datetime.now(timezone.utc).isoformat(),
         "machine_label": label,
@@ -118,6 +118,18 @@ def collect_run_environment(
         "code_identity": code_identity,
         "command": sys.argv,
     }
+    suite_fields = {
+        "source_identity_sha256": "DIFFUSION_SOURCE_IDENTITY",
+        "source_manifest": "DIFFUSION_SOURCE_MANIFEST",
+        "parent_suite_timestamp": "DIFFUSION_PARENT_SUITE_TIMESTAMP",
+        "lifecycle_mode": "DIFFUSION_LIFECYCLE_MODE",
+        "checkpoint_series": "DIFFUSION_CHECKPOINT_SERIES",
+    }
+    for field, variable in suite_fields.items():
+        value = os.environ.get(variable)
+        if value:
+            metadata[field] = value
+    return metadata
 
 
 def write_run_environment(run_dir: Path, metadata: dict[str, Any]) -> None:

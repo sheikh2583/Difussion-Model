@@ -1,0 +1,131 @@
+Files already downloaded and verified
+Files already downloaded and verified
+Resuming from results/scratch_vae/checkpoints/scratch_vae_epoch10.pt at completed epoch 10
+Scratch KL-VAE settings: batch=128, epochs=60, lr=0.0001, weight_decay=0.0001, KL=1e-05->0.0001 over 20 epochs, grad_clip=1, amp=True
+epoch=11/60 beta=0.00005500 loss=0.002768
+epoch=12/60 beta=0.00005950 loss=0.002714
+epoch=13/60 beta=0.00006400 loss=0.002657
+epoch=14/60 beta=0.00006850 loss=0.002619
+epoch=15/60 beta=0.00007300 loss=0.002583
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             11.3973
+PSNR > 30 dB:         32.4405 dB
+minimum latent std > .1: 0.694025
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+epoch=16/60 beta=0.00007750 loss=0.002558
+epoch=17/60 beta=0.00008200 loss=0.002858
+epoch=18/60 beta=0.00008650 loss=0.002570
+epoch=19/60 beta=0.00009100 loss=0.002516
+epoch=20/60 beta=0.00009550 loss=0.002500
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             12.5776
+PSNR > 30 dB:         32.7455 dB
+minimum latent std > .1: 0.767913
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+epoch=21/60 beta=0.00010000 loss=0.002482
+epoch=22/60 beta=0.00010000 loss=0.002460
+epoch=23/60 beta=0.00010000 loss=0.002427
+epoch=24/60 beta=0.00010000 loss=0.002403
+epoch=25/60 beta=0.00010000 loss=0.002379
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             12.7168
+PSNR > 30 dB:         32.9894 dB
+minimum latent std > .1: 0.814516
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+epoch=26/60 beta=0.00010000 loss=0.002359
+epoch=27/60 beta=0.00010000 loss=0.002347
+epoch=28/60 beta=0.00010000 loss=0.002316
+epoch=29/60 beta=0.00010000 loss=0.002301
+epoch=30/60 beta=0.00010000 loss=0.002285
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             13.5387
+PSNR > 30 dB:         33.1362 dB
+minimum latent std > .1: 0.842074
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+epoch=31/60 beta=0.00010000 loss=0.002270
+epoch=32/60 beta=0.00010000 loss=0.002255
+epoch=33/60 beta=0.00010000 loss=0.002241
+epoch=34/60 beta=0.00010000 loss=0.002228
+epoch=35/60 beta=0.00010000 loss=0.002213
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             13.3803
+PSNR > 30 dB:         33.3270 dB
+minimum latent std > .1: 0.859270
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+epoch=36/60 beta=0.00010000 loss=0.002201
+epoch=37/60 beta=0.00010000 loss=0.002190
+epoch=38/60 beta=0.00010000 loss=0.002178
+epoch=39/60 beta=0.00010000 loss=0.002168
+epoch=40/60 beta=0.00010000 loss=0.002158
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             14.0203
+PSNR > 30 dB:         33.4200 dB
+minimum latent std > .1: 0.872236
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+epoch=41/60 beta=0.00010000 loss=0.002148
+epoch=42/60 beta=0.00010000 loss=0.002140
+epoch=43/60 beta=0.00010000 loss=0.002130
+epoch=44/60 beta=0.00010000 loss=0.002121
+epoch=45/60 beta=0.00010000 loss=0.002113
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             13.9820
+PSNR > 30 dB:         33.4720 dB
+minimum latent std > .1: 0.886191
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+epoch=46/60 beta=0.00010000 loss=0.002104
+epoch=47/60 beta=0.00010000 loss=0.002098
+epoch=48/60 beta=0.00010000 loss=0.002090
+epoch=49/60 beta=0.00010000 loss=0.002082
+epoch=50/60 beta=0.00010000 loss=0.002077
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             13.8085
+PSNR > 30 dB:         33.6164 dB
+minimum latent std > .1: 0.898632
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+epoch=51/60 beta=0.00010000 loss=0.002067
+epoch=52/60 beta=0.00010000 loss=0.002062
+epoch=53/60 beta=0.00010000 loss=0.002056
+epoch=54/60 beta=0.00010000 loss=0.002050
+epoch=55/60 beta=0.00010000 loss=0.002048
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             15.0237
+PSNR > 30 dB:         33.6719 dB
+minimum latent std > .1: 0.907536
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+epoch=56/60 beta=0.00010000 loss=0.002037
+epoch=57/60 beta=0.00010000 loss=0.002033
+epoch=58/60 beta=0.00010000 loss=0.002028
+epoch=59/60 beta=0.00010000 loss=0.002020
+epoch=60/60 beta=0.00010000 loss=0.002018
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             14.2381
+PSNR > 30 dB:         33.7268 dB
+minimum latent std > .1: 0.906543
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.
+
+=== PROJECT ACCEPTANCE GATE (strict project threshold) ===
+rFID < 5:             14.2381
+PSNR > 30 dB:         33.7268 dB
+minimum latent std > .1: 0.906543
+GATE RESULT: FAIL
+This MSE+KL baseline may be blurry; no perceptual/adversarial loss was added.

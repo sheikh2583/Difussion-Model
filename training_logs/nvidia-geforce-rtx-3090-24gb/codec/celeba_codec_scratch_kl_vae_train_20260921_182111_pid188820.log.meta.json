@@ -1,0 +1,23 @@
+{
+  "algorithm": "scratch_kl_vae",
+  "annotated_utc": "2026-09-22T06:21:46.331734+00:00",
+  "annotation_schema_version": 2,
+  "annotation_source": "scripts/annotate_training_log_spaces.py",
+  "checkpoint_epoch": 60,
+  "dataset": "celeba",
+  "exit_status": 2,
+  "finished_utc": "2026-09-21T13:40:20Z",
+  "gpu_memory_gb": 24,
+  "gpu_name": "NVIDIA GeForce RTX 3090",
+  "identification_source": "operator-confirmed historical lab hardware",
+  "log_path_at_annotation": "training_logs/nvidia-geforce-rtx-3090-24gb/codec/celeba_codec_scratch_kl_vae_train_20260921_182111_pid188820.log",
+  "machine_label": "linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb",
+  "notes": "PSNR and latent-spread gates passed; reconstruction FID gate failed.",
+  "objective": "mse_plus_kl",
+  "representation_space": "codec",
+  "result": "rejected_by_project_gate",
+  "started_utc": "2026-09-21T12:21:11Z",
+  "training_type": "scratch_codec",
+  "transcript_bytes": 5184,
+  "transcript_sha256": "aecca3fda141129a3c84e440346eeaa767c2077b81bf56b171351ef805f114cc"
+}

@@ -60,6 +60,23 @@ else
 fi
 ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)
 
+if [[ -x "$PROJECT_ROOT/venv/bin/python" ]]; then
+  PYTHON="$PROJECT_ROOT/venv/bin/python"
+else
+  PYTHON="python3"
+fi
+source scripts/linux/workflow_guard.sh
+IDENTITY_ARGS=(
+  --launcher scripts/linux/train_all_datasets.sh
+  --launcher scripts/linux/train_all.sh
+)
+for config in config/*_full.json config/*_celeba64.json \
+  config/mf_v3_exact_jvp_b128.json config/cifar_legacy/*.json; do
+  [[ -f "$config" ]] && IDENTITY_ARGS+=(--config "$config")
+done
+workflow_guard_start "train_all_datasets.sh" "$DRY_RUN" "${IDENTITY_ARGS[@]}"
+export DIFFUSION_LIFECYCLE_MODE="$MODE"
+
 RUN_TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 HOST_TOKEN="$(hostname | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-')"
 HOST_TOKEN="${HOST_TOKEN%-}"
@@ -115,12 +132,18 @@ for dataset in "${DATASETS[@]}"; do
       continue
     fi
 
+    workflow_guard_verify_source "$DRY_RUN"
+
     log_relative="$PIXEL_LOG_DIR/${dataset}_pixel_${algorithm}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
     {
       echo "[run] training_type=pixel_diffusion"
       echo "[run] representation_space=pixel"
       echo "[run] dataset=$dataset"
       echo "[run] algorithm=$algorithm"
+      echo "[run] source_identity_sha256=${DIFFUSION_SOURCE_IDENTITY}"
+      echo "[run] lifecycle_mode=$MODE"
+      echo "[run] parent_suite_timestamp=$DIFFUSION_PARENT_SUITE_TIMESTAMP"
+      echo "[run] checkpoint_series=resolved-by-train.py"
       echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       echo "[run] command=${command[*]}"
     } | tee "$log_relative"

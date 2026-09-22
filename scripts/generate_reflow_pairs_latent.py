@@ -11,7 +11,6 @@ import json
 import os
 import sys
 from collections.abc import Mapping
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +26,7 @@ from models.backbone import build_backbone
 from utils.checkpoint_provenance import build_provenance, validate_provenance
 from utils.checkpoints import extract_model_state
 from utils.device import resolve_device
+from utils.gpu_lock import DEFAULT_LOCK_PATH, acquire_gpu_lock
 
 
 PAIR_SHAPE = (3, 16, 16)
@@ -51,29 +51,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--chunk-size", type=int, default=1000)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--lock-file", default="results/.lock")
+    parser.add_argument("--lock-file", default=str(DEFAULT_LOCK_PATH))
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
-
-
-@contextmanager
-def gpu_lock(path: Path):
-    token = f"pid={os.getpid()}\ncommand=generate_reflow_pairs_latent.py\n"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError as exc:
-        raise RuntimeError(f"Project GPU lock already exists: {path}") from exc
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(token)
-        yield
-    finally:
-        try:
-            if path.read_text(encoding="utf-8") == token:
-                path.unlink()
-        except FileNotFoundError:
-            pass
 
 
 def atomic_torch_save(payload: Any, path: Path) -> None:
@@ -249,7 +229,9 @@ def _generate(args: argparse.Namespace) -> None:
 
 def main() -> None:
     args = parse_args()
-    with gpu_lock(Path(args.lock_file).resolve()):
+    with acquire_gpu_lock(
+        Path(args.lock_file).resolve(), command="generate_reflow_pairs_latent.py"
+    ):
         _generate(args)
 
 

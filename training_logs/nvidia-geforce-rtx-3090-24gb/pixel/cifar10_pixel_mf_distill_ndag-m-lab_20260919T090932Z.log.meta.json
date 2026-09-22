@@ -1,0 +1,16 @@
+{
+  "algorithm": "mf_distill",
+  "annotated_utc": "2026-09-22T06:16:44.349053+00:00",
+  "annotation_schema_version": 2,
+  "annotation_source": "scripts/annotate_training_log_spaces.py",
+  "dataset": "cifar10",
+  "gpu_memory_gb": 24,
+  "gpu_name": "NVIDIA GeForce RTX 3090",
+  "identification_source": "operator-confirmed historical lab hardware",
+  "log_path_at_annotation": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_distill_ndag-m-lab_20260919T090932Z.log",
+  "machine_label": "linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb",
+  "representation_space": "pixel",
+  "training_type": "pixel_diffusion",
+  "transcript_bytes": 7482,
+  "transcript_sha256": "1da3212c2c6ff4e28febcb08c426114a738451c0a13666e8efb7c40febe69bba"
+}

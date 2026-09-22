@@ -1,0 +1,265 @@
+{
+  "moves": [
+    {
+      "algorithm": "fm_lognorm",
+      "dataset": "celeba",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/celeba_pixel_fm_lognorm_ndag-m-lab_20260919T131051Z.log",
+      "old_path": "training_logs/celeba_fm_lognorm_ndag-m-lab_20260919T131051Z.log",
+      "post_sha256": "964362fa5d8f0c0dde6d03f0b03c567e7d5534a2be264b68e36700237085c90d",
+      "pre_sha256": "964362fa5d8f0c0dde6d03f0b03c567e7d5534a2be264b68e36700237085c90d",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm_lognorm",
+      "dataset": "celeba",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/celeba_pixel_fm_lognorm_ndag-m-lab_20260919T133915Z.log",
+      "old_path": "training_logs/celeba_fm_lognorm_ndag-m-lab_20260919T133915Z.log",
+      "post_sha256": "15329fca3d3f11ad37c21d42ac175da127deeda6b1e59dc9f4c0586cf9c211c0",
+      "pre_sha256": "15329fca3d3f11ad37c21d42ac175da127deeda6b1e59dc9f4c0586cf9c211c0",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm",
+      "dataset": "celeba",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/celeba_pixel_fm_ndag-m-lab_20260919T131051Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/celeba_fm_ndag-m-lab_20260919T131051Z.log",
+      "post_sha256": "78bf9ae6920f54b883366b03a7871d5a0c107f6fc44536cc2bf2072142ed0d2c",
+      "pre_sha256": "78bf9ae6920f54b883366b03a7871d5a0c107f6fc44536cc2bf2072142ed0d2c",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm",
+      "dataset": "celeba",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/celeba_pixel_fm_ndag-m-lab_20260919T133915Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/celeba_fm_ndag-m-lab_20260919T133915Z.log",
+      "post_sha256": "55f2562607bc28bfd36b6f7af11b269adb67e929b9860009ee773a4e485e1bf8",
+      "pre_sha256": "55f2562607bc28bfd36b6f7af11b269adb67e929b9860009ee773a4e485e1bf8",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm_lognorm",
+      "dataset": "celeba_latent",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/latent/celeba_latent_fm_lognorm_ndag-m-lab_20260922T051045Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/celeba_latent_fm_lognorm_ndag-m-lab_20260922T051045Z.log",
+      "post_sha256": "0d65fa485baf89d259f0029ba3b0d95d2d5bd0ef0352439a3e1ac028442cc113",
+      "pre_sha256": "0d65fa485baf89d259f0029ba3b0d95d2d5bd0ef0352439a3e1ac028442cc113",
+      "representation": "latent"
+    },
+    {
+      "algorithm": "fm",
+      "dataset": "celeba_latent",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/latent/celeba_latent_fm_ndag-m-lab_20260921T173245Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/celeba_latent_fm_ndag-m-lab_20260921T173245Z.log",
+      "post_sha256": "7d4ad9399b73c49b29dac726c08f72aa5cab8b3e1ef698a9577a2688540f56ab",
+      "pre_sha256": "7d4ad9399b73c49b29dac726c08f72aa5cab8b3e1ef698a9577a2688540f56ab",
+      "representation": "latent"
+    },
+    {
+      "algorithm": "fm",
+      "dataset": "celeba_latent",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/latent/celeba_latent_fm_ndag-m-lab_20260922T051045Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/celeba_latent_fm_ndag-m-lab_20260922T051045Z.log",
+      "post_sha256": "9bebcde145aa8284bdb3b4a5435cb775b9e2784cf69075422efa7405b72e188f",
+      "pre_sha256": "9bebcde145aa8284bdb3b4a5435cb775b9e2784cf69075422efa7405b72e188f",
+      "representation": "latent"
+    },
+    {
+      "algorithm": "consistency",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_consistency_ndag-m-lab_20260919T090932Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_consistency_ndag-m-lab_20260919T090932Z.log",
+      "post_sha256": "2a6d62bde60d1de4edcb6493ee9746e77e3c2440cb415007f0535505d39a9341",
+      "pre_sha256": "2a6d62bde60d1de4edcb6493ee9746e77e3c2440cb415007f0535505d39a9341",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm_lognorm",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_fm_lognorm_ndag-m-lab_20260918T195801Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_fm_lognorm_ndag-m-lab_20260918T195801Z.log",
+      "post_sha256": "653ce1c6078f0f365d50c1ac88cfcaf8b48edbb443415feae9fedbd6f3d679b7",
+      "pre_sha256": "653ce1c6078f0f365d50c1ac88cfcaf8b48edbb443415feae9fedbd6f3d679b7",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm_lognorm",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_fm_lognorm_ndag-m-lab_20260919T082902Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_fm_lognorm_ndag-m-lab_20260919T082902Z.log",
+      "post_sha256": "5e0b222e9c28108cf222188b9bcc4d6ff260ff8b9f67b69af7d8487aff6f8a0c",
+      "pre_sha256": "5e0b222e9c28108cf222188b9bcc4d6ff260ff8b9f67b69af7d8487aff6f8a0c",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm_lognorm",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_fm_lognorm_ndag-m-lab_20260919T090248Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_fm_lognorm_ndag-m-lab_20260919T090248Z.log",
+      "post_sha256": "7a218cb51dfe1899bfee13c480b2b8d002a869f4c11a3942aed056d52940249e",
+      "pre_sha256": "7a218cb51dfe1899bfee13c480b2b8d002a869f4c11a3942aed056d52940249e",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm_lognorm",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_fm_lognorm_ndag-m-lab_20260919T090932Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_fm_lognorm_ndag-m-lab_20260919T090932Z.log",
+      "post_sha256": "460c464b3baaccbb909cb9f38358ee6f088381fb936070bfff9dcfcfc9a61355",
+      "pre_sha256": "460c464b3baaccbb909cb9f38358ee6f088381fb936070bfff9dcfcfc9a61355",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_fm_ndag-m-lab_20260918T195801Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_fm_ndag-m-lab_20260918T195801Z.log",
+      "post_sha256": "6aa025ec1ade7b705f0bc9b0e6b8b7e44068f408c020fe833edc6e9d71012b1d",
+      "pre_sha256": "6aa025ec1ade7b705f0bc9b0e6b8b7e44068f408c020fe833edc6e9d71012b1d",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_fm_ndag-m-lab_20260919T082902Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_fm_ndag-m-lab_20260919T082902Z.log",
+      "post_sha256": "a404188a49230d7eea77ec5f1637e14d996de370c4cbc08e3c4fc5464074fea1",
+      "pre_sha256": "a404188a49230d7eea77ec5f1637e14d996de370c4cbc08e3c4fc5464074fea1",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_fm_ndag-m-lab_20260919T090248Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_fm_ndag-m-lab_20260919T090248Z.log",
+      "post_sha256": "b57841c9950dae128cd616bd7ca037f967c7d74a4ab922337d3bf2d396189a6b",
+      "pre_sha256": "b57841c9950dae128cd616bd7ca037f967c7d74a4ab922337d3bf2d396189a6b",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "fm",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_fm_ndag-m-lab_20260919T090932Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_fm_ndag-m-lab_20260919T090932Z.log",
+      "post_sha256": "60f5bb801755acd7f7c46f7700a35dfaf2cc1b3b14e2f32e7a62c4b00455a728",
+      "pre_sha256": "60f5bb801755acd7f7c46f7700a35dfaf2cc1b3b14e2f32e7a62c4b00455a728",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "mf_distill",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_distill_20260919T133929Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_distill_20260919T133929Z.log",
+      "post_sha256": "8e416ae55d6cbd9c05739e88c7504f51a67f1514c0b7bee18da44c00b7d355ca",
+      "pre_sha256": "8e416ae55d6cbd9c05739e88c7504f51a67f1514c0b7bee18da44c00b7d355ca",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "mf_distill",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_distill_ndag-m-lab_20260918T195801Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_distill_ndag-m-lab_20260918T195801Z.log",
+      "post_sha256": "3e4639932eb21da62d21bfec57812fef7fa268e4d6beac439e34d32869a1a067",
+      "pre_sha256": "3e4639932eb21da62d21bfec57812fef7fa268e4d6beac439e34d32869a1a067",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "mf_distill",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_distill_ndag-m-lab_20260919T082902Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_distill_ndag-m-lab_20260919T082902Z.log",
+      "post_sha256": "14e585b51de6762a99172383c1947b07c8edd1b28bdc1ad671bb71aa7e8eadfa",
+      "pre_sha256": "14e585b51de6762a99172383c1947b07c8edd1b28bdc1ad671bb71aa7e8eadfa",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "mf_distill",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_distill_ndag-m-lab_20260919T090248Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_distill_ndag-m-lab_20260919T090248Z.log",
+      "post_sha256": "a7cf1129061b2f4956edd478445317b34bafc97b5191312c494179a6fc7934d8",
+      "pre_sha256": "a7cf1129061b2f4956edd478445317b34bafc97b5191312c494179a6fc7934d8",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "mf_distill",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_distill_ndag-m-lab_20260919T090932Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_distill_ndag-m-lab_20260919T090932Z.log",
+      "post_sha256": "1da3212c2c6ff4e28febcb08c426114a738451c0a13666e8efb7c40febe69bba",
+      "pre_sha256": "1da3212c2c6ff4e28febcb08c426114a738451c0a13666e8efb7c40febe69bba",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "mf",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_ndag-m-lab_20260918T195801Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_ndag-m-lab_20260918T195801Z.log",
+      "post_sha256": "072e83493271ef177d0b6d53a23ab552888f8945e7f643f06e1b03b2da2eda6f",
+      "pre_sha256": "072e83493271ef177d0b6d53a23ab552888f8945e7f643f06e1b03b2da2eda6f",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "mf",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_ndag-m-lab_20260919T082902Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_ndag-m-lab_20260919T082902Z.log",
+      "post_sha256": "727681c1d793691f9077f5f071f26211af138d4ec1cb7d6df88afe7cfabf518c",
+      "pre_sha256": "727681c1d793691f9077f5f071f26211af138d4ec1cb7d6df88afe7cfabf518c",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "mf",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_ndag-m-lab_20260919T090248Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_ndag-m-lab_20260919T090248Z.log",
+      "post_sha256": "6f3e39dbc80d73b0330aec3f30ecbcb467682bfdb0d447895dc9189e47d0c494",
+      "pre_sha256": "6f3e39dbc80d73b0330aec3f30ecbcb467682bfdb0d447895dc9189e47d0c494",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "mf",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_mf_ndag-m-lab_20260919T090932Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_ndag-m-lab_20260919T090932Z.log",
+      "post_sha256": "258d53f39c275b78281b2ba651cbcaf51beabd94296faa4d944810b3178982b4",
+      "pre_sha256": "258d53f39c275b78281b2ba651cbcaf51beabd94296faa4d944810b3178982b4",
+      "representation": "pixel"
+    },
+    {
+      "algorithm": "reflow",
+      "dataset": "cifar10",
+      "move_utc": "2026-09-22T06:52:36.730882+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10_pixel_reflow_ndag-m-lab_20260919T090932Z.log",
+      "old_path": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_reflow_ndag-m-lab_20260919T090932Z.log",
+      "post_sha256": "fcdf31b49f9c03c73f299b40668efe98c7ae346aceda4591b563724d617939af",
+      "pre_sha256": "fcdf31b49f9c03c73f299b40668efe98c7ae346aceda4591b563724d617939af",
+      "representation": "pixel"
+    }
+  ],
+  "schema_version": 1
+}

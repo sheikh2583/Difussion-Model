@@ -38,39 +38,43 @@ $LogFile = Join-Path $ResultsDir "tournament_run_${Timestamp}_pid${PID}.log"
 $LockFile = Join-Path $ResultsDir ".lock"
 $PowerShellExe = (Get-Process -Id $PID).Path
 $TranscriptStarted = $false
+$LockToken = $null
+$LockOwned = $false
+$SourceManifest = $null
 
-function Invoke-WithGpuLock {
-    param(
-        [string]$Description,
-        [scriptblock]$Action
+if (-not $DryRun) {
+    $AcquireArgs = @(
+        "scripts/workflow_guard.py", "lock-acquire",
+        "--lock-file", $LockFile, "--command", "run_full_tournament.ps1",
+        "--owner-pid", "$PID"
     )
-
-    $Token = "pid=$PID`ncommand=run_full_tournament.ps1`nstep=$Description`n"
-    try {
-        $Stream = [System.IO.File]::Open(
-            $LockFile,
-            [System.IO.FileMode]::CreateNew,
-            [System.IO.FileAccess]::Write,
-            [System.IO.FileShare]::None
-        )
-    } catch [System.IO.IOException] {
-        throw "GPU lock already exists: $LockFile. Wait for the active job to finish, or remove it only after confirming it is stale."
+    if ($env:DIFFUSION_GPU_LOCK_TOKEN) {
+        $AcquireArgs += @("--token", $env:DIFFUSION_GPU_LOCK_TOKEN)
     }
-
-    try {
-        $Bytes = [System.Text.Encoding]::UTF8.GetBytes($Token)
-        $Stream.Write($Bytes, 0, $Bytes.Length)
-        $Stream.Dispose()
-        & $Action
-    } finally {
-        if ($null -ne $Stream) { $Stream.Dispose() }
-        if (Test-Path -LiteralPath $LockFile) {
-            $Current = Get-Content -LiteralPath $LockFile -Raw
-            if ($Current -eq $Token) {
-                Remove-Item -LiteralPath $LockFile -Force
-            }
-        }
+    $Lease = (& $Python @AcquireArgs).Trim().Split("`t")
+    if ($LASTEXITCODE -ne 0 -or $Lease.Count -ne 2) {
+        throw "Could not acquire the shared GPU lock."
     }
+    $LockToken = $Lease[0]
+    $LockOwned = $Lease[1] -eq "true"
+    $env:DIFFUSION_GPU_LOCK_TOKEN = $LockToken
+    if (-not $env:DIFFUSION_PARENT_SUITE_TIMESTAMP) {
+        $env:DIFFUSION_PARENT_SUITE_TIMESTAMP = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+    }
+    $SourceManifest = "results/source_manifests/$($env:DIFFUSION_PARENT_SUITE_TIMESTAMP)_pid${PID}.json"
+    $IdentityArgs = @(
+        "scripts/workflow_guard.py", "source-freeze", "--manifest", $SourceManifest,
+        "--launcher", "scripts/windows/run_full_tournament.ps1"
+    )
+    Get-ChildItem config -Filter "*_full.json" | ForEach-Object {
+        $IdentityArgs += @("--config", $_.FullName)
+    }
+    Get-ChildItem config -Filter "*_celeba64.json" | ForEach-Object {
+        $IdentityArgs += @("--config", $_.FullName)
+    }
+    $env:DIFFUSION_SOURCE_IDENTITY = (& $Python @IdentityArgs).Trim()
+    $env:DIFFUSION_SOURCE_MANIFEST = $SourceManifest
+    $env:DIFFUSION_LIFECYCLE_MODE = $Mode
 }
 
 function Invoke-Step {
@@ -91,17 +95,16 @@ function Invoke-Step {
         return
     }
 
+    & $Python scripts/workflow_guard.py source-verify --manifest $env:DIFFUSION_SOURCE_MANIFEST | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Training source identity changed." }
+
     $RunCommand = {
         & $Executable @Arguments
         if ($LASTEXITCODE -ne 0) {
             throw "Step failed with exit code ${LASTEXITCODE}: $Description"
         }
     }
-    if ($UseGpuLock) {
-        Invoke-WithGpuLock -Description $Description -Action $RunCommand
-    } else {
-        & $RunCommand
-    }
+    & $RunCommand
 }
 
 function Assert-FileReady {
@@ -135,11 +138,6 @@ function Invoke-Algorithm {
         [string]$Description
     )
     $Checkpoint = Resolve-Checkpoint -RunName $RunName -ClassName $ClassName
-    if ($Mode -eq "continue" -and (Test-Path -LiteralPath $Checkpoint)) {
-        Write-Host ""
-        Write-Host "[skip] $Description - checkpoint already exists: $Checkpoint"
-        return
-    }
     Assert-FileReady -Path $Config -Purpose "config"
     $TrainArguments = @(
         "train.py", "--algorithm", $Algorithm, "--config", $Config,
@@ -259,4 +257,8 @@ try {
     Write-Host "Tournament workflow complete. Log: $LogFile" -ForegroundColor Green
 } finally {
     if ($TranscriptStarted) { Stop-Transcript | Out-Null }
+    if ($LockOwned -and $LockToken) {
+        & $Python scripts/workflow_guard.py lock-release `
+            --lock-file $LockFile --token $LockToken | Out-Null
+    }
 }

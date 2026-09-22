@@ -1,0 +1,16 @@
+{
+  "algorithm": "fm",
+  "annotated_utc": "2026-09-22T06:16:44.233250+00:00",
+  "annotation_schema_version": 2,
+  "annotation_source": "scripts/annotate_training_log_spaces.py",
+  "dataset": "celeba",
+  "gpu_memory_gb": 24,
+  "gpu_name": "NVIDIA GeForce RTX 3090",
+  "identification_source": "operator-confirmed historical lab hardware",
+  "log_path_at_annotation": "training_logs/nvidia-geforce-rtx-3090-24gb/pixel/celeba_pixel_fm_ndag-m-lab_20260919T131051Z.log",
+  "machine_label": "linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb",
+  "representation_space": "pixel",
+  "training_type": "pixel_diffusion",
+  "transcript_bytes": 16549,
+  "transcript_sha256": "78bf9ae6920f54b883366b03a7871d5a0c107f6fc44536cc2bf2072142ed0d2c"
+}

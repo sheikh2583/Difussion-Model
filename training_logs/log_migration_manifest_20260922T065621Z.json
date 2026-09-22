@@ -1,0 +1,35 @@
+{
+  "moves": [
+    {
+      "algorithm": null,
+      "dataset": "celeba",
+      "move_utc": "2026-09-22T06:56:21.037139+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/codec/celeba_codec_pretrained_vq_f4_validate_20260921_225854_pid300621.log",
+      "old_path": "results/codecs/celeba_vq_f4/logs/validate_20260921_225854_pid300621.log",
+      "post_sha256": "afad825d4a137e75e095dfc100c174e05854fb88cb28a1429bd82f76578a40fd",
+      "pre_sha256": "afad825d4a137e75e095dfc100c174e05854fb88cb28a1429bd82f76578a40fd",
+      "representation": "codec"
+    },
+    {
+      "algorithm": "scratch_kl_vae",
+      "dataset": "celeba",
+      "move_utc": "2026-09-22T06:56:21.037139+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/codec/celeba_codec_scratch_kl_vae_train_20260921_182111_pid188820.log",
+      "old_path": "results/scratch_vae/logs/train_20260921_182111_pid188820.log",
+      "post_sha256": "aecca3fda141129a3c84e440346eeaa767c2077b81bf56b171351ef805f114cc",
+      "pre_sha256": "aecca3fda141129a3c84e440346eeaa767c2077b81bf56b171351ef805f114cc",
+      "representation": "codec"
+    },
+    {
+      "algorithm": "scratch_kl_vae",
+      "dataset": "celeba",
+      "move_utc": "2026-09-22T06:56:21.037139+00:00",
+      "new_path": "training_logs/nvidia-geforce-rtx-3090-24gb/codec/celeba_codec_scratch_kl_vae_train.log",
+      "old_path": "results/scratch_vae/train.log",
+      "post_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "pre_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "representation": "codec"
+    }
+  ],
+  "schema_version": 1
+}

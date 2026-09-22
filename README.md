@@ -74,7 +74,9 @@ the retained run evidence, not to publication milestones.
 | 21 Sep 2026 — generic pretrained latent attempt | Can a frozen Stable Diffusion VAE remove scratch-codec training cost? | Evaluated `stabilityai/sd-vae-ft-mse` at factor 8. | rFID `16.1529` and PSNR `22.3193 dB` failed; its `4×8×8` state also forced a `1×1` U-Net bottleneck. Rejected. |
 | 21 Sep 2026 — face-specific codec selection | Does domain-specific pretraining improve the latent boundary? | Downloaded, pinned, validated, and froze statistics for `CompVis/ldm-celebahq-256` VQ-f4. | rFID improved to `10.0613` and PSNR to `27.3798 dB`, still below the strict gates. Structural and spread checks passed, so the user accepted an explicit recorded override. |
 | 21–22 Sep 2026 — latent dataset construction | Can codec identity and normalization be made reproducible? | Cached deterministic quantized train/validation latents using frozen channel statistics and a content-addressed manifest. | Published 162,752 train and 19,867 validation tensors of shape `3×16×16`; ambiguity and hash mismatches are hard failures. |
-| 22 Sep 2026 — latent generative study | Does the smaller spatial state reduce resource use while preserving algorithm trends? | Began the serialized FM → FM-LN → MF → teacher-dependent latent suite. Added bounded decoding, separate decoder timing, unbounded latent sampling, and explicit pixel/latent log metadata. | The suite is still active. Partial losses and timing are monitoring evidence, not final thesis results; final latent FID/IS must be regenerated after all jobs finish. |
+| 21–22 Sep 2026 — first latent generative runs | Does the smaller spatial state reduce resource use while preserving algorithm trends? | Completed latent FM and FM-LN through epoch 100 using the frozen VQ-f4 cache. Added bounded decoding, separate decoder timing, unbounded latent sampling, and isolated latent result directories. | Both populated latent checkpoint series are complete and provenance-compatible. MF, MF-Distill, Consistency, and Reflow remain pending; no partial latent metric is treated as a final cross-method result. |
+| 22 Sep 2026 — post-training isolation hardening | Can the remaining unattended suite run without overlapping GPU work or losing source identity? | Added one ownership-checked, nestable GPU lock; froze training-relevant source/config inputs at suite startup; added source verification between jobs; made completed-run skipping provenance-aware; and separated explicit evaluation from continuation. | CPU/static validation passed. The remaining latent jobs can continue serially without rerunning completed FM/FM-LN or implicitly reevaluating them. |
+| 22 Sep 2026 — evidence normalization and audit | Can historical logs and checkpoints be identified consistently without modifying measured output? | Migrated central transcripts into `pixel/`, `latent/`, and `codec/`; normalized all 48 sidecars to schema 2; recorded RTX 3090 24 GB identity and transcript digests; rebuilt the catalog; and audited numbered checkpoint series and ZIP archives. | All migrated transcript digests remained unchanged. Fourteen populated diffusion checkpoint series passed filename/archive/payload/provenance checks; historical exceptions are documented rather than silently rewritten. |
 
 ### Quantitative gains already supported by completed runs
 
@@ -87,8 +89,9 @@ the retained run evidence, not to publication milestones.
 | CelebA pixel to latent state size | `3×64×64 → 3×16×16` (`16×` fewer spatial values) | Expected activation/throughput gain; it does not reduce parameter count or erase codec error. |
 
 These percentages describe the retained 5,000-sample evaluations. They should
-not be generalized beyond the recorded configurations, and the active latent
-study is deliberately excluded from the completed-results table.
+not be generalized beyond the recorded configurations, and the latent study is
+deliberately excluded from the completed-results table until all six methods
+have compatible final evaluations.
 
 ## Research questions
 
@@ -239,6 +242,32 @@ because both use three input/output channels and channel multipliers
 `16→8→4→2`, while the pixel path downsamples `64→32→16→8`. Latent samples are
 unbounded normalized states and must never be clamped to `[-1,1]` before codec
 decoding.
+
+### Stage 7 — Isolation and evidence normalization before continuation
+
+After latent FM and FM-LN reached epoch 100 and all training processes exited,
+the operational layer was hardened before launching the remaining methods. A
+single repository GPU lock now rejects competing workflows, supports nested
+suite calls through an inherited ownership token, and requires explicit stale
+recovery. Each suite freezes the live training-relevant source and selected
+configurations, then verifies them before every later GPU job.
+
+Historical transcript bytes were not edited. Their sidecars were normalized to
+schema 2 with representation, dataset, algorithm, canonical machine/GPU
+identity, byte count, and SHA-256. The confirmed lab identity is
+`linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb`, corresponding to an NVIDIA
+GeForce RTX 3090 with 24 GB of memory. The catalog contains 48 fully identified
+rows. Central transcripts occupy explicit `pixel/`, `latent/`, or `codec/`
+directories, and migration manifests retain matching pre/post transcript
+digests.
+
+The checkpoint audit found 14 populated diffusion series with consistent
+algorithm classes, epoch metadata, provenance version, and matching ZIP
+archives. Two historical lifecycle details remain visible: CelebA pixel FM-LN
+`run_1` stopped at epoch 90 before the completed `run_2`, and MF-Distill has an
+empty reserved `run_1` followed by the completed `run_2`. Scratch-codec
+checkpoints retain their older flat codec-specific layout so historical resume
+paths are not rewritten.
 
 ## Algorithm and dependency map
 
@@ -668,35 +697,34 @@ Always preview first:
 
 ```bash
 ./scripts/linux/train_celeba_latent.sh --dry-run \
-  --machine-label NDAG-M-Lab-RTX3090 \
-  --mode fresh
-```
-
-Start a new suite:
-
-```bash
-./scripts/linux/train_celeba_latent.sh \
-  --machine-label NDAG-M-Lab-RTX3090 \
-  --mode fresh
-```
-
-Resume compatible interrupted work:
-
-```bash
-./scripts/linux/train_celeba_latent.sh \
-  --machine-label NDAG-M-Lab-RTX3090 \
   --mode continue
+```
+
+Continue the current study, skipping compatible completed FM and FM-LN runs:
+
+```bash
+./scripts/linux/train_celeba_latent.sh \
+  --mode continue
+```
+
+On a clean checkout with no latent checkpoint series, start a new suite with:
+
+```bash
+./scripts/linux/train_celeba_latent.sh \
+  --mode fresh
 ```
 
 The launcher serializes all six GPU jobs, resolves the FM teacher dependency,
 generates missing Reflow pairs, and writes a separate timestamped terminal log
-for each job. It does not run `git add`, commit, or push.
+for each job. It automatically records the detected GPU name, memory, and
+machine label; `--machine-label` remains an explicit override. It does not run
+`git add`, commit, or push.
 
 Train only one latent method when debugging or recovering:
 
 ```bash
 ./scripts/linux/train_celeba_latent.sh --only fm_lognorm \
-  --machine-label NDAG-M-Lab-RTX3090 --mode continue
+  --mode continue
 ```
 
 ### Windows: train latent methods explicitly
@@ -791,6 +819,13 @@ provenance. Numbered run directories avoid silently overwriting an earlier
 experiment. Published checkpoint ZIPs include the tensor payload,
 configuration, environment metadata, and epoch metadata.
 
+The 22 September 2026 audit verified every populated numbered diffusion series:
+14 series had matching checkpoint/archive epoch sets and internally consistent
+payload epoch, algorithm, dataset, and version-1 provenance. Historical
+checkpoints predate the frozen suite source-identity field; new checkpoints
+record it. The scratch VAE remains a separately classified codec experiment and
+is not migrated by the diffusion checkpoint organizer.
+
 Use `continue` when the same compatible run was interrupted. Use `fresh` for a
 deliberately separate result. Do not point two active jobs at the same result
 directory.
@@ -806,22 +841,55 @@ training_logs/nvidia-geforce-rtx-3090-24gb/
   latent/
     celeba_latent_fm_<host>_<UTC timestamp>.log
     celeba_latent_fm_lognorm_<host>_<UTC timestamp>.log
+  codec/
+    <codec-validation-or-training transcript>.log
 ```
 
-Every new transcript also records `representation_space=pixel` or
-`representation_space=latent`. Historical transcripts currently have adjacent
-`.log.meta.json` sidecars supplying the same distinction without modifying
-their bytes. Rebuild or inspect that classification with:
+Every new transcript records its representation, frozen source identity,
+selected config digest, lifecycle mode, resolved checkpoint series, parent-suite
+timestamp, detected GPU name/memory, and machine label. On the current lab
+system the automatic label is
+`linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb`.
+
+Historical central transcripts were moved into the explicit representation
+layout without changing their bytes; matching pre/post digests are recorded in
+the timestamped `training_logs/log_migration_manifest_*.json` files. All 48
+known transcripts have schema-2 sidecars containing representation, dataset,
+algorithm, machine/GPU identification, byte count, and transcript SHA-256.
+Suite/aggregate transcripts use `algorithm=multiple` instead of leaving the
+field blank.
+
+Inspect or rebuild the catalog with:
 
 ```bash
-python scripts/annotate_training_log_spaces.py
 python scripts/catalog_training_logs.py --dry-run
+python scripts/catalog_training_logs.py
 ```
 
+If another confirmed historical machine must be normalized, preview before
+writing sidecars:
+
+```bash
+python scripts/annotate_training_log_spaces.py \
+  --machine-label <label> --gpu-name '<GPU name>' --gpu-memory-gb <GiB>
+```
+
+Add `--apply` only after verifying that all discovered transcripts belong to
+that machine. This operation changes sidecars, never transcript bytes.
+
 An open log stays at its original path until the writer exits. Do not rename,
-truncate, delete, stage, or reorganize it during training. The verified
-post-training path migration is specified in
-[`docs/POST_TRAINING_FIX_PROMPT.md`](docs/POST_TRAINING_FIX_PROMPT.md).
+truncate, delete, stage, or reorganize it during training.
+
+GPU entry points share the ownership-checked `results/.lock`. A live owner is
+never displaced; stale recovery is explicit:
+
+```bash
+python scripts/workflow_guard.py lock-recover --lock-file results/.lock
+```
+
+In `--mode continue`, a completed model is skipped only after checkpoint
+provenance validation. Evaluation is explicit via `train.py --evaluate-only`
+or `evaluate.py`; it is not rerun as a side effect of a completed-run skip.
 
 ## Evaluation protocol
 
@@ -907,7 +975,8 @@ For a defensible experiment:
 3. Preserve dataset split, preprocessing, seed, sample count, NFE, and reference
    statistics across comparisons.
 4. Preserve codec identity and content-addressed cache metadata for latent runs.
-5. Record a meaningful `--machine-label` for long jobs.
+5. Let launchers detect the machine/GPU label for long jobs; use an explicit
+   override only when the automatic hardware identity is unsuitable.
 6. Keep raw logs, metrics, validation reports, configs, and provenance together.
 7. Never compare latent and pixel rankings as though their reconstruction
    ceilings and representation costs were identical.
@@ -915,11 +984,11 @@ For a defensible experiment:
    cost when discussing efficiency.
 
 The project records checkpoint and environment provenance, restores RNG and
-dataloader state where supported, and archives prior numbered checkpoints.
-Post-training hardening for a single repository-wide GPU lock and stronger
-run-wide source identity is documented in
-[docs/POST_TRAINING_FIX_PROMPT.md](docs/POST_TRAINING_FIX_PROMPT.md); it should
-not be described as already implemented.
+dataloader state where supported, and archives prior numbered checkpoints. The
+single repository-wide GPU lock, frozen run-wide source identity, completed-run
+skip policy, and representation-aware log migration are implemented. Their
+requirements and acceptance criteria remain documented in
+[docs/POST_TRAINING_FIX_PROMPT.md](docs/POST_TRAINING_FIX_PROMPT.md).
 
 ## Known challenges and practical responses
 
@@ -1024,7 +1093,7 @@ entrypoints, aggregation, latent contracts, and web discovery.
 | [docs/TRAINING_TIME_ESTIMATES.md](docs/TRAINING_TIME_ESTIMATES.md) | GPU-time, memory, and optimization notes |
 | [docs/CONSISTENCY_TUNING_NOTES.md](docs/CONSISTENCY_TUNING_NOTES.md) | Consistency-specific tuning guidance |
 | [docs/LINUX_VERIFICATION.md](docs/LINUX_VERIFICATION.md) | Linux environment verification checklist |
-| [docs/POST_TRAINING_FIX_PROMPT.md](docs/POST_TRAINING_FIX_PROMPT.md) | Deferred isolation/provenance hardening |
+| [docs/POST_TRAINING_FIX_PROMPT.md](docs/POST_TRAINING_FIX_PROMPT.md) | Implemented isolation, provenance, continuation, and log-migration acceptance specification |
 | [docs/report/main.tex](docs/report/main.tex) | Thesis/report source |
 | [THESIS_SUMMARY.md](THESIS_SUMMARY.md) | Generated result snapshot; may be partial during training |
 

@@ -178,3 +178,14 @@ class ExperimentRunner:
     def run_train_only(self, resume_checkpoint: Optional[str] = None) -> None:
         """Train without FID preparation, periodic evaluation, or final sampling."""
         self.train(resume_checkpoint=resume_checkpoint, evaluation_enabled=False)
+
+    def evaluate_only(self, checkpoint_path: str) -> None:
+        """Explicitly evaluate one provenance-compatible checkpoint."""
+        resolved = self._resolve_resume_checkpoint(checkpoint_path)
+        validate_checkpoint_file(Path(resolved), self.checkpoint_provenance)
+        ensure_fid_reference(self.cfg, self.test_loader, self.device)
+        self.evaluator.evaluate(
+            self.sampler,
+            nfe_values=self.cfg.evaluation.nfe_values,
+            checkpoint_path=resolved,
+        )

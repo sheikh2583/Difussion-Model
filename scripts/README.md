@@ -37,11 +37,13 @@ should write `[run] training_type=...`, `[run] dataset=...`, and
 `[run] algorithm=...` headers, or place a `<log>.meta.json` sidecar next to the
 transcript. Logs without metadata are still indexed as `unclassified`.
 
-New diffusion logs are separated by representation under
-`training_logs/<device>/pixel/` and `training_logs/<device>/latent/`. Existing
-transcripts remain in place while training is active and are classified by
-`.log.meta.json` sidecars created with:
+Diffusion logs are separated by representation under
+`training_logs/<device>/pixel/` and `training_logs/<device>/latent/`; codec
+transcripts use `training_logs/<device>/codec/`. Historical central transcripts
+were migrated with byte-identical pre/post digests recorded in the timestamped
+`training_logs/log_migration_manifest_*.json` file. The reusable migration tool
+is preview-only unless `--apply` is provided:
 
 ```bash
-python scripts/annotate_training_log_spaces.py --apply
+python scripts/migrate_training_logs.py
 ```

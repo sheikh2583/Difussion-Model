@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import warnings
 from dataclasses import asdict
 from pathlib import Path
@@ -50,11 +51,15 @@ def build_provenance(
         "algorithm_kwargs": cfg.algorithm_kwargs,
     }
     digest = hashlib.sha256(_canonical_json(identity).encode("utf-8")).hexdigest()
-    return {
+    provenance = {
         "version": PROVENANCE_VERSION,
         "identity": identity,
         "identity_sha256": digest,
     }
+    source_identity = os.environ.get("DIFFUSION_SOURCE_IDENTITY")
+    if source_identity:
+        provenance["source_identity_sha256"] = source_identity
+    return provenance
 
 
 def _differences(expected: Any, actual: Any, prefix: str = "") -> list[str]:
@@ -107,6 +112,13 @@ def validate_provenance(
         details = "\n  - ".join(differences)
         raise ResumeCompatibilityError(
             f"Cannot resume incompatible checkpoint {checkpoint_path}:\n  - {details}"
+        )
+    expected_source = expected.get("source_identity_sha256")
+    actual_source = actual.get("source_identity_sha256")
+    if expected_source and actual_source and actual_source != expected_source:
+        raise ResumeCompatibilityError(
+            f"Cannot resume {checkpoint_path}: checkpoint source identity "
+            f"{actual_source} differs from current suite identity {expected_source}."
         )
     return True
 

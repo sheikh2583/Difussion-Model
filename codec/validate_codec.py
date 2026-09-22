@@ -58,13 +58,20 @@ import os
 import sys
 import time
 
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from utils.gpu_lock import DEFAULT_LOCK_PATH, acquire_gpu_lock
+
 # ── Defer heavy imports so --help works without GPU/CUDA ─────────────────────
-def _main() -> int:
+def _run_validation(args) -> int:
     import torch
     import torch.nn.functional as F
     from torchvision.utils import save_image
 
-    args = _parse_args()
     args.codec_source_revision = _resolve_source_revision(
         args.codec_source_path, args.codec_source_revision
     )
@@ -249,6 +256,14 @@ def _main() -> int:
     return 0
 
 
+def _main() -> int:
+    args = _parse_args()
+    with acquire_gpu_lock(
+        args.lock_file, command="codec/validate_codec.py"
+    ):
+        return _run_validation(args)
+
+
 def _structural_check(codec, device, pixel_size, latent_channels, spatial_factor):
     """Shape and range assertions on a tiny synthetic batch."""
     import torch
@@ -366,6 +381,7 @@ def _parse_args(argv=None) -> argparse.Namespace:
                    help="Number of validation images for rFID/PSNR evaluation")
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--device", default="cuda", help="'cuda' or 'cpu'")
+    p.add_argument("--lock-file", default=str(DEFAULT_LOCK_PATH))
     p.add_argument(
         "--accept-quality-failure",
         action="store_true",

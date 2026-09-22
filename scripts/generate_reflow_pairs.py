@@ -22,7 +22,6 @@ Runtime depends on the selected device and model configuration.
 import argparse
 import os
 import sys
-from contextlib import contextmanager
 
 # Make project packages importable when this file is launched directly as
 # `python scripts/generate_reflow_pairs.py` from any working directory.
@@ -37,6 +36,7 @@ from config.config import ExperimentConfig
 from models.backbone import build_backbone
 from utils.checkpoints import extract_model_state
 from utils.device import resolve_device
+from utils.gpu_lock import DEFAULT_LOCK_PATH, acquire_gpu_lock
 
 
 def parse_args():
@@ -50,8 +50,8 @@ def parse_args():
     p.add_argument("--output",     required=True)
     p.add_argument(
         "--lock-file",
-        default="results/.lock",
-        help="Shared GPU lock path (default: results/.lock).",
+        default=str(DEFAULT_LOCK_PATH),
+        help=f"Shared GPU lock path (default: {DEFAULT_LOCK_PATH}).",
     )
     p.add_argument(
         "--overwrite",
@@ -59,35 +59,6 @@ def parse_args():
         help="Replace an existing output file. Without this flag, fail safely.",
     )
     return p.parse_args()
-
-
-@contextmanager
-def gpu_lock(path: str):
-    """Acquire the project-wide GPU lock atomically and release our own lock."""
-    lock_path = os.path.abspath(path)
-    token = f"pid={os.getpid()}\ncommand=generate_reflow_pairs.py\n"
-    os.makedirs(os.path.dirname(lock_path) or ".", exist_ok=True)
-    try:
-        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError as exc:
-        raise RuntimeError(
-            f"GPU lock already exists: {lock_path}\n"
-            "Another project job may be active. Wait for it to finish, or remove "
-            "the lock only after confirming it is stale."
-        ) from exc
-
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(token)
-        yield
-    finally:
-        try:
-            with open(lock_path, "r", encoding="utf-8") as handle:
-                still_ours = handle.read() == token
-            if still_ours:
-                os.remove(lock_path)
-        except FileNotFoundError:
-            pass
 
 
 def _generate(args):
@@ -170,7 +141,7 @@ def main():
             f"Output already exists: {args.output}\n"
             "Pass --overwrite only if replacing it is intentional."
         )
-    with gpu_lock(args.lock_file):
+    with acquire_gpu_lock(args.lock_file, command="generate_reflow_pairs.py"):
         _generate(args)
 
 

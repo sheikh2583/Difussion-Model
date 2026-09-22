@@ -24,6 +24,7 @@ from sampling.sampler import Sampler
 from utils.checkpoints import load_algorithm_state, resolve_checkpoint_reference
 from utils.checkpoint_runs import run_directory_from_checkpoint
 from utils.device import resolve_device
+from utils.gpu_lock import acquire_gpu_lock
 
 
 def parse_args():
@@ -38,7 +39,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def _main():
     args = parse_args()
     cfg  = ExperimentConfig.load(args.config) if args.config else ExperimentConfig()
     if args.experiment_name:
@@ -84,6 +85,11 @@ def main():
                        make_plots=args.make_plots,
                        checkpoint_path=str(checkpoint_path),
                        current_epoch=inferred_epoch)
+
+
+def main():
+    with acquire_gpu_lock(command="evaluate.py"):
+        _main()
 
 
 if __name__ == "__main__":

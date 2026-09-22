@@ -1,0 +1,60 @@
+[run] training_type=codec_validation
+[run] dataset=celeba
+[run] algorithm=pretrained_vq_f4
+[run] started_utc=2026-09-21T16:58:54Z
+Cannot initialize model with low cpu memory usage because `accelerate` was not found in the environment. Defaulting to `low_cpu_mem_usage=False`. It is strongly recommended to install `accelerate` for faster and less memory-intense model loading. You can do so with: 
+```
+pip install accelerate
+```
+.
+An error occurred while trying to fetch data/pretrained/ldm-celebahq-256/vqvae: Error no file named diffusion_pytorch_model.safetensors found in directory data/pretrained/ldm-celebahq-256/vqvae.
+Defaulting to unsafe serialization. Pass `allow_pickle=False` to raise an error instead.
+
+======================================================================
+  Codec validation — frozen CelebA-HQ VQ-f4
+======================================================================
+  Source path  : data/pretrained/ldm-celebahq-256/vqvae
+  CelebA root  : data/raw
+  Output dir   : results/codecs/celeba_vq_f4
+  Device       : cuda
+  Batch size   : 32
+
+[1/6] Loading codec from source weights …
+    ✓ Codec loaded (CompVis/ldm-celebahq-256)
+[2/6] Structural shape and range validation …
+    ✓ Encode shape: (B,3,64,64) → (B,3,16,16)
+    ✓ Decode range: [-1, 1]
+    ✓ Round-trip latent shape preserved
+[3/6] Loading CelebA dataset …
+Files already downloaded and verified
+Files already downloaded and verified
+    ✓ Train batches: 5086
+    ✓ Val   batches: 621
+[4/6] Computing per-channel statistics on CelebA training set …
+    (This encodes all training images — may take several minutes)
+    ✓ Done in 173.1s
+    Per-channel mean : ['0.1635', '-0.0538', '0.1202']
+    Per-channel std  : ['0.8564', '1.1712', '1.3339']
+    Min channel std  : 0.8564
+    ✓ Min std gate (0.1) passed
+[5/6] Evaluating reconstruction quality on 5,000 validation images …
+    rFID : 10.061
+    PSNR : 27.38 dB
+[6/6] Writing outputs …
+    ✓ Reconstruction grid → results/codecs/celeba_vq_f4/reconstruction_grid.png
+    ✓ Validation report → results/codecs/celeba_vq_f4/validation_report.json
+
+  [OVERRIDE] Reconstruction quality gates did not pass.
+    • rFID 10.061 ≥ 5.0 (project gate)
+    • PSNR 27.38 dB ≤ 30.0 dB (project gate)
+  Publishing the codec for latent training under an explicit operator override.
+  Recorded reason: User selected the face-specific VQ-f4 latent experiment despite the measured reconstruction ceiling
+    ✓ Codec checkpoint → results/codecs/celeba_vq_f4/accepted_codec.pt
+
+======================================================================
+  QUALITY GATE OVERRIDDEN — codec accepted for latent training
+  Accepted checkpoint : results/codecs/celeba_vq_f4/accepted_codec.pt
+======================================================================
+
+[run] finished_utc=2026-09-21T17:02:25Z
+[run] exit_status=0

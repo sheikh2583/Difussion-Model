@@ -30,8 +30,8 @@ from algorithms import ALGORITHM_REGISTRY
 from config.config import ExperimentConfig
 from data.dataset_registry import get_dataloaders_for_config
 from models.backbone import build_backbone, count_parameters
-from scripts.generate_reflow_pairs import gpu_lock
 from training.trainer import build_optimizer
+from utils.gpu_lock import DEFAULT_LOCK_PATH, acquire_gpu_lock
 
 
 CONFIGS = {
@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--warmup-steps", type=int, default=1)
     parser.add_argument("--measure-steps", type=int, default=3)
     parser.add_argument("--sample-batch-size", type=int, default=16)
-    parser.add_argument("--lock-file", default="results/.lock")
+    parser.add_argument("--lock-file", default=str(DEFAULT_LOCK_PATH))
     parser.add_argument(
         "--output", default="results/training_flow_benchmark.json"
     )
@@ -239,7 +239,7 @@ def main() -> int:
         "results": [],
     }
     with tempfile.TemporaryDirectory(prefix="diffusion-flow-benchmark-") as temp:
-        with gpu_lock(args.lock_file):
+        with acquire_gpu_lock(args.lock_file, command="benchmark_training_flows.py"):
             for dataset_name in datasets:
                 for algorithm_key, config_path in CONFIGS[dataset_name].items():
                     print(f"Benchmarking {algorithm_key}/{dataset_name}...", flush=True)

@@ -143,6 +143,14 @@ if [[ -n "$MF_CONFIG_OVERRIDE" ]]; then
   MF_CONFIG="$MF_CONFIG_OVERRIDE"
 fi
 
+source scripts/linux/workflow_guard.sh
+workflow_guard_start "train_all.sh" "$DRY_RUN" \
+  --launcher scripts/linux/train_all.sh \
+  --config "$FM_CONFIG" --config "$FM_LOGNORM_CONFIG" \
+  --config "$MF_CONFIG" --config "$MF_DISTILL_CONFIG" \
+  --config "$CONSISTENCY_CONFIG" --config "$REFLOW_CONFIG"
+export DIFFUSION_LIFECYCLE_MODE="$MODE"
+
 FAILED=0
 
 run_training() {
@@ -156,6 +164,12 @@ run_training() {
     FAILED=1
     return 0
   fi
+  workflow_guard_verify_source "$DRY_RUN"
+  if [[ "$DRY_RUN" == false ]]; then
+    export DIFFUSION_SELECTED_CONFIG_SHA256
+    DIFFUSION_SELECTED_CONFIG_SHA256="$(sha256sum "$config" | awk '{print $1}')"
+  fi
+  export DIFFUSION_CHECKPOINT_SERIES="resolved-by-train.py"
   local command=(
     "$PYTHON" train.py --algorithm "$algorithm" --config "$config"
     --mode "$MODE" --checkpoint-every "$CHECKPOINT_EVERY"
@@ -230,6 +244,7 @@ if [[ "$SKIP_REFLOW" == false && ( -z "$ONLY" || "$ONLY" == "reflow" ) ]]; then
     READY=true
     require_file "$FM_CKPT" "FM teacher checkpoint" || READY=false
     if [[ "$READY" == true || "$DRY_RUN" == true ]]; then
+      workflow_guard_verify_source "$DRY_RUN"
       echo "[PLAN] Generate Reflow pairs: $REFLOW_PAIRS"
       if [[ "$DRY_RUN" == false ]]; then
         "$PYTHON" scripts/generate_reflow_pairs.py \

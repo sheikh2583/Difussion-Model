@@ -90,7 +90,31 @@ def test_run_local_and_orchestration_logs_are_classified() -> None:
     assert classify_name(latent)["representation_space"] == "latent"
     assert classify_name(pixel)["representation_space"] == "pixel"
     assert classify_name(codec)["representation_space"] == "codec"
-    assert classify_name(suite)["representation_space"] == "mixed"
+    assert classify_name(suite)["representation_space"] == "pixel"
+    assert classify_name(suite)["algorithm"] == "multiple"
+
+
+def test_annotation_adds_uniform_transcript_identity(tmp_path: Path) -> None:
+    log = tmp_path / "training_logs/gpu/pixel/cifar10_training.log"
+    log.parent.mkdir(parents=True)
+    log.write_text("historical suite\n", encoding="utf-8")
+    identification = {
+        "machine_label": "linux-lab-test-gpu-24gb",
+        "gpu_name": "Test GPU",
+        "gpu_memory_gb": 24,
+    }
+
+    assert annotate(log, tmp_path, apply=True, identification=identification)
+    metadata = json.loads(
+        log.with_suffix(".log.meta.json").read_text(encoding="utf-8")
+    )
+    assert metadata["annotation_schema_version"] == 2
+    assert metadata["algorithm"] == "multiple"
+    assert metadata["machine_label"] == "linux-lab-test-gpu-24gb"
+    assert metadata["gpu_name"] == "Test GPU"
+    assert metadata["gpu_memory_gb"] == 24
+    assert metadata["transcript_bytes"] == len(b"historical suite\n")
+    assert len(metadata["transcript_sha256"]) == 64
 
 
 def test_catalog_outputs_and_context_manifest_inventory(tmp_path: Path) -> None:

@@ -23,6 +23,11 @@ stage, commit, or push files; version-control decisions remain with the
 operator. Large results, checkpoints, datasets, and generated samples remain
 excluded from Git.
 
+All GPU launchers share the ownership-checked `results/.lock`, and nested suite
+calls inherit its random token without reacquiring it. Each suite also freezes
+a content hash of training-relevant source/config inputs and verifies it before
+starting the next serialized job. Documentation-only edits are excluded.
+
 The machine label is generated automatically from the OS, hostname, GPU, and
 VRAM (for example, `linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb`). No setup
 is required. To use a shorter custom label instead, optionally run:

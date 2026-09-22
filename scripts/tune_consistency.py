@@ -14,7 +14,6 @@ import gc
 import json
 import os
 import sys
-from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +27,7 @@ import torch
 from algorithms.consistency import ConsistencyAlgorithm
 from config.config import ExperimentConfig
 from experiments.runner import ExperimentRunner
+from utils.gpu_lock import DEFAULT_LOCK_PATH, acquire_gpu_lock
 
 
 VARIANTS = {
@@ -64,38 +64,13 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Session output directory (default: timestamped results directory).",
     )
-    parser.add_argument("--lock-file", default="results/.lock")
+    parser.add_argument("--lock-file", default=str(DEFAULT_LOCK_PATH))
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Validate and display variants without starting training.",
     )
     return parser.parse_args()
-
-
-@contextmanager
-def gpu_lock(path: Path):
-    path = path.resolve()
-    token = f"pid={os.getpid()}\ncommand=tune_consistency.py\n"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError as exc:
-        raise RuntimeError(
-            f"GPU lock already exists: {path}. Confirm the active job has "
-            "finished before removing a stale lock."
-        ) from exc
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(token)
-        yield
-    finally:
-        try:
-            still_ours = path.read_text(encoding="utf-8") == token
-            if still_ours:
-                path.unlink()
-        except FileNotFoundError:
-            pass
 
 
 def validate_args(args: argparse.Namespace, raw: dict) -> Path:
@@ -205,7 +180,7 @@ def main() -> int:
 
     records = []
     failures = 0
-    with gpu_lock(Path(args.lock_file)):
+    with acquire_gpu_lock(Path(args.lock_file), command="tune_consistency.py"):
         for name, parameters in VARIANTS.items():
             print(f"\n=== Consistency tuning variant: {name} ===", flush=True)
             variant_root = session_root / name

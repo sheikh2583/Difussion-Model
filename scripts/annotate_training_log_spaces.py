@@ -9,6 +9,7 @@ log migration is deliberately deferred until all writers have exited.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import tempfile
@@ -27,24 +28,31 @@ def classify_name(path: Path) -> dict[str, str]:
     """Infer only unambiguous diffusion-log metadata from a filename."""
     stem = path.name.removesuffix(".log")
     path_text = path.as_posix().lower()
-    if "/scratch_vae/" in path_text:
+    if "/scratch_vae/" in path_text or (
+        "/codec/" in path_text and "scratch_kl_vae" in stem
+    ):
         return {
             "training_type": "scratch_codec",
             "representation_space": "codec",
             "dataset": "celeba",
             "algorithm": "scratch_kl_vae",
         }
-    if "/codecs/" in path_text:
+    if "/codecs/" in path_text or (
+        "/codec/" in path_text and "pretrained_vq_f4" in stem
+    ):
         return {
             "training_type": "codec_validation",
             "representation_space": "codec",
             "dataset": "celeba",
+            "algorithm": "pretrained_vq_f4",
         }
     if stem.startswith("tournament_run_"):
         return {
             "training_type": "suite_orchestration",
-            "representation_space": "mixed",
+            # Historical tournaments covered CIFAR-10 and CelebA pixel runs.
+            "representation_space": "pixel",
             "dataset": "multiple",
+            "algorithm": "multiple",
         }
     if stem.startswith("celeba_latent_"):
         dataset, space, remainder = "celeba_latent", "latent", stem[14:]
@@ -85,7 +93,17 @@ def classify_name(path: Path) -> dict[str, str]:
     }
     if algorithm:
         result["algorithm"] = algorithm
+    elif stem == "cifar10_training":
+        result["algorithm"] = "multiple"
     return result
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
 
 
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
@@ -105,7 +123,12 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def annotate(log_path: Path, project_root: Path, apply: bool) -> bool:
+def annotate(
+    log_path: Path,
+    project_root: Path,
+    apply: bool,
+    identification: dict[str, Any] | None = None,
+) -> bool:
     inferred = classify_name(log_path)
     if not inferred:
         return False
@@ -129,9 +152,12 @@ def annotate(log_path: Path, project_root: Path, apply: bool) -> bool:
     payload = {
         **existing,
         **inferred,
+        **(identification or {}),
         "log_path_at_annotation": log_path.relative_to(project_root).as_posix(),
-        "annotation_schema_version": 1,
+        "annotation_schema_version": 2,
         "annotation_source": "scripts/annotate_training_log_spaces.py",
+        "transcript_bytes": log_path.stat().st_size,
+        "transcript_sha256": _sha256(log_path),
     }
     if "annotated_utc" not in payload:
         payload["annotated_utc"] = datetime.now(timezone.utc).isoformat()
@@ -151,6 +177,9 @@ def parse_args() -> argparse.Namespace:
         "--apply", action="store_true",
         help="Write sidecars. Without this flag the command is a dry-run.",
     )
+    parser.add_argument("--machine-label")
+    parser.add_argument("--gpu-name")
+    parser.add_argument("--gpu-memory-gb", type=int)
     return parser.parse_args()
 
 
@@ -161,7 +190,24 @@ def main() -> int:
     logs = sorted(
         path for root in roots if root.is_dir() for path in root.rglob("*.log")
     )
-    classified = sum(annotate(path, project_root, args.apply) for path in logs)
+    supplied = (args.machine_label, args.gpu_name, args.gpu_memory_gb)
+    if any(value is not None for value in supplied) and not all(
+        value is not None for value in supplied
+    ):
+        raise SystemExit(
+            "--machine-label, --gpu-name, and --gpu-memory-gb must be supplied together"
+        )
+    identification = None
+    if all(value is not None for value in supplied):
+        identification = {
+            "machine_label": args.machine_label,
+            "gpu_name": args.gpu_name,
+            "gpu_memory_gb": args.gpu_memory_gb,
+            "identification_source": "operator-confirmed historical lab hardware",
+        }
+    classified = sum(
+        annotate(path, project_root, args.apply, identification) for path in logs
+    )
     print(f"Classified {classified} of {len(logs)} discovered training logs.")
     if not args.apply:
         print("Dry-run only; pass --apply to write sidecars.")

@@ -102,6 +102,14 @@ declare -A CONFIGS=(
   [consistency]="config/consistency_celeba_latent.json"
   [reflow]="config/reflow_celeba_latent.json"
 )
+declare -A ALGORITHM_CLASSES=(
+  [fm]="FlowMatchingAlgorithm"
+  [fm_lognorm]="FlowMatchingLognormAlgorithm"
+  [mf]="MeanFlowAlgorithm"
+  [mf_distill]="MeanFlowDistillAlgorithm"
+  [consistency]="ConsistencyAlgorithm"
+  [reflow]="ReflowAlgorithm"
+)
 ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)
 FM_CHECKPOINT="results/fm_celeba_latent/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt"
 REFLOW_PAIRS="data/reflow_pairs_celeba_latent.pt"
@@ -113,6 +121,16 @@ for algorithm in "${ALGORITHMS[@]}"; do
     exit 1
   fi
 done
+
+# A parent suite may already own the lock and source manifest.  Direct runs
+# become the owner and pass the same token to Reflow generation.
+source scripts/linux/workflow_guard.sh
+IDENTITY_ARGS=(--launcher scripts/linux/train_celeba_latent.sh)
+for algorithm in "${ALGORITHMS[@]}"; do
+  IDENTITY_ARGS+=(--config "${CONFIGS[$algorithm]}")
+done
+workflow_guard_start "train_celeba_latent.sh" "$DRY_RUN" "${IDENTITY_ARGS[@]}"
+export DIFFUSION_LIFECYCLE_MODE="$MODE"
 
 if [[ "$ONLY" == "all" ]]; then
   PLANNED_FM_CHECKPOINT="$("$PYTHON" scripts/checkpoint_path.py \
@@ -131,31 +149,51 @@ fi
 RUN_TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 HOST_TOKEN="$(hostname | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-')"
 HOST_TOKEN="${HOST_TOKEN%-}"
+GPU_NAME=""
+GPU_MEMORY_MB=""
+GPU_MEMORY_GB=""
+GPU_TOKEN=""
 
-if [[ -z "$LOG_DIR" ]]; then
-  GPU_NAME=""
-  GPU_MEMORY_MB=""
-  if command -v nvidia-smi >/dev/null 2>&1; then
-    GPU_QUERY=""
-    MEMORY_QUERY=""
-    if GPU_QUERY="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null)"; then
-      GPU_NAME="$(printf '%s\n' "$GPU_QUERY" | sed -n '1p')"
-      if MEMORY_QUERY="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null)"; then
-        GPU_MEMORY_MB="$(printf '%s\n' "$MEMORY_QUERY" | sed -n '1p' | tr -d ' ')"
-      fi
+if command -v nvidia-smi >/dev/null 2>&1; then
+  GPU_QUERY=""
+  MEMORY_QUERY=""
+  if GPU_QUERY="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null)"; then
+    GPU_NAME="$(printf '%s\n' "$GPU_QUERY" | sed -n '1p')"
+    if MEMORY_QUERY="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null)"; then
+      GPU_MEMORY_MB="$(printf '%s\n' "$MEMORY_QUERY" | sed -n '1p' | tr -d ' ')"
     fi
   fi
-  if [[ -n "$GPU_NAME" ]]; then
-    GPU_TOKEN="$(printf '%s' "$GPU_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-')"
-    GPU_TOKEN="${GPU_TOKEN%-}"
-    if [[ "$GPU_MEMORY_MB" =~ ^[0-9]+$ ]]; then
-      GPU_TOKEN="${GPU_TOKEN}-$(((GPU_MEMORY_MB + 1023) / 1024))gb"
-    fi
+fi
+if [[ -n "$GPU_NAME" ]]; then
+  GPU_TOKEN="$(printf '%s' "$GPU_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-')"
+  GPU_TOKEN="${GPU_TOKEN%-}"
+  if [[ "$GPU_MEMORY_MB" =~ ^[0-9]+$ ]]; then
+    GPU_MEMORY_GB="$(((GPU_MEMORY_MB + 1023) / 1024))"
+    GPU_TOKEN="${GPU_TOKEN}-${GPU_MEMORY_GB}gb"
+  fi
+fi
+
+if [[ -z "$LOG_DIR" ]]; then
+  if [[ -n "$GPU_TOKEN" ]]; then
     LOG_DIR="training_logs/$GPU_TOKEN/latent"
   else
     LOG_DIR="training_logs/cpu-or-unknown/latent"
   fi
 fi
+
+if [[ -z "$MACHINE_LABEL" ]]; then
+  OS_TOKEN="$(uname -s | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-')"
+  OS_TOKEN="${OS_TOKEN%-}"
+  if [[ -n "$GPU_TOKEN" ]]; then
+    MACHINE_LABEL="${OS_TOKEN}-${HOST_TOKEN}-${GPU_TOKEN}"
+  else
+    MACHINE_LABEL="${OS_TOKEN}-${HOST_TOKEN}-gpu-unavailable"
+  fi
+fi
+export DIFFUSION_MACHINE_LABEL="$MACHINE_LABEL"
+echo "[PLAN] machine_label=$MACHINE_LABEL"
+echo "[PLAN] gpu_name=${GPU_NAME:-unavailable}"
+echo "[PLAN] gpu_memory_mb=${GPU_MEMORY_MB:-unavailable}"
 
 print_command() {
   printf '%q ' "$@"
@@ -177,12 +215,24 @@ run_logged() {
   fi
 
   mkdir -p "$LOG_DIR"
+  if [[ -e "$log_path" ]]; then
+    echo "ERROR: refusing to overwrite existing training log: $log_path" >&2
+    return 1
+  fi
   {
     echo "[run] training_type=latent_diffusion"
     echo "[run] representation_space=latent"
     echo "[run] dataset=celeba_latent"
     echo "[run] algorithm=$job_name"
     echo "[run] job=$job_name"
+    echo "[run] source_identity_sha256=${DIFFUSION_SOURCE_IDENTITY:-standalone}"
+    echo "[run] lifecycle_mode=$MODE"
+    echo "[run] machine_label=$MACHINE_LABEL"
+    echo "[run] gpu_name=${GPU_NAME:-unavailable}"
+    echo "[run] gpu_memory_gb=${GPU_MEMORY_GB:-unavailable}"
+    echo "[run] parent_suite_timestamp=${DIFFUSION_PARENT_SUITE_TIMESTAMP:-none}"
+    echo "[run] selected_config_sha256=${DIFFUSION_SELECTED_CONFIG_SHA256:-not-applicable}"
+    echo "[run] checkpoint_series=${DIFFUSION_CHECKPOINT_SERIES:-resolved-by-train.py}"
     echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf '[run] command='
     print_command "${command[@]}"
@@ -207,6 +257,20 @@ run_training() {
     --config "${CONFIGS[$algorithm]}"
     --mode "$MODE"
   )
+  workflow_guard_verify_source "$DRY_RUN"
+  if [[ "$DRY_RUN" == false ]]; then
+    export DIFFUSION_SELECTED_CONFIG_SHA256
+    DIFFUSION_SELECTED_CONFIG_SHA256="$(sha256sum "${CONFIGS[$algorithm]}" | awk '{print $1}')"
+  fi
+  local resolved_checkpoint
+  resolved_checkpoint="$(
+    "$PYTHON" scripts/checkpoint_path.py \
+      --run-dir "results/${algorithm}_celeba_latent" \
+      --class-name "${ALGORITHM_CLASSES[$algorithm]}" \
+      --epoch 100 --planned-mode "$MODE"
+  )"
+  export DIFFUSION_CHECKPOINT_SERIES
+  DIFFUSION_CHECKPOINT_SERIES="$(basename "$(dirname "$resolved_checkpoint")")"
   [[ -z "$MACHINE_LABEL" ]] || command+=(--machine-label "$MACHINE_LABEL")
   [[ -z "$CHECKPOINT_EVERY" ]] || command+=(--checkpoint-every "$CHECKPOINT_EVERY")
   [[ "$TRAIN_ONLY" == false ]] || command+=(--train-only)
@@ -255,6 +319,9 @@ fi
 if [[ "$ONLY" == "all" || "$ONLY" == "reflow" ]]; then
   require_file "$FM_CHECKPOINT" "latent FM teacher checkpoint"
   if [[ ! -f "$REFLOW_PAIRS" ]]; then
+    workflow_guard_verify_source "$DRY_RUN"
+    export DIFFUSION_SELECTED_CONFIG_SHA256="$(sha256sum "${CONFIGS[fm]}" | awk '{print $1}')"
+    export DIFFUSION_CHECKPOINT_SERIES="run_1"
     run_logged reflow_pairs \
       "$PYTHON" scripts/generate_reflow_pairs_latent.py \
       --checkpoint "$FM_CHECKPOINT" \

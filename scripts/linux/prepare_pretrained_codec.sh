@@ -74,33 +74,26 @@ elif [[ -n "$ACCEPTANCE_REASON" ]]; then
   exit 2
 fi
 
+source scripts/linux/workflow_guard.sh
+workflow_guard_start "prepare_pretrained_codec.sh" "$DRY_RUN" \
+  --launcher scripts/linux/prepare_pretrained_codec.sh
+
 if [[ "$SKIP_DOWNLOAD" == false ]]; then
   printf 'Download command:\n  '; printf '%q ' "${DOWNLOAD[@]}"; printf '\n'
 fi
 printf 'Validation command:\n  '; printf '%q ' "${VALIDATE[@]}"; printf '\n'
 [[ "$DRY_RUN" == true ]] && exit 0
 
-mkdir -p "$OUTPUT_DIR/logs"
-LOG_FILE="$OUTPUT_DIR/logs/validate_$(date +%Y%m%d_%H%M%S)_pid$$.log"
+CODEC_LOG_DIR="$(workflow_device_log_dir codec)"
+mkdir -p "$CODEC_LOG_DIR"
+LOG_FILE="$CODEC_LOG_DIR/celeba_codec_pretrained_vq_f4_$(date +%Y%m%d_%H%M%S)_pid$$.log"
 if [[ "$SKIP_DOWNLOAD" == false ]]; then
   "${DOWNLOAD[@]}" 2>&1 | tee -a "$LOG_FILE"
 fi
 
-LOCK_FILE="results/.lock"
-LOCK_TOKEN="pid=$$;command=prepare_pretrained_codec.sh;output_dir=$OUTPUT_DIR"
-if ! (set -o noclobber; printf '%s\n' "$LOCK_TOKEN" > "$LOCK_FILE") 2>/dev/null; then
-  echo "ERROR: GPU lock already exists: $LOCK_FILE" | tee -a "$LOG_FILE" >&2
-  exit 1
-fi
-release_lock() {
-  if [[ -f "$LOCK_FILE" && "$(cat "$LOCK_FILE")" == "$LOCK_TOKEN" ]]; then
-    rm -f -- "$LOCK_FILE"
-  fi
-}
-trap release_lock EXIT INT TERM
-
 {
   echo "[run] training_type=codec_validation"
+  echo "[run] representation_space=codec"
   echo "[run] dataset=celeba"
   echo "[run] algorithm=pretrained_vq_f4"
   echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
