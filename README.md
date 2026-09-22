@@ -968,6 +968,24 @@ venv/bin/python scripts/package_dataset_bundles.py --dataset celeba
 ./scripts/linux/refresh_thesis_context.sh --interval 300
 ```
 
+While training is active, build one read-only live summary and verified ZIP
+snapshot with:
+
+```bash
+./scripts/linux/make_thesis_context.sh --allow-running
+```
+
+To refresh both artifacts every five minutes throughout training, use:
+
+```bash
+./scripts/linux/refresh_thesis_context.sh --allow-running --interval 300
+```
+
+Only one refresh watcher may run for a checkout. Stop an existing watcher in
+its terminal before starting one with different options. Live summaries are
+intermediate snapshots; regenerate once without `--allow-running` after
+training finishes for the final thesis evidence.
+
 `make_thesis_context.sh` is the canonical Claude Web handoff command. By
 default it first rebuilds the aggregate summary and training-log catalog, then
 requires every essential implementation/documentation file to be Git-tracked,

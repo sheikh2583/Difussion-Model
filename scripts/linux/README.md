@@ -18,10 +18,10 @@ The launchers run each model sequentially in dependency order. CIFAR-10 uses
 the batch-128 exact-JVP MeanFlow configuration. A separate complete terminal
 log is saved for every dataset/model pair under a device-specific directory,
 with pixel and latent transcripts separated under `pixel/` and `latent/`, for
-example `training_logs/nvidia-geforce-rtx-3090-24gb/pixel/`. The launchers do not
-stage, commit, or push files; version-control decisions remain with the
-operator. Large results, checkpoints, datasets, and generated samples remain
-excluded from Git.
+example `training_logs/nvidia-geforce-rtx-3090-24gb/pixel/`. The latent suite
+stages only its completed transcript and metadata sidecar by default; no
+launcher commits or pushes. Large results, checkpoints, datasets, and generated
+samples remain excluded from Git.
 
 All GPU launchers share the ownership-checked `results/.lock`, and nested suite
 calls inherit its random token without reacquiring it. Each suite also freezes
@@ -95,6 +95,23 @@ venv/bin/python scripts/package_dataset_bundles.py
 ./scripts/linux/make_thesis_context.sh
 ./scripts/linux/refresh_thesis_context.sh --interval 300
 ```
+
+During active training, rebuild both `THESIS_SUMMARY.md` and the verified ZIP
+once without pausing or signaling the trainer:
+
+```bash
+./scripts/linux/make_thesis_context.sh --allow-running
+```
+
+For an automatically refreshed live snapshot every five minutes:
+
+```bash
+./scripts/linux/refresh_thesis_context.sh --allow-running --interval 300
+```
+
+The refresh watcher is single-instance. Stop any existing watcher before
+restarting it with `--allow-running`. Treat live snapshots as provisional and
+run the command again without `--allow-running` after training completes.
 
 These tools use existing metrics, configs, and atomically published checkpoint
 archives. They never start, stop, signal, or modify a training process. The

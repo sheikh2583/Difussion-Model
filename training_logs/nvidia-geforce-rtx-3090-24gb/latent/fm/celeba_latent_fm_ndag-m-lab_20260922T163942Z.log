@@ -1,0 +1,55 @@
+[run] training_type=latent_diffusion
+[run] representation_space=latent
+[run] dataset=celeba_latent
+[run] algorithm=fm
+[run] job=fm
+[run] source_identity_sha256=1a0feaa6767e5710a5b30d5c3d04961ff22f0fa38cac27689e0e7bfe9a2ef52a
+[run] lifecycle_mode=fresh
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] parent_suite_timestamp=20260922T163942Z
+[run] selected_config_sha256=5595f620495dbad9528453889a6a14ad234479c6b54ee3012bb6ba946bbeb5f8
+[run] checkpoint_series=run_4
+[run] started_utc=2026-09-22T16:39:42Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209\ Thesis/Difussion-Model/venv/bin/python train.py --algorithm fm --config config/fm_celeba_latent.json --mode fresh --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb 
+[fresh] Previous run preserved at: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/history/fm_celeba_latent_20260922_223944
+[checkpoints] Active checkpoint series: run_4
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/fm_celeba_latent.json
+[startup] algorithm: fm
+[startup] experiment: fm
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_celeba_latent
+[startup] batch_size: 64
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0002
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.25
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 1575e2beaf3f2267adfc9f81ac4a889d2f323c5d
+[startup] source_identity_sha256: 1a0feaa6767e5710a5b30d5c3d04961ff22f0fa38cac27689e0e7bfe9a2ef52a
+[startup] selected_config_file_sha256: 5595f620495dbad9528453889a6a14ad234479c6b54ee3012bb6ba946bbeb5f8
+[startup] lifecycle_mode: fresh
+[startup] checkpoint_series: run_4
+[startup] parent_suite_timestamp: 20260922T163942Z
+2026-09-22 22:40:54,076 [INFO] trainer.FlowMatchingAlgorithm: epoch=1 loss=1.181809 time=68.709s peak_mem=888.9MB
+2026-09-22 22:42:02,852 [INFO] trainer.FlowMatchingAlgorithm: epoch=2 loss=1.109137 time=68.775s peak_mem=887.6MB
+2026-09-22 22:43:11,756 [INFO] trainer.FlowMatchingAlgorithm: epoch=3 loss=1.091389 time=68.903s peak_mem=887.6MB
+2026-09-22 22:44:20,652 [INFO] trainer.FlowMatchingAlgorithm: epoch=4 loss=1.081475 time=68.895s peak_mem=887.6MB
+2026-09-22 22:45:29,381 [INFO] trainer.FlowMatchingAlgorithm: epoch=5 loss=1.074476 time=68.729s peak_mem=887.6MB
+2026-09-22 22:46:38,398 [INFO] trainer.FlowMatchingAlgorithm: epoch=6 loss=1.068473 time=69.016s peak_mem=887.6MB
+2026-09-22 22:47:44,368 [INFO] trainer.FlowMatchingAlgorithm: epoch=7 loss=1.064652 time=65.970s peak_mem=887.6MB
+2026-09-22 22:48:50,510 [INFO] trainer.FlowMatchingAlgorithm: epoch=8 loss=1.061160 time=66.141s peak_mem=887.6MB
+2026-09-22 22:50:03,679 [INFO] trainer.FlowMatchingAlgorithm: epoch=9 loss=1.057918 time=73.169s peak_mem=887.6MB
+2026-09-22 22:51:17,279 [INFO] trainer.FlowMatchingAlgorithm: epoch=10 loss=1.055437 time=73.599s peak_mem=887.6MB
+2026-09-22 22:51:17,530 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_celeba_latent/checkpoints/run_4/FlowMatchingAlgorithm_epoch10.pt
+2026-09-22 22:51:17,972 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_celeba_latent/checkpoints/run_4/archive/FlowMatchingAlgorithm_epoch10.zip
+2026-09-22 22:52:24,793 [INFO] trainer.FlowMatchingAlgorithm: epoch=11 loss=1.053534 time=66.821s peak_mem=887.6MB
+2026-09-22 22:53:30,210 [INFO] trainer.FlowMatchingAlgorithm: epoch=12 loss=1.051285 time=65.416s peak_mem=887.6MB
