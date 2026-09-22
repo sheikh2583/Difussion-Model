@@ -525,10 +525,109 @@ def _run_full(args) -> int:
             assert "celeba_latent" in run_name, f"Wrong run name: {run_name} from {path}"
     _check("latent config run directory names", _check_run_dirs)
 
-    # 5–7: Algorithm smoke tests (operator verifies these exist; skipping here)
-    _skip("[5/9] Per-algorithm training step + sample", "requires complete algorithm configs")
-    _skip("[6/9] Latent sample unclamped + decodes correctly", "depends on step 5")
-    _skip("[7/9] Normalized-latent grid suppression in full mode", "validated in static mode")
+    # 5. Per-algorithm backbone forward + training step on real latent data
+    _log.info("[5/9] Per-algorithm GPU training step on real latent cache ...")
+    def _algo_training_steps():
+        import glob
+        from config.config import ExperimentConfig
+        from models.backbone import build_backbone
+        from data.celeba_latent import CelebALatentDataset
+        from torch.utils.data import DataLoader
+        from algorithms import ALGORITHM_REGISTRY
+
+        SMOKE_BATCH = 8
+        # Algorithms that need external checkpoints/pairs on disk - skip training_step only
+        TEACHER_ALGOS = {"mf_distill", "consistency"}
+        PAIRS_ALGOS = {"reflow"}
+
+        ref_cfg = ExperimentConfig.load(
+            os.path.join(os.path.dirname(__file__), "..", "config", "fm_celeba_latent.json")
+        )
+        ds = CelebALatentDataset(ref_cfg.dataset, split="train")
+        loader = DataLoader(ds, batch_size=SMOKE_BATCH, shuffle=False,
+                            num_workers=0, drop_last=True)
+        real_batch, _ = next(iter(loader))
+        real_batch = real_batch.to(device)
+        assert real_batch.shape == (SMOKE_BATCH, 3, 16, 16), \
+            f"Unexpected cache shape: {tuple(real_batch.shape)}"
+
+        config_dir = os.path.join(os.path.dirname(__file__), "..", "config")
+        for path in sorted(glob.glob(os.path.join(config_dir, "*_celeba_latent.json"))):
+            algo_name = os.path.basename(path).replace("_celeba_latent.json", "")
+            cfg = ExperimentConfig.load(path)
+
+            model = build_backbone(cfg.backbone, image_size=cfg.dataset.image_size).to(device)
+            params = sum(p.numel() for p in model.parameters())
+            assert cfg.backbone.in_channels == 3, \
+                f"{algo_name}: in_channels={cfg.backbone.in_channels} (VQ-f4 produces 3ch)"
+            assert cfg.backbone.base_channels == 128, \
+                f"{algo_name}: base_channels={cfg.backbone.base_channels}"
+            assert list(cfg.backbone.channel_mults) == [1, 2, 2], \
+                f"{algo_name}: channel_mults={cfg.backbone.channel_mults}"
+            t_test = torch.rand(SMOKE_BATCH, device=device)
+            with torch.no_grad():
+                out = model(real_batch, t_test)
+            assert out.shape == real_batch.shape
+            assert torch.isfinite(out).all(), f"{algo_name}: non-finite backbone output"
+            with torch.autocast("cuda", dtype=torch.float16):
+                out_amp = model(real_batch, t_test)
+            assert out_amp.shape == real_batch.shape
+            _log.info(f"    {algo_name}: forward+AMP OK | {params/1e6:.2f}M params")
+
+            if algo_name in TEACHER_ALGOS:
+                _log.info(f"    {algo_name}: training_step SKIPPED (teacher ckpt needed)")
+                continue
+            if algo_name in PAIRS_ALGOS:
+                _log.info(f"    {algo_name}: training_step SKIPPED (reflow pairs not generated)")
+                continue
+
+            algo_cls = ALGORITHM_REGISTRY[algo_name]
+            algo = algo_cls(model, algorithm_kwargs=dict(cfg.algorithm_kwargs))
+            for m in algo.trainable_modules():  # mirror trainer.py device placement
+                m.to(device)
+            algo.model.train()
+            result = algo.training_step(real_batch)  # trainer: for batch, _ in loader
+            loss_tensor = result["loss"] if isinstance(result, dict) else result
+            loss_val = loss_tensor.item()
+            assert loss_val == loss_val, f"{algo_name}: NaN loss"
+            _log.info(f"    {algo_name}: training_step loss={loss_val:.4f}")
+
+    _check("per-algorithm GPU training step on real latent batch", _algo_training_steps)
+
+    # 6. Latent sample is unclamped and decodes to valid pixel range
+    _log.info("[6/9] Latent sample unclamped + decodes correctly ...")
+    def _latent_sample_decode():
+        from config.config import ExperimentConfig
+        from models.backbone import build_backbone
+        from codec.codec_factory import load_codec
+
+        cfg = ExperimentConfig.load(
+            os.path.join(os.path.dirname(__file__), "..", "config", "fm_celeba_latent.json")
+        )
+        assert cfg.backbone.sample_clamp is False, "sample_clamp must be False for latent runs"
+        codec = load_codec(args.codec_path, device, require_frozen=True)
+        model = build_backbone(cfg.backbone, image_size=cfg.dataset.image_size).to(device)
+        noise = torch.randn(4, 3, 16, 16, device=device)
+        with torch.no_grad():
+            latents = model(noise, torch.ones(4, device=device) * 0.5)
+        assert latents.shape == (4, 3, 16, 16), f"Sample shape: {tuple(latents.shape)}"
+        pixels = codec.decode_normalised(codec.normalise(latents))
+        assert pixels.shape == (4, 3, 64, 64), f"Decoded shape: {tuple(pixels.shape)}"
+        assert pixels.min() >= -1.01 and pixels.max() <= 1.01, \
+            f"Pixel range out of bounds: [{pixels.min():.3f}, {pixels.max():.3f}]"
+    _check("latent sample unclamped + decodes to valid pixel range", _latent_sample_decode)
+
+    # 7. sample_clamp=False confirmed across all latent configs
+    _log.info("[7/9] sample_clamp=False confirmed in all latent configs ...")
+    def _no_clamp_in_latent_configs():
+        import glob
+        from config.config import ExperimentConfig
+        config_dir = os.path.join(os.path.dirname(__file__), "..", "config")
+        for path in sorted(glob.glob(os.path.join(config_dir, "*_celeba_latent.json"))):
+            cfg = ExperimentConfig.load(path)
+            assert cfg.backbone.sample_clamp is False, \
+                f"{os.path.basename(path)}: sample_clamp must be False for latent runs"
+    _check("sample_clamp=False in all latent configs", _no_clamp_in_latent_configs)
 
     # 8. All configs parse
     _log.info("[8/9] All config/*.json files parse …")

@@ -1,0 +1,98 @@
+[run] training_type=latent_diffusion
+[run] representation_space=latent
+[run] dataset=celeba_latent
+[run] algorithm=mf
+[run] job=mf
+[run] source_identity_sha256=0ccfd47846716e6630e505e8cdb88db27c5ec799a0a281f0177d78c9928e6218
+[run] lifecycle_mode=continue
+[run] machine_label=NDAG-M-Lab-RTX3090
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] parent_suite_timestamp=20260922T083700Z
+[run] selected_config_sha256=46beeb1268cef3fef062ff426e63407bc517e082893c59a20fbd3fcb5ed33308
+[run] checkpoint_series=run_1
+[run] started_utc=2026-09-22T08:37:05Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209\ Thesis/Difussion-Model/venv/bin/python train.py --algorithm mf --config config/mf_celeba_latent.json --mode continue --machine-label NDAG-M-Lab-RTX3090 
+[continue] No previous run found; starting the first run at epoch 1.
+[checkpoints] Active checkpoint series: run_1
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/mf_celeba_latent.json
+[startup] algorithm: mf
+[startup] experiment: mf
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/mf_celeba_latent
+[startup] batch_size: 32
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 5e-05
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.25
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: NDAG-M-Lab-RTX3090
+[startup] code_identity: ff4c607c84dcc877f6064c692c4b98eb3c69b018
+[startup] source_identity_sha256: 0ccfd47846716e6630e505e8cdb88db27c5ec799a0a281f0177d78c9928e6218
+[startup] selected_config_file_sha256: 46beeb1268cef3fef062ff426e63407bc517e082893c59a20fbd3fcb5ed33308
+[startup] lifecycle_mode: continue
+[startup] checkpoint_series: run_1
+[startup] parent_suite_timestamp: 20260922T083700Z
+2026-09-22 14:38:42,825 [INFO] trainer.MeanFlowAlgorithm: epoch=1 loss=1.504197 time=94.664s peak_mem=293.1MB
+2026-09-22 14:40:17,216 [INFO] trainer.MeanFlowAlgorithm: epoch=2 loss=1.493555 time=94.391s peak_mem=293.1MB
+2026-09-22 14:41:49,483 [INFO] trainer.MeanFlowAlgorithm: epoch=3 loss=1.513174 time=92.266s peak_mem=293.1MB
+2026-09-22 14:43:22,021 [INFO] trainer.MeanFlowAlgorithm: epoch=4 loss=1.523558 time=92.537s peak_mem=293.1MB
+2026-09-22 14:44:54,585 [INFO] trainer.MeanFlowAlgorithm: epoch=5 loss=1.539895 time=92.564s peak_mem=293.1MB
+2026-09-22 14:46:27,516 [INFO] trainer.MeanFlowAlgorithm: epoch=6 loss=1.547460 time=92.930s peak_mem=293.1MB
+2026-09-22 14:48:00,570 [INFO] trainer.MeanFlowAlgorithm: epoch=7 loss=1.547743 time=93.053s peak_mem=293.1MB
+2026-09-22 14:49:33,530 [INFO] trainer.MeanFlowAlgorithm: epoch=8 loss=1.555268 time=92.960s peak_mem=293.1MB
+2026-09-22 14:51:06,497 [INFO] trainer.MeanFlowAlgorithm: epoch=9 loss=1.560065 time=92.966s peak_mem=293.1MB
+2026-09-22 14:52:39,688 [INFO] trainer.MeanFlowAlgorithm: epoch=10 loss=1.588163 time=93.191s peak_mem=293.1MB
+2026-09-22 14:52:39,805 [INFO] trainer.MeanFlowAlgorithm: Checkpoint saved -> results/mf_celeba_latent/checkpoints/run_1/MeanFlowAlgorithm_epoch10.pt
+2026-09-22 14:52:39,977 [INFO] trainer.MeanFlowAlgorithm: Checkpoint archive -> results/mf_celeba_latent/checkpoints/run_1/archive/MeanFlowAlgorithm_epoch10.zip
+2026-09-22 14:54:12,779 [INFO] trainer.MeanFlowAlgorithm: epoch=11 loss=1.573331 time=92.802s peak_mem=293.1MB
+2026-09-22 14:55:45,665 [INFO] trainer.MeanFlowAlgorithm: epoch=12 loss=1.596288 time=92.885s peak_mem=293.1MB
+2026-09-22 14:57:18,765 [INFO] trainer.MeanFlowAlgorithm: epoch=13 loss=1.588804 time=93.100s peak_mem=293.1MB
+2026-09-22 14:58:51,667 [INFO] trainer.MeanFlowAlgorithm: epoch=14 loss=1.597349 time=92.901s peak_mem=293.1MB
+2026-09-22 15:00:24,217 [INFO] trainer.MeanFlowAlgorithm: epoch=15 loss=1.574867 time=92.549s peak_mem=293.1MB
+2026-09-22 15:01:57,174 [INFO] trainer.MeanFlowAlgorithm: epoch=16 loss=1.611036 time=92.956s peak_mem=293.1MB
+2026-09-22 15:03:30,154 [INFO] trainer.MeanFlowAlgorithm: epoch=17 loss=1.588316 time=92.980s peak_mem=293.1MB
+2026-09-22 15:05:02,949 [INFO] trainer.MeanFlowAlgorithm: epoch=18 loss=1.615229 time=92.795s peak_mem=293.1MB
+2026-09-22 15:06:35,831 [INFO] trainer.MeanFlowAlgorithm: epoch=19 loss=1.627050 time=92.881s peak_mem=293.1MB
+2026-09-22 15:08:08,216 [INFO] trainer.MeanFlowAlgorithm: epoch=20 loss=1.604845 time=92.384s peak_mem=293.1MB
+2026-09-22 15:08:08,337 [INFO] trainer.MeanFlowAlgorithm: Checkpoint saved -> results/mf_celeba_latent/checkpoints/run_1/MeanFlowAlgorithm_epoch20.pt
+2026-09-22 15:08:08,507 [INFO] trainer.MeanFlowAlgorithm: Checkpoint archive -> results/mf_celeba_latent/checkpoints/run_1/archive/MeanFlowAlgorithm_epoch20.zip
+2026-09-22 15:09:41,265 [INFO] trainer.MeanFlowAlgorithm: epoch=21 loss=1.599131 time=92.758s peak_mem=293.1MB
+2026-09-22 15:11:13,844 [INFO] trainer.MeanFlowAlgorithm: epoch=22 loss=1.623071 time=92.579s peak_mem=293.1MB
+2026-09-22 15:12:44,455 [INFO] trainer.MeanFlowAlgorithm: epoch=23 loss=1.619730 time=90.610s peak_mem=293.1MB
+2026-09-22 15:14:13,393 [INFO] trainer.MeanFlowAlgorithm: epoch=24 loss=1.599997 time=88.938s peak_mem=293.1MB
+2026-09-22 15:15:45,514 [INFO] trainer.MeanFlowAlgorithm: epoch=25 loss=1.616192 time=92.120s peak_mem=293.1MB
+An error occurred while trying to fetch /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/data/pretrained/ldm-celebahq-256/vqvae: Error no file named diffusion_pytorch_model.safetensors found in directory /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/data/pretrained/ldm-celebahq-256/vqvae.
+Defaulting to unsafe serialization. Pass `allow_pickle=False` to raise an error instead.
+/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: Metric `InceptionScore` will save all extracted features in buffer. For large datasets this may lead to large memory footprint.
+  warnings.warn(*args, **kwargs)
+2026-09-22 15:19:19,490 [INFO] trainer.MeanFlowAlgorithm: epoch=26 loss=1.608839 time=94.289s peak_mem=1283.5MB
+2026-09-22 15:20:53,776 [INFO] trainer.MeanFlowAlgorithm: epoch=27 loss=1.646906 time=94.286s peak_mem=1283.5MB
+2026-09-22 15:22:28,041 [INFO] trainer.MeanFlowAlgorithm: epoch=28 loss=1.646925 time=94.264s peak_mem=1283.5MB
+2026-09-22 15:24:02,449 [INFO] trainer.MeanFlowAlgorithm: epoch=29 loss=1.628277 time=94.408s peak_mem=1283.5MB
+2026-09-22 15:25:36,933 [INFO] trainer.MeanFlowAlgorithm: epoch=30 loss=1.646424 time=94.483s peak_mem=1283.5MB
+2026-09-22 15:25:37,054 [INFO] trainer.MeanFlowAlgorithm: Checkpoint saved -> results/mf_celeba_latent/checkpoints/run_1/MeanFlowAlgorithm_epoch30.pt
+2026-09-22 15:25:37,224 [INFO] trainer.MeanFlowAlgorithm: Checkpoint archive -> results/mf_celeba_latent/checkpoints/run_1/archive/MeanFlowAlgorithm_epoch30.zip
+2026-09-22 15:27:11,452 [INFO] trainer.MeanFlowAlgorithm: epoch=31 loss=1.647102 time=94.228s peak_mem=1283.5MB
+2026-09-22 15:28:45,350 [INFO] trainer.MeanFlowAlgorithm: epoch=32 loss=1.604330 time=93.898s peak_mem=1283.5MB
+2026-09-22 15:30:19,512 [INFO] trainer.MeanFlowAlgorithm: epoch=33 loss=1.644305 time=94.161s peak_mem=1283.5MB
+2026-09-22 15:31:54,009 [INFO] trainer.MeanFlowAlgorithm: epoch=34 loss=1.635285 time=94.496s peak_mem=1283.5MB
+2026-09-22 15:33:28,343 [INFO] trainer.MeanFlowAlgorithm: epoch=35 loss=1.649701 time=94.333s peak_mem=1283.5MB
+2026-09-22 15:35:02,317 [INFO] trainer.MeanFlowAlgorithm: epoch=36 loss=1.623155 time=93.974s peak_mem=505.6MB
+2026-09-22 15:36:36,707 [INFO] trainer.MeanFlowAlgorithm: epoch=37 loss=1.637094 time=94.389s peak_mem=505.6MB
+2026-09-22 15:38:08,926 [INFO] trainer.MeanFlowAlgorithm: epoch=38 loss=1.663835 time=92.219s peak_mem=505.6MB
+2026-09-22 15:39:39,833 [INFO] trainer.MeanFlowAlgorithm: epoch=39 loss=1.670058 time=90.907s peak_mem=505.6MB
+2026-09-22 15:41:13,739 [INFO] trainer.MeanFlowAlgorithm: epoch=40 loss=1.645224 time=93.905s peak_mem=505.6MB
+2026-09-22 15:41:13,860 [INFO] trainer.MeanFlowAlgorithm: Checkpoint saved -> results/mf_celeba_latent/checkpoints/run_1/MeanFlowAlgorithm_epoch40.pt
+2026-09-22 15:41:14,035 [INFO] trainer.MeanFlowAlgorithm: Checkpoint archive -> results/mf_celeba_latent/checkpoints/run_1/archive/MeanFlowAlgorithm_epoch40.zip
+2026-09-22 15:42:54,209 [INFO] trainer.MeanFlowAlgorithm: epoch=41 loss=1.652783 time=100.174s peak_mem=505.6MB
+2026-09-22 15:44:29,561 [INFO] trainer.MeanFlowAlgorithm: epoch=42 loss=1.646308 time=95.352s peak_mem=505.6MB
+2026-09-22 15:46:07,880 [INFO] trainer.MeanFlowAlgorithm: epoch=43 loss=1.640432 time=98.318s peak_mem=505.6MB
+2026-09-22 15:47:43,972 [INFO] trainer.MeanFlowAlgorithm: epoch=44 loss=1.656603 time=96.092s peak_mem=505.6MB
+2026-09-22 15:49:21,931 [INFO] trainer.MeanFlowAlgorithm: epoch=45 loss=1.659668 time=97.958s peak_mem=505.6MB

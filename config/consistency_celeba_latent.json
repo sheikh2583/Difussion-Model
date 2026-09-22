@@ -5,14 +5,14 @@
   "dataset": {"name": "celeba_latent", "root": "./data/raw", "image_size": 16,
     "num_workers": 4, "cache_dir": "./data/latent_cache", "split": "train",
     "codec_checkpoint": "./results/codecs/celeba_vq_f4/accepted_codec.pt"},
-  "backbone": {"name": "simple_unet", "in_channels": 3, "base_channels": 64,
-    "channel_mults": [1, 2, 2, 2], "num_res_blocks": 2, "time_embed_dim": 256,
+  "backbone": {"name": "simple_unet", "in_channels": 3, "base_channels": 128,
+    "channel_mults": [1, 2, 2], "num_res_blocks": 2, "time_embed_dim": 256,
     "sample_clamp": false},
   "optim": {"optimizer": "adamw", "learning_rate": 0.0001, "weight_decay": 0,
     "scheduler": "none", "scheduler_kwargs": {}},
   "evaluation": {"metrics": ["fid", "is"], "num_generated_samples": 5000,
     "nfe_values": [1, 2, 5, 10, 20], "eval_frequency_epochs": 25,
-    "fid_reference_cache": "./results/metrics/fid_reference_stats_celeba64_latent.npz"},
+    "fid_reference_cache": "./results/metrics/fid_reference_stats_celeba64_latent_ch3.npz"},
   "algorithm_kwargs": {
     "teacher_checkpoint": "results/fm_celeba_latent/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt",
     "ema_decay": 0.999, "consistency_weight": 1, "n_timesteps": 18}
