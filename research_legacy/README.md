@@ -21,6 +21,12 @@ backbone together with the corresponding committed `algorithms/` and `config/`
 trees so old checkpoint behavior can be studied without mixing it into the
 current latent implementation.
 
+For executable reruns, that architecture is also frozen as
+`models/legacy_cifar_backbone.py` and selected with the
+`legacy_cifar_unet` backbone name. The presets under `config/cifar_legacy/`
+write to isolated result directories; the ZIP files here remain the immutable
+source-history evidence.
+
 ## Reproducibility levels
 
 - `8618531_clean_mf_probe.zip` and `2ea2a5e_clean_research_runs.zip` are exact

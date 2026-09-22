@@ -19,6 +19,7 @@ gdown>=5.0          # Google Drive downloader used by torchvision CelebA
 scipy               # Required internally by torchmetrics FID (matrix sqrt)
 
 # --- Frozen pretrained latent codec ------------------------------------------
+accelerate>=1.0      # Low-CPU-memory Diffusers model loading
 diffusers>=0.30      # VQModel loader for CompVis/ldm-celebahq-256
 huggingface-hub>=0.24 # Pinned model snapshot download
 safetensors>=0.4     # Safe pretrained VAE weight format

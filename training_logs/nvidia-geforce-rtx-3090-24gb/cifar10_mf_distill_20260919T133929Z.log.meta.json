@@ -1,0 +1,10 @@
+{
+  "algorithm": "mf_distill",
+  "annotated_utc": "2026-09-22T06:16:44.323397+00:00",
+  "annotation_schema_version": 1,
+  "annotation_source": "scripts/annotate_training_log_spaces.py",
+  "dataset": "cifar10",
+  "log_path_at_annotation": "training_logs/nvidia-geforce-rtx-3090-24gb/cifar10_mf_distill_20260919T133929Z.log",
+  "representation_space": "pixel",
+  "training_type": "pixel_diffusion"
+}

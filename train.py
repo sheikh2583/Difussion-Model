@@ -53,6 +53,7 @@ def print_startup_summary(
         ("config", resolved_config),
         ("algorithm", algorithm_key),
         ("experiment", cfg.experiment_name),
+        ("backbone", cfg.backbone.name),
         ("result_dir", str(result_dir.resolve())),
         ("batch_size", cfg.batch_size),
         ("epochs", cfg.epochs),

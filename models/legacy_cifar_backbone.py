@@ -1,14 +1,10 @@
-"""
-Shared backbone network. FM and MF are both required to use a model
-built by `build_backbone` from the same BackboneConfig, so parameter
-count and architecture can never silently diverge between algorithms.
+"""Frozen CIFAR-10 backbone used by the original checkpoint-backed runs.
 
-This is a small UNet-style conditional (on a scalar time-like input)
-denoiser. It is intentionally simple and NOT tied to any diffusion /
-flow-matching mathematics — it just maps (noisy_image, t) -> tensor of
-the same shape. What that output is *interpreted as* (velocity, noise,
-mean velocity, etc.) is entirely up to the algorithm implementation.
+This module intentionally preserves the historical ``models/backbone.py``
+architecture whose Git blob is ``d1b02c84feba4f1f4360a7adf54c3a98729824c8``.
+Keep its layer construction and state-dict keys stable.
 """
+
 import math
 from typing import List
 
@@ -16,6 +12,10 @@ import torch
 import torch.nn as nn
 
 from config.config import BackboneConfig
+
+
+LEGACY_BACKBONE_NAME = "legacy_cifar_unet"
+LEGACY_BACKBONE_GIT_BLOB = "d1b02c84feba4f1f4360a7adf54c3a98729824c8"
 
 
 class SinusoidalTimeEmbedding(nn.Module):
@@ -57,7 +57,7 @@ class Downsample(nn.Module):
         super().__init__()
         self.op = nn.Conv2d(ch, ch, 3, stride=2, padding=1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)
 
 
@@ -66,16 +66,12 @@ class Upsample(nn.Module):
         super().__init__()
         self.op = nn.ConvTranspose2d(ch, ch, 4, stride=2, padding=1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.op(x)
 
 
-class SimpleUNet(nn.Module):
-    """
-    Minimal UNet: input (B, C, H, W) + scalar t in [0, 1] per sample,
-    output (B, C, H, W). Purely a function approximator — no
-    algorithm-specific meaning attached to its output here.
-    """
+class LegacyCifarUNet(nn.Module):
+    """Exact trainable architecture used by the completed CIFAR-10 runs."""
 
     def __init__(self, cfg: BackboneConfig):
         super().__init__()
@@ -89,10 +85,8 @@ class SimpleUNet(nn.Module):
             nn.SiLU(),
             nn.Linear(cfg.time_embed_dim, cfg.time_embed_dim),
         )
-
         self.in_conv = nn.Conv2d(cfg.in_channels, ch, 3, padding=1)
 
-        # Encoder
         self.down_blocks = nn.ModuleList()
         self.downsamples = nn.ModuleList()
         chans = [ch]
@@ -111,11 +105,9 @@ class SimpleUNet(nn.Module):
             else:
                 self.downsamples.append(nn.Identity())
 
-        # Bottleneck
         self.mid1 = ResBlock(cur_ch, cur_ch, cfg.time_embed_dim)
         self.mid2 = ResBlock(cur_ch, cur_ch, cfg.time_embed_dim)
 
-        # Decoder
         self.up_blocks = nn.ModuleList()
         self.upsamples = nn.ModuleList()
         for i, mult in reversed(list(enumerate(mults))):
@@ -156,41 +148,4 @@ class SimpleUNet(nn.Module):
                 h = block(torch.cat([h, skip], dim=1), t_emb)
             h = up(h)
 
-        h = self.out_conv(torch.nn.functional.silu(self.out_norm(h)))
-        return h
-
-
-def build_backbone(cfg: BackboneConfig, image_size: int = 32) -> nn.Module:
-    """
-    Single shared construction point. Both FM and MF (and MockAlgorithm)
-    must obtain their model via this function so architecture and
-    parameter count can never silently diverge.
-    """
-    if cfg.name == "simple_unet":
-        model = SimpleUNet(cfg)
-    elif cfg.name == "legacy_cifar_unet":
-        if image_size != 32 or cfg.in_channels != 3:
-            raise ValueError(
-                "legacy_cifar_unet is frozen for CIFAR-10-shaped 3x32x32 input; "
-                f"received in_channels={cfg.in_channels}, image_size={image_size}"
-            )
-        from models.legacy_cifar_backbone import LegacyCifarUNet
-
-        model = LegacyCifarUNet(cfg)
-    else:
-        raise ValueError(
-            f"Unknown backbone: {cfg.name}. Expected 'simple_unet' or "
-            "'legacy_cifar_unet'."
-        )
-    # Fully-convolutional backbone has no intrinsic notion of image
-    # size; record the size it was configured for so algorithms that
-    # need to allocate sampling noise (e.g. MockAlgorithm) can read it
-    # without hard-coding a resolution.
-    model._expected_image_size = image_size
-    return model
-
-
-def count_parameters(model: nn.Module):
-    total = sum(p.numel() for p in model.parameters())
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    return total, trainable
+        return self.out_conv(torch.nn.functional.silu(self.out_norm(h)))

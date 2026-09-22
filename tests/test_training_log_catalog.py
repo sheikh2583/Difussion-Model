@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from scripts.catalog_training_logs import build_catalog, parse_log, write_catalog
+from scripts.annotate_training_log_spaces import annotate, classify_name
 from scripts.package_thesis_context import training_log_files
 
 
@@ -28,6 +29,7 @@ def test_scratch_codec_log_metrics_are_cataloged(tmp_path: Path) -> None:
     record = parse_log(log.resolve(), tmp_path.resolve())
 
     assert record["training_type"] == "scratch_codec"
+    assert record["representation_space"] == "codec"
     assert record["dataset"] == "celeba"
     assert record["algorithm"] == "scratch_kl_vae"
     assert record["completed_epoch"] == 60
@@ -57,6 +59,38 @@ def test_unknown_logs_and_sidecar_metadata_are_preserved(tmp_path: Path) -> None
     by_path = {row["path"]: row for row in catalog}
     assert by_path["training_logs/new_hardware/novel.log"]["training_type"] == "unclassified"
     assert by_path["results/encoder_b/logs/run.log"]["training_type"] == "vector_quantizer"
+
+
+def test_historical_log_sidecar_makes_pixel_and_latent_explicit(tmp_path: Path) -> None:
+    pixel = tmp_path / "training_logs/gpu/celeba_fm_host_20260919T000000Z.log"
+    latent = tmp_path / "training_logs/gpu/celeba_latent_fm_host_20260922T000000Z.log"
+    pixel.parent.mkdir(parents=True)
+    pixel.write_text("[run] dataset=celeba algorithm=fm\nepoch=2 loss=1.0\n")
+    latent.write_text("epoch=3 loss=0.9\n")
+
+    assert classify_name(pixel)["representation_space"] == "pixel"
+    assert classify_name(latent)["representation_space"] == "latent"
+    assert annotate(pixel, tmp_path, apply=True)
+    assert annotate(latent, tmp_path, apply=True)
+
+    pixel_record = parse_log(pixel.resolve(), tmp_path.resolve())
+    latent_record = parse_log(latent.resolve(), tmp_path.resolve())
+    assert pixel_record["dataset"] == "celeba"
+    assert pixel_record["representation_space"] == "pixel"
+    assert latent_record["dataset"] == "celeba_latent"
+    assert latent_record["representation_space"] == "latent"
+
+
+def test_run_local_and_orchestration_logs_are_classified() -> None:
+    latent = Path("results/fm_celeba_latent/logs/trainer.FlowMatchingAlgorithm.log")
+    pixel = Path("results/fm_cifar10/logs/trainer.FlowMatchingAlgorithm.log")
+    codec = Path("results/scratch_vae/logs/train.log")
+    suite = Path("results/tournament_run_20260921_000000_pid1.log")
+
+    assert classify_name(latent)["representation_space"] == "latent"
+    assert classify_name(pixel)["representation_space"] == "pixel"
+    assert classify_name(codec)["representation_space"] == "codec"
+    assert classify_name(suite)["representation_space"] == "mixed"
 
 
 def test_catalog_outputs_and_context_manifest_inventory(tmp_path: Path) -> None:

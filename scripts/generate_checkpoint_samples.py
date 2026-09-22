@@ -26,6 +26,7 @@ Output:
 import argparse
 import os
 import sys
+from pathlib import Path
 
 # Allow running from scripts/ subdirectory
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -37,8 +38,8 @@ from torchvision.utils import save_image
 from algorithms import ALGORITHM_REGISTRY
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
-from utils.checkpoints import load_algorithm_state
 from utils.checkpoint_runs import latest_checkpoint_run_directory
+from utils.checkpoints import load_algorithm_state
 
 RESULTS_ROOT = "./results"
 OUT_ROOT     = "./results/checkpoint_samples"
@@ -97,11 +98,43 @@ def load_algorithm(cfg, algorithm_cls, ckpt_path, device):
 
 
 def generate_grid(algorithm, nfe, n_samples, device, seed):
-    """Run algorithm.sample() and return image tensor (N, C, H, W) in [-1,1]."""
+    """Return sampled model states; latent runs still require codec decoding."""
     torch.manual_seed(seed)
     with torch.no_grad():
         images = algorithm.sample(n_samples, nfe, device)
     return images
+
+
+def load_latent_decoder(cfg, device):
+    """Load the configured frozen codec only for latent-space experiments."""
+    if cfg.dataset.name != "celeba_latent":
+        return None
+    if not cfg.dataset.codec_checkpoint:
+        raise ValueError("Latent checkpoint sampling requires dataset.codec_checkpoint")
+    from codec.codec_factory import load_codec
+
+    return load_codec(cfg.dataset.codec_checkpoint, device, require_frozen=True)
+
+
+@torch.no_grad()
+def decode_for_display(samples, codec, batch_size=32):
+    """Decode normalized latent states in bounded batches before image saving."""
+    if codec is None:
+        images = samples
+    else:
+        images = torch.cat(
+            [
+                codec.decode_normalised(samples[start : start + batch_size]).cpu()
+                for start in range(0, samples.shape[0], batch_size)
+            ],
+            dim=0,
+        )
+    if images.ndim != 4 or images.shape[1] != 3:
+        raise ValueError(
+            "Checkpoint samples must decode to an RGB tensor before save_image; "
+            f"got shape {tuple(images.shape)}"
+        )
+    return images.cpu()
 
 
 def infer_algorithm_cls(ckpt_dir: str):
@@ -144,6 +177,11 @@ def process_run(experiment_name, results_root, out_root, nfe_values, n_samples, 
         return
 
     cfg = ExperimentConfig.load(cfg_path)
+    try:
+        codec = load_latent_decoder(cfg, device)
+    except Exception as error:
+        print(f"[SKIP] Could not load latent decoder for {experiment_name}: {error}")
+        return
     ckpt_files = sorted(
         f for f in os.listdir(ckpt_dir)
         if f.startswith(cls_name) and f.endswith(".pt")
@@ -172,7 +210,8 @@ def process_run(experiment_name, results_root, out_root, nfe_values, n_samples, 
                 print(f"  [SKIP]  {ckpt_file} nfe={nfe:3d} (already exists)")
                 continue
             try:
-                images = generate_grid(algorithm, nfe, n_samples, device, SEED)
+                samples = generate_grid(algorithm, nfe, n_samples, device, SEED)
+                images = decode_for_display(samples, codec)
                 save_image(images, out_path, nrow=8, normalize=True, value_range=(-1, 1))
                 print(f"  [OK]    epoch={epoch:03d} nfe={nfe:3d} -> {out_path}")
             except Exception as e:

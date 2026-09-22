@@ -14,7 +14,7 @@ venv/bin/python -c "import diffusers, huggingface_hub, torch, torchvision; print
 
 If an import fails, install the declared environment and repeat the check:
 
-```bash1
+```bash
 venv/bin/pip install -r requirements.txt
 ```
 

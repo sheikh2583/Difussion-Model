@@ -19,7 +19,7 @@ Rebuild results/aggregate from the canonical metrics JSONL files.
 Options:
   --results-root PATH       Metrics root (default: results)
   --output-dir PATH         Aggregate output (default: results/aggregate)
-  --allow-running           Permit a read-only snapshot while training is active
+  --allow-running           Permit snapshot aggregation while training is active
   --dry-run                 Print the command without writing outputs
   -h, --help                Show this help
 
@@ -68,7 +68,7 @@ printf '\n'
 TRAIN_PATTERN="$PROJECT_ROOT/venv/bin/python.*(train\.py|-m .*train[^ ]*)"
 if [[ "$ALLOW_RUNNING" == false ]] && pgrep -f -- "$TRAIN_PATTERN" >/dev/null; then
     echo "Training is active; aggregate outputs were not changed." >&2
-    echo "Run this after training, or add --allow-running for a read-only snapshot." >&2
+    echo "Run this after training, or add --allow-running for a live snapshot." >&2
     exit 3
 fi
 

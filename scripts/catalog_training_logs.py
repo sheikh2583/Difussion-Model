@@ -33,7 +33,7 @@ STD_LINE = re.compile(r"^minimum latent std\s*>\s*\.1:\s*([+\-0-9.eE]+)")
 GATE_LINE = re.compile(r"^GATE RESULT:\s*(\S+)")
 
 FIELDS = [
-    "path", "training_type", "dataset", "algorithm", "started_utc",
+    "path", "training_type", "representation_space", "dataset", "algorithm", "started_utc",
     "finished_utc", "exit_status", "completed_epoch", "target_epochs",
     "last_loss", "rfid", "psnr", "minimum_latent_std", "gate_result",
     "bytes", "modified_utc", "sha256",
@@ -103,7 +103,10 @@ def parse_log(log_path: Path, project_root: Path) -> dict[str, Any]:
             if match:
                 key, value = match.groups()
                 if key in FIELDS or key in {"kind", "name"}:
-                    record[key] = value
+                    # Sidecars are the migration-safe authority for historical
+                    # transcripts whose old headers may be incomplete.
+                    if metadata.get(key) is None:
+                        record[key] = value
                 continue
             match = STARTUP_FIELD.match(line)
             if match:
@@ -137,6 +140,17 @@ def parse_log(log_path: Path, project_root: Path) -> dict[str, Any]:
         or ("model_training" if record.get("algorithm") or saw_epoch else None)
         or "unclassified"
     )
+    if not record.get("representation_space"):
+        dataset = str(record.get("dataset") or "")
+        training_type = str(record.get("training_type") or "")
+        if dataset.endswith("_latent") or training_type == "latent_diffusion":
+            record["representation_space"] = "latent"
+        elif dataset in {"cifar10", "celeba"} and training_type in {
+            "model_training", "pixel_diffusion"
+        }:
+            record["representation_space"] = "pixel"
+        elif "codec" in training_type:
+            record["representation_space"] = "codec"
     stat = log_path.stat()
     record["bytes"] = stat.st_size
     record["modified_utc"] = datetime.fromtimestamp(
@@ -177,8 +191,8 @@ def _markdown(catalog: list[dict[str, Any]]) -> str:
             "`unclassified` until they provide `[run]` metadata or a JSON sidecar."
         ),
         "",
-        "| Type | Dataset | Algorithm | Epoch | Loss | rFID | PSNR | Gate | Log |",
-        "|---|---|---|---:|---:|---:|---:|---|---|",
+        "| Type | Space | Dataset | Algorithm | Epoch | Loss | rFID | PSNR | Gate | Log |",
+        "|---|---|---|---|---:|---:|---:|---:|---|---|",
     ]
     for row in catalog:
         values = {
@@ -187,7 +201,7 @@ def _markdown(catalog: list[dict[str, Any]]) -> str:
                 else str(item).replace("|", "\\|")
             )
             for key in (
-                "training_type", "dataset", "algorithm", "completed_epoch",
+                "training_type", "representation_space", "dataset", "algorithm", "completed_epoch",
                 "last_loss", "rfid", "psnr", "gate_result", "path",
             )
             for item in (row.get(key),)
@@ -195,7 +209,8 @@ def _markdown(catalog: list[dict[str, Any]]) -> str:
 
         lines.append(
             "| " + " | ".join([
-                values["training_type"], values["dataset"], values["algorithm"],
+                values["training_type"], values["representation_space"],
+                values["dataset"], values["algorithm"],
                 values["completed_epoch"], values["last_loss"], values["rfid"],
                 values["psnr"], values["gate_result"], f"`{values['path']}`",
             ]) + " |"
@@ -205,7 +220,7 @@ def _markdown(catalog: list[dict[str, Any]]) -> str:
 
 def write_catalog(catalog: list[dict[str, Any]], output_dir: Path) -> None:
     json_text = json.dumps(
-        {"schema_version": 1, "logs": catalog}, indent=2, sort_keys=True
+        {"schema_version": 2, "logs": catalog}, indent=2, sort_keys=True
     ) + "\n"
     _atomic_text(output_dir / "training_log_catalog.json", json_text)
 
@@ -231,7 +246,10 @@ def main() -> int:
     catalog = build_catalog(project_root, results_root)
     print(f"Discovered training logs: {len(catalog)}")
     for record in catalog:
-        print(f"  {record['training_type']}: {record['path']}")
+        print(
+            f"  {record['training_type']} [{record['representation_space'] or 'unknown'}]: "
+            f"{record['path']}"
+        )
     if args.dry_run:
         return 0
     write_catalog(catalog, output_dir)

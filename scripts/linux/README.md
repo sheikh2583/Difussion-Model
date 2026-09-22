@@ -17,7 +17,8 @@ To run CIFAR-10 and then CelebA unattended with one command:
 The launchers run each model sequentially in dependency order. CIFAR-10 uses
 the batch-128 exact-JVP MeanFlow configuration. A separate complete terminal
 log is saved for every dataset/model pair under a device-specific directory,
-for example `training_logs/nvidia-geforce-rtx-3090-24gb/`. The launchers do not
+with pixel and latent transcripts separated under `pixel/` and `latent/`, for
+example `training_logs/nvidia-geforce-rtx-3090-24gb/pixel/`. The launchers do not
 stage, commit, or push files; version-control decisions remain with the
 operator. Large results, checkpoints, datasets, and generated samples remain
 excluded from Git.
@@ -93,8 +94,8 @@ python scripts/verify_project_layout.py --fail-if-training
 ## Pretrained CelebA latent codec (primary path)
 
 The active latent experiment uses the frozen `CompVis/ldm-celebahq-256`
-VQ-f4 codec. It maps 64x64 RGB images to three-channel 16x16 quantized latents; every
-algorithm then trains its own randomly initialized latent U-Net.
+VQ-f4 codec. It maps 64×64 RGB images to three-channel 16×16 quantized latents;
+every algorithm then trains its own randomly initialized latent U-Net.
 
 Train or resume all six latent algorithms with per-model logs:
 

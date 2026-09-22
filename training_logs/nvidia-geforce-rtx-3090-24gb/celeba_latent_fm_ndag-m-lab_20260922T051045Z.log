@@ -1,0 +1,27 @@
+[run] job=fm
+[run] started_utc=2026-09-22T05:10:45Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209\ Thesis/Difussion-Model/venv/bin/python train.py --algorithm fm --config config/fm_celeba_latent.json --mode continue --machine-label NDAG-M-Lab-RTX3090 
+[continue] Resuming the latest checkpoint in: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_celeba_latent
+[checkpoints] Active checkpoint series: run_1
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/fm_celeba_latent.json
+[startup] algorithm: fm
+[startup] experiment: fm
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_celeba_latent
+[startup] batch_size: 64
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0002
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.25
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: NDAG-M-Lab-RTX3090
+[startup] code_identity: 08ec0f70d0651644ebb6fc640d515522212c12fd
+2026-09-22 11:10:48,072 [INFO] trainer.FlowMatchingAlgorithm: Resumed from results/fm_celeba_latent/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt at epoch 100
+[continue] Run is already complete at epoch 100; target is 100. Increase --epochs to extend it.
+[run] finished_utc=2026-09-22T05:10:48Z
+[run] exit_status=0

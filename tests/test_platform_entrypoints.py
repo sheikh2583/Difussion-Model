@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LINUX_DIR = PROJECT_ROOT / "scripts" / "linux"
 WINDOWS_DIR = PROJECT_ROOT / "scripts" / "windows"
@@ -59,18 +58,34 @@ def test_linux_cifar_launcher_uses_v3_meanflow_and_does_not_mutate_git() -> None
     assert "config/mf_v3_exact_jvp_b128.json" in text
     assert "training_logs/" in text
     assert 'DEVICE_LOG_DIR="training_logs/$GPU_TOKEN"' in text
+    assert 'PIXEL_LOG_DIR="$DEVICE_LOG_DIR/pixel"' in text
+    assert "representation_space=pixel" in text
     assert "nvidia-smi --query-gpu=name" in text
     assert "nvidia-smi --query-gpu=memory.total" in text
     assert 'DATASETS=(cifar10 celeba)' in text
     assert 'ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)' in text
+    assert '--cifar-backbone "$CIFAR_BACKBONE"' in text
+    assert "config/cifar_legacy/fm.json" in (
+        LINUX_DIR / "train_all.sh"
+    ).read_text(encoding="utf-8")
     for command in ("git add", "git commit", "git push"):
         assert command not in text
+
+
+def test_windows_cifar_launcher_selects_legacy_backbone_without_forcing_mode() -> None:
+    suite = (WINDOWS_DIR / "train_all.ps1").read_text(encoding="utf-8")
+    wrapper = (WINDOWS_DIR / "train_cifar.cmd").read_text(encoding="utf-8")
+
+    assert '$CifarBackbone = "current"' in suite
+    assert "config/cifar_legacy/fm.json" in suite
+    assert "-Mode continue" not in wrapper
 
 
 def test_linux_latent_launcher_covers_suite_without_mutating_git() -> None:
     text = (LINUX_DIR / "train_celeba_latent.sh").read_text(encoding="utf-8")
     assert 'ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)' in text
-    assert 'LOG_DIR="training_logs/$GPU_TOKEN"' in text
+    assert 'LOG_DIR="training_logs/$GPU_TOKEN/latent"' in text
+    assert "representation_space=latent" in text
     assert "scripts/generate_reflow_pairs_latent.py" in text
     for command in ("git add", "git commit", "git push"):
         assert command not in text

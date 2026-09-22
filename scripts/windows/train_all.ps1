@@ -15,6 +15,8 @@ param(
     [string]$Dataset = "cifar10",
     [ValidateSet("continue", "fresh")]
     [string]$Mode = "continue",
+    [ValidateSet("current", "legacy")]
+    [string]$CifarBackbone = "current",
     [switch]$DryRun
 )
 Set-StrictMode -Version Latest
@@ -25,6 +27,9 @@ Set-Location $ProjectRoot
 $Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $Python)) {
     throw "Project environment not found. Run .\scripts\windows\setup.ps1 -Yes first."
+}
+if ($Dataset -eq "celeba" -and $CifarBackbone -ne "current") {
+    throw "-CifarBackbone only applies when -Dataset cifar10."
 }
 
 if ($Dataset -eq "celeba") {
@@ -37,14 +42,25 @@ if ($Dataset -eq "celeba") {
     $FmRunDir = "results/fm_celeba"
     $ReflowPairs = "data/reflow_pairs_celeba.pt"
 } else {
-    $FmConfig = "config/fm_full.json"
-    $FmLognormConfig = "config/fm_lognorm_full.json"
-    $MfConfig = "config/mf_full.json"
-    $MfDistillConfig = "config/mf_distill_full.json"
-    $ConsistencyConfig = "config/consistency_full.json"
-    $ReflowConfig = "config/reflow_full.json"
-    $FmRunDir = "results/fm_cifar10"
-    $ReflowPairs = "data/reflow_pairs_cifar10.pt"
+    if ($CifarBackbone -eq "legacy") {
+        $FmConfig = "config/cifar_legacy/fm.json"
+        $FmLognormConfig = "config/cifar_legacy/fm_lognorm.json"
+        $MfConfig = "config/cifar_legacy/mf.json"
+        $MfDistillConfig = "config/cifar_legacy/mf_distill.json"
+        $ConsistencyConfig = "config/cifar_legacy/consistency.json"
+        $ReflowConfig = "config/cifar_legacy/reflow.json"
+        $FmRunDir = "results/fm_legacy_backbone_cifar10"
+        $ReflowPairs = "data/reflow_pairs_cifar10_legacy_backbone.pt"
+    } else {
+        $FmConfig = "config/fm_full.json"
+        $FmLognormConfig = "config/fm_lognorm_full.json"
+        $MfConfig = "config/mf_full.json"
+        $MfDistillConfig = "config/mf_distill_full.json"
+        $ConsistencyConfig = "config/consistency_full.json"
+        $ReflowConfig = "config/reflow_full.json"
+        $FmRunDir = "results/fm_cifar10"
+        $ReflowPairs = "data/reflow_pairs_cifar10.pt"
+    }
 }
 
 $script:Failed = $false

@@ -6,6 +6,7 @@
 #                          [--batch-size N] [--checkpoint-every N]
 #                          [--train-only] [--dry-run]
 #                          [--machine-label NAME] [--mf-config FILE]
+#                          [--cifar-backbone current|legacy]
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,6 +38,7 @@ CHECKPOINT_EVERY=10
 TRAIN_ONLY=false
 MACHINE_LABEL=""
 MF_CONFIG_OVERRIDE=""
+CIFAR_BACKBONE="current"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -68,6 +70,9 @@ while [[ $# -gt 0 ]]; do
     --mf-config)
       [[ $# -ge 2 ]] || { echo "ERROR: --mf-config requires a value" >&2; exit 2; }
       MF_CONFIG_OVERRIDE="$2"; shift 2 ;;
+    --cifar-backbone)
+      [[ $# -ge 2 ]] || { echo "ERROR: --cifar-backbone requires a value" >&2; exit 2; }
+      CIFAR_BACKBONE="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -90,6 +95,14 @@ case "$MODE" in
   continue|fresh) ;;
   *) echo "ERROR: --mode must be continue or fresh" >&2; exit 2 ;;
 esac
+case "$CIFAR_BACKBONE" in
+  current|legacy) ;;
+  *) echo "ERROR: --cifar-backbone must be current or legacy" >&2; exit 2 ;;
+esac
+if [[ "$DATASET" == "celeba" && "$CIFAR_BACKBONE" != "current" ]]; then
+  echo "ERROR: --cifar-backbone only applies to --dataset cifar10" >&2
+  exit 2
+fi
 
 if [[ "$DATASET" == "celeba" ]]; then
   FM_CONFIG="config/fm_celeba64.json"
@@ -101,17 +114,32 @@ if [[ "$DATASET" == "celeba" ]]; then
   FM_RUN_DIR="results/fm_celeba"
   REFLOW_PAIRS="data/reflow_pairs_celeba.pt"
 else
-  FM_CONFIG="config/fm_full.json"
-  FM_LOGNORM_CONFIG="config/fm_lognorm_full.json"
-  MF_CONFIG="config/mf_full.json"
-  MF_DISTILL_CONFIG="config/mf_distill_full.json"
-  CONSISTENCY_CONFIG="config/consistency_full.json"
-  REFLOW_CONFIG="config/reflow_full.json"
-  FM_RUN_DIR="results/fm_cifar10"
-  REFLOW_PAIRS="data/reflow_pairs_cifar10.pt"
+  if [[ "$CIFAR_BACKBONE" == "legacy" ]]; then
+    FM_CONFIG="config/cifar_legacy/fm.json"
+    FM_LOGNORM_CONFIG="config/cifar_legacy/fm_lognorm.json"
+    MF_CONFIG="config/cifar_legacy/mf.json"
+    MF_DISTILL_CONFIG="config/cifar_legacy/mf_distill.json"
+    CONSISTENCY_CONFIG="config/cifar_legacy/consistency.json"
+    REFLOW_CONFIG="config/cifar_legacy/reflow.json"
+    FM_RUN_DIR="results/fm_legacy_backbone_cifar10"
+    REFLOW_PAIRS="data/reflow_pairs_cifar10_legacy_backbone.pt"
+  else
+    FM_CONFIG="config/fm_full.json"
+    FM_LOGNORM_CONFIG="config/fm_lognorm_full.json"
+    MF_CONFIG="config/mf_full.json"
+    MF_DISTILL_CONFIG="config/mf_distill_full.json"
+    CONSISTENCY_CONFIG="config/consistency_full.json"
+    REFLOW_CONFIG="config/reflow_full.json"
+    FM_RUN_DIR="results/fm_cifar10"
+    REFLOW_PAIRS="data/reflow_pairs_cifar10.pt"
+  fi
 fi
 
 if [[ -n "$MF_CONFIG_OVERRIDE" ]]; then
+  if [[ "$CIFAR_BACKBONE" == "legacy" ]]; then
+    echo "ERROR: --mf-config cannot be combined with --cifar-backbone legacy" >&2
+    exit 2
+  fi
   MF_CONFIG="$MF_CONFIG_OVERRIDE"
 fi
 

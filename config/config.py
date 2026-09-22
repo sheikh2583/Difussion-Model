@@ -16,6 +16,8 @@ import os
 
 @dataclass
 class BackboneConfig:
+    # ``legacy_cifar_unet`` freezes the checkpoint-era CIFAR implementation;
+    # ``simple_unet`` is the normal/current implementation.
     name: str = "simple_unet"
     in_channels: int = 3
     base_channels: int = 64

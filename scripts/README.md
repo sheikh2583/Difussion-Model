@@ -8,6 +8,8 @@ training implementation.
 | Initialize CIFAR-10 | `./scripts/linux/init.sh` | `scripts\windows\init.cmd` |
 | Interactive training | `./scripts/linux/train.sh` | `scripts\windows\train.cmd` |
 | Train/resume CIFAR-10 suite | `./scripts/linux/train_cifar.sh` | `scripts\windows\train_cifar.cmd` |
+| Rerun CIFAR with frozen backbone | `./scripts/linux/train_cifar.sh --cifar-backbone legacy --mode fresh` | `scripts\windows\train_cifar.cmd -CifarBackbone legacy -Mode fresh` |
+| Train/resume CelebA latent suite | `./scripts/linux/train_celeba_latent.sh` | Use `run_train.ps1` with each latent config |
 | Build aggregate summary | `./scripts/linux/make_summary.sh` | `.\scripts\windows\make_summary.ps1` |
 | Build dataset bundles | `venv/bin/python scripts/package_dataset_bundles.py` | `venv\Scripts\python.exe scripts\package_dataset_bundles.py` |
 | Build compact thesis context | `./scripts/linux/make_thesis_context.sh` | `.\scripts\windows\make_thesis_context.ps1` |
@@ -34,3 +36,12 @@ even when they do not use the diffusion experiment JSONL schema. New launchers
 should write `[run] training_type=...`, `[run] dataset=...`, and
 `[run] algorithm=...` headers, or place a `<log>.meta.json` sidecar next to the
 transcript. Logs without metadata are still indexed as `unclassified`.
+
+New diffusion logs are separated by representation under
+`training_logs/<device>/pixel/` and `training_logs/<device>/latent/`. Existing
+transcripts remain in place while training is active and are classified by
+`.log.meta.json` sidecars created with:
+
+```bash
+python scripts/annotate_training_log_spaces.py --apply
+```

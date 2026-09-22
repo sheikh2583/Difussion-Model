@@ -151,9 +151,9 @@ if [[ -z "$LOG_DIR" ]]; then
     if [[ "$GPU_MEMORY_MB" =~ ^[0-9]+$ ]]; then
       GPU_TOKEN="${GPU_TOKEN}-$(((GPU_MEMORY_MB + 1023) / 1024))gb"
     fi
-    LOG_DIR="training_logs/$GPU_TOKEN"
+    LOG_DIR="training_logs/$GPU_TOKEN/latent"
   else
-    LOG_DIR="training_logs/cpu-or-unknown"
+    LOG_DIR="training_logs/cpu-or-unknown/latent"
   fi
 fi
 
@@ -178,6 +178,10 @@ run_logged() {
 
   mkdir -p "$LOG_DIR"
   {
+    echo "[run] training_type=latent_diffusion"
+    echo "[run] representation_space=latent"
+    echo "[run] dataset=celeba_latent"
+    echo "[run] algorithm=$job_name"
     echo "[run] job=$job_name"
     echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf '[run] command='

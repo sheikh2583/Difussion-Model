@@ -11,6 +11,7 @@ MODE="continue"
 CHECKPOINT_EVERY=10
 TRAIN_ONLY=false
 DRY_RUN=false
+CIFAR_BACKBONE="current"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -24,6 +25,9 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || { echo "ERROR: --checkpoint-every requires a value" >&2; exit 2; }
       CHECKPOINT_EVERY="$2"; shift 2 ;;
     --train-only) TRAIN_ONLY=true; shift ;;
+    --cifar-backbone)
+      [[ $# -ge 2 ]] || { echo "ERROR: --cifar-backbone requires a value" >&2; exit 2; }
+      CIFAR_BACKBONE="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -39,6 +43,10 @@ esac
 case "$MODE" in
   continue|fresh) ;;
   *) echo "ERROR: --mode must be continue or fresh" >&2; exit 2 ;;
+esac
+case "$CIFAR_BACKBONE" in
+  current|legacy) ;;
+  *) echo "ERROR: --cifar-backbone must be current or legacy" >&2; exit 2 ;;
 esac
 [[ "$CHECKPOINT_EVERY" =~ ^[1-9][0-9]*$ ]] || {
   echo "ERROR: --checkpoint-every must be a positive integer" >&2
@@ -77,8 +85,9 @@ if [[ -n "$GPU_NAME" ]]; then
 else
   DEVICE_LOG_DIR="training_logs/cpu-or-unknown"
 fi
+PIXEL_LOG_DIR="$DEVICE_LOG_DIR/pixel"
 if [[ "$DRY_RUN" == false ]]; then
-  mkdir -p "$DEVICE_LOG_DIR"
+  mkdir -p "$PIXEL_LOG_DIR"
 fi
 FAILURES=()
 
@@ -91,9 +100,12 @@ for dataset in "${DATASETS[@]}"; do
       --mode "$MODE"
       --checkpoint-every "$CHECKPOINT_EVERY"
     )
+    if [[ "$dataset" == "cifar10" ]]; then
+      command+=(--cifar-backbone "$CIFAR_BACKBONE")
+    fi
     [[ "$TRAIN_ONLY" == false ]] || command+=(--train-only)
     [[ "$DRY_RUN" == false ]] || command+=(--dry-run)
-    if [[ "$dataset" == "cifar10" && "$algorithm" == "mf" ]]; then
+    if [[ "$dataset" == "cifar10" && "$algorithm" == "mf" && "$CIFAR_BACKBONE" == "current" ]]; then
       command+=(--mf-config config/mf_v3_exact_jvp_b128.json)
     fi
 
@@ -103,9 +115,12 @@ for dataset in "${DATASETS[@]}"; do
       continue
     fi
 
-    log_relative="$DEVICE_LOG_DIR/${dataset}_${algorithm}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
+    log_relative="$PIXEL_LOG_DIR/${dataset}_pixel_${algorithm}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
     {
-      echo "[run] dataset=$dataset algorithm=$algorithm"
+      echo "[run] training_type=pixel_diffusion"
+      echo "[run] representation_space=pixel"
+      echo "[run] dataset=$dataset"
+      echo "[run] algorithm=$algorithm"
       echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       echo "[run] command=${command[*]}"
     } | tee "$log_relative"

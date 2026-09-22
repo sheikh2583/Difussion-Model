@@ -5,7 +5,6 @@ import argparse
 import json
 from pathlib import Path
 
-
 DEFAULT_REPO = "CompVis/ldm-celebahq-256"
 
 
@@ -47,9 +46,6 @@ def main() -> int:
         "resolved_revision": resolved,
     }
     manifest_text = json.dumps(manifest, indent=2) + "\n"
-    (output_dir / "source_manifest.json").write_text(
-        manifest_text, encoding="utf-8"
-    )
     (source_dir / "source_manifest.json").write_text(
         manifest_text, encoding="utf-8"
     )

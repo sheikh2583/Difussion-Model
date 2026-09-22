@@ -1,8 +1,8 @@
 """
 models — shared neural-network backbone.
 
-This package contains the single backbone architecture used by all
-algorithms in the project.  Both Flow Matching and Mean Flow must
+This package contains the current shared architecture and the frozen legacy
+CIFAR-10 implementation. Both Flow Matching and Mean Flow must
 obtain their model through `build_backbone` so that parameter count
 and architecture can never silently diverge between runs.
 
@@ -25,9 +25,11 @@ SimpleUNet
 """
 
 from models.backbone import build_backbone, count_parameters, SimpleUNet
+from models.legacy_cifar_backbone import LegacyCifarUNet
 
 __all__ = [
     "build_backbone",
     "count_parameters",
     "SimpleUNet",
+    "LegacyCifarUNet",
 ]
