@@ -46,6 +46,30 @@ For the model-selection menu:
 ./scripts/linux/train.sh
 ```
 
+The menu includes all six CelebA latent algorithms. They can also be selected
+non-interactively, for example:
+
+```bash
+./scripts/linux/train.sh --choice celeba_latent:mf --mode continue --yes
+./scripts/linux/train.sh --choice celeba_latent:mf_distill --mode fresh --yes
+./scripts/linux/train.sh --choice celeba_latent:consistency --mode fresh --yes
+./scripts/linux/train.sh --choice celeba_latent:reflow --mode fresh --yes
+```
+
+MF-Distill and Consistency resolve the latent FM teacher automatically. Reflow
+also generates latent pairs with `generate_reflow_pairs_latent.py` when needed.
+
+Run the complete dependency-ordered latent workflow through the main launcher:
+
+```bash
+./scripts/linux/train.sh --all-latent --mode continue
+```
+
+Each completed transcript and metadata sidecar is stored under
+`training_logs/<device>/latent/<algorithm>/` and staged with path-scoped
+`git add`, making new logs Git-tracked without staging unrelated files. Pass
+`--no-track-logs` to keep a run's logs unstaged.
+
 Useful checks that do not start training:
 
 ```bash

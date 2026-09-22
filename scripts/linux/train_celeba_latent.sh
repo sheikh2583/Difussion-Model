@@ -20,6 +20,7 @@ CHECKPOINT_EVERY=""
 TRAIN_ONLY=false
 DRY_RUN=false
 LOG_DIR=""
+TRACK_LOGS=true
 
 usage() {
   sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -36,6 +37,8 @@ Options:
   --checkpoint-every N     Override checkpoint cadence from each config
   --train-only             Skip evaluation and final sampling
   --log-dir PATH           Override the auto-detected device log directory
+  --track-logs             Stage each completed log and sidecar (default)
+  --no-track-logs          Leave completed logs unstaged
   --dry-run                Print commands without training or writing logs
   --list                   List the six algorithms and exit
   -h, --help               Show this help
@@ -66,6 +69,8 @@ while [[ $# -gt 0 ]]; do
     --log-dir)
       [[ $# -ge 2 ]] || { echo "ERROR: --log-dir requires a value" >&2; exit 2; }
       LOG_DIR="$2"; shift 2 ;;
+    --track-logs) TRACK_LOGS=true; shift ;;
+    --no-track-logs) TRACK_LOGS=false; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     --list)
       printf '%s\n' fm fm_lognorm mf mf_distill consistency reflow
@@ -102,6 +107,14 @@ declare -A CONFIGS=(
   [consistency]="config/consistency_celeba_latent.json"
   [reflow]="config/reflow_celeba_latent.json"
 )
+declare -A EFFECTIVE_CONFIGS=(
+  [fm]="config/fm_celeba_latent.json"
+  [fm_lognorm]="config/fm_lognorm_celeba_latent.json"
+  [mf]="config/mf_celeba_latent.json"
+  [mf_distill]="config/mf_distill_celeba_latent.json"
+  [consistency]="config/consistency_celeba_latent.json"
+  [reflow]="config/reflow_celeba_latent.json"
+)
 declare -A ALGORITHM_CLASSES=(
   [fm]="FlowMatchingAlgorithm"
   [fm_lognorm]="FlowMatchingLognormAlgorithm"
@@ -111,7 +124,6 @@ declare -A ALGORITHM_CLASSES=(
   [reflow]="ReflowAlgorithm"
 )
 ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)
-FM_CHECKPOINT="results/fm_celeba_latent/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt"
 REFLOW_PAIRS="data/reflow_pairs_celeba_latent.pt"
 ACCEPTED_CODEC="results/codecs/celeba_vq_f4/accepted_codec.pt"
 
@@ -132,18 +144,13 @@ done
 workflow_guard_start "train_celeba_latent.sh" "$DRY_RUN" "${IDENTITY_ARGS[@]}"
 export DIFFUSION_LIFECYCLE_MODE="$MODE"
 
+PLANNED_FM_CHECKPOINT=""
 if [[ "$ONLY" == "all" ]]; then
   PLANNED_FM_CHECKPOINT="$("$PYTHON" scripts/checkpoint_path.py \
     --run-dir results/fm_celeba_latent \
     --class-name FlowMatchingAlgorithm \
     --epoch 100 \
     --planned-mode "$MODE")"
-  if [[ "$PLANNED_FM_CHECKPOINT" != "$FM_CHECKPOINT" ]]; then
-    echo "ERROR: the latent teacher configs are pinned to $FM_CHECKPOINT," >&2
-    echo "but --mode $MODE would train or resume FM at $PLANNED_FM_CHECKPOINT." >&2
-    echo "Run algorithms individually with --only, or align the configs explicitly." >&2
-    exit 1
-  fi
 fi
 
 RUN_TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -194,6 +201,7 @@ export DIFFUSION_MACHINE_LABEL="$MACHINE_LABEL"
 echo "[PLAN] machine_label=$MACHINE_LABEL"
 echo "[PLAN] gpu_name=${GPU_NAME:-unavailable}"
 echo "[PLAN] gpu_memory_mb=${GPU_MEMORY_MB:-unavailable}"
+echo "[PLAN] track_logs=$TRACK_LOGS"
 
 print_command() {
   printf '%q ' "$@"
@@ -204,7 +212,9 @@ run_logged() {
   local job_name=$1
   shift
   local -a command=("$@")
-  local log_path="$LOG_DIR/celeba_latent_${job_name}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
+  local job_log_dir="$LOG_DIR/$job_name"
+  local log_path="$job_log_dir/celeba_latent_${job_name}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
+  local sidecar_path="${log_path}.meta.json"
 
   echo "[PLAN] job=$job_name"
   echo "[PLAN] log=$log_path"
@@ -214,7 +224,7 @@ run_logged() {
     return 0
   fi
 
-  mkdir -p "$LOG_DIR"
+  mkdir -p "$job_log_dir"
   if [[ -e "$log_path" ]]; then
     echo "ERROR: refusing to overwrite existing training log: $log_path" >&2
     return 1
@@ -246,6 +256,15 @@ run_logged() {
     echo "[run] finished_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "[run] exit_status=$status"
   } | tee -a "$log_path"
+  "$PYTHON" scripts/write_training_log_metadata.py --log "$log_path" >/dev/null
+  if [[ "$TRACK_LOGS" == true ]]; then
+    git add -- "$log_path" "$sidecar_path"
+    echo "[TRACKED] $log_path"
+    echo "[TRACKED] $sidecar_path"
+  else
+    echo "[UNSTAGED] $log_path"
+    echo "[UNSTAGED] $sidecar_path"
+  fi
   return "$status"
 }
 
@@ -254,13 +273,13 @@ run_training() {
   local -a command=(
     "$PYTHON" train.py
     --algorithm "$algorithm"
-    --config "${CONFIGS[$algorithm]}"
+    --config "${EFFECTIVE_CONFIGS[$algorithm]}"
     --mode "$MODE"
   )
   workflow_guard_verify_source "$DRY_RUN"
   if [[ "$DRY_RUN" == false ]]; then
     export DIFFUSION_SELECTED_CONFIG_SHA256
-    DIFFUSION_SELECTED_CONFIG_SHA256="$(sha256sum "${CONFIGS[$algorithm]}" | awk '{print $1}')"
+    DIFFUSION_SELECTED_CONFIG_SHA256="$(sha256sum "${EFFECTIVE_CONFIGS[$algorithm]}" | awk '{print $1}')"
   fi
   local resolved_checkpoint
   resolved_checkpoint="$(
@@ -275,6 +294,39 @@ run_training() {
   [[ -z "$CHECKPOINT_EVERY" ]] || command+=(--checkpoint-every "$CHECKPOINT_EVERY")
   [[ "$TRAIN_ONLY" == false ]] || command+=(--train-only)
   run_logged "$algorithm" "${command[@]}"
+}
+
+resolve_corrected_fm_checkpoint() {
+  if [[ -n "$PLANNED_FM_CHECKPOINT" ]]; then
+    printf '%s\n' "$PLANNED_FM_CHECKPOINT"
+    return 0
+  fi
+  "$PYTHON" scripts/checkpoint_path.py \
+    --run-dir results/fm_celeba_latent \
+    --class-name FlowMatchingAlgorithm \
+    --epoch 100
+}
+
+prepare_teacher_config() {
+  local algorithm=$1
+  local teacher_checkpoint
+  if ! teacher_checkpoint="$(resolve_corrected_fm_checkpoint)"; then
+    echo "ERROR: corrected latent FM epoch-100 checkpoint is not available." >&2
+    echo "Resume it first: ./scripts/linux/train_celeba_latent.sh --only fm --mode continue" >&2
+    exit 1
+  fi
+  require_file "$teacher_checkpoint" "corrected latent FM teacher checkpoint"
+  if [[ "$DRY_RUN" == true ]]; then
+    EFFECTIVE_CONFIGS[$algorithm]="results/launcher_configs/${RUN_TIMESTAMP}/${algorithm}_celeba_latent.json"
+    echo "[PLAN] bind ${CONFIGS[$algorithm]} to teacher $teacher_checkpoint"
+    return 0
+  fi
+  local output="results/launcher_configs/${RUN_TIMESTAMP}/${algorithm}_celeba_latent.json"
+  "$PYTHON" scripts/prepare_latent_dependency_config.py \
+    --source "${CONFIGS[$algorithm]}" \
+    --output "$output" \
+    --teacher-checkpoint "$teacher_checkpoint" >/dev/null
+  EFFECTIVE_CONFIGS[$algorithm]="$output"
 }
 
 require_file() {
@@ -309,19 +361,24 @@ if [[ "$ONLY" == "all" || "$ONLY" == "mf" ]]; then
 fi
 
 if [[ "$ONLY" == "all" || "$ONLY" == "mf_distill" ]]; then
-  require_file "$FM_CHECKPOINT" "latent FM teacher checkpoint"
+  prepare_teacher_config mf_distill
   run_training mf_distill
 fi
 if [[ "$ONLY" == "all" || "$ONLY" == "consistency" ]]; then
-  require_file "$FM_CHECKPOINT" "latent FM teacher checkpoint"
+  prepare_teacher_config consistency
   run_training consistency
 fi
 if [[ "$ONLY" == "all" || "$ONLY" == "reflow" ]]; then
-  require_file "$FM_CHECKPOINT" "latent FM teacher checkpoint"
+  if ! FM_CHECKPOINT="$(resolve_corrected_fm_checkpoint)"; then
+    echo "ERROR: corrected latent FM epoch-100 checkpoint is not available." >&2
+    echo "Resume it first: ./scripts/linux/train_celeba_latent.sh --only fm --mode continue" >&2
+    exit 1
+  fi
+  require_file "$FM_CHECKPOINT" "corrected latent FM teacher checkpoint"
   if [[ ! -f "$REFLOW_PAIRS" ]]; then
     workflow_guard_verify_source "$DRY_RUN"
     export DIFFUSION_SELECTED_CONFIG_SHA256="$(sha256sum "${CONFIGS[fm]}" | awk '{print $1}')"
-    export DIFFUSION_CHECKPOINT_SERIES="run_1"
+    export DIFFUSION_CHECKPOINT_SERIES="$(basename "$(dirname "$FM_CHECKPOINT")")"
     run_logged reflow_pairs \
       "$PYTHON" scripts/generate_reflow_pairs_latent.py \
       --checkpoint "$FM_CHECKPOINT" \
@@ -338,5 +395,5 @@ fi
 if [[ "$DRY_RUN" == true ]]; then
   echo "Dry-run complete; no training, pair generation, or log writes occurred."
 else
-  echo "CelebA latent workflow complete. Logs: $LOG_DIR"
+  echo "CelebA latent workflow complete. Partitioned logs: $LOG_DIR/<algorithm>/"
 fi

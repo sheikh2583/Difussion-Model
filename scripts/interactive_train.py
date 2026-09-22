@@ -42,6 +42,12 @@ CHOICES = (
     TrainingChoice("celeba:mf_distill", "CelebA 64x64 - Mean Flow Distillation", "mf_distill", "config/mf_distill_celeba64.json", "FM teacher"),
     TrainingChoice("celeba:consistency", "CelebA 64x64 - Consistency Model", "consistency", "config/consistency_celeba64.json", "FM teacher"),
     TrainingChoice("celeba:reflow", "CelebA 64x64 - Reflow", "reflow", "config/reflow_celeba64.json", "FM teacher + generated pairs"),
+    TrainingChoice("celeba_latent:fm", "CelebA latent - Flow Matching", "fm", "config/fm_celeba_latent.json"),
+    TrainingChoice("celeba_latent:fm_lognorm", "CelebA latent - Flow Matching, logit-normal", "fm_lognorm", "config/fm_lognorm_celeba_latent.json"),
+    TrainingChoice("celeba_latent:mf", "CelebA latent - Mean Flow", "mf", "config/mf_celeba_latent.json"),
+    TrainingChoice("celeba_latent:mf_distill", "CelebA latent - Mean Flow Distillation", "mf_distill", "config/mf_distill_celeba_latent.json", "latent FM teacher"),
+    TrainingChoice("celeba_latent:consistency", "CelebA latent - Consistency Model", "consistency", "config/consistency_celeba_latent.json", "latent FM teacher"),
+    TrainingChoice("celeba_latent:reflow", "CelebA latent - Reflow", "reflow", "config/reflow_celeba_latent.json", "latent FM teacher + generated pairs"),
 )
 CHOICE_BY_KEY = {choice.key: choice for choice in CHOICES}
 
@@ -97,6 +103,19 @@ def train(
     mode: str = "continue",
     epochs: Optional[int] = None,
 ) -> None:
+    selected = load_config(config)
+    if selected["dataset"]["name"] == "celeba_latent":
+        command = [
+            "bash", "scripts/linux/train_celeba_latent.sh",
+            "--only", algorithm, "--mode", mode,
+        ]
+        if epochs is not None:
+            raise ValueError(
+                "Latent suite selections use the epoch count in their config; "
+                "--epochs is not supported for this launcher."
+            )
+        run(command, dry_run)
+        return
     command = [
         sys.executable, "train.py", "--algorithm", algorithm,
         "--config", config, "--mode", mode,
@@ -104,6 +123,18 @@ def train(
     if epochs is not None:
         command.extend(("--epochs", str(epochs)))
     run(command, dry_run)
+
+
+def fm_config_for_dataset(dataset: str) -> str:
+    configs = {
+        "cifar10": "config/fm_full.json",
+        "celeba": "config/fm_celeba64.json",
+        "celeba_latent": "config/fm_celeba_latent.json",
+    }
+    try:
+        return configs[dataset]
+    except KeyError as error:
+        raise ValueError(f"Unsupported dataset for FM prerequisite: {dataset}") from error
 
 
 def ensure_teacher(choice: TrainingChoice, dry_run: bool) -> Path:
@@ -115,7 +146,7 @@ def ensure_teacher(choice: TrainingChoice, dry_run: bool) -> Path:
         return teacher
 
     dataset = selected["dataset"]["name"]
-    teacher_config = "config/fm_celeba64.json" if dataset == "celeba" else "config/fm_full.json"
+    teacher_config = fm_config_for_dataset(dataset)
     print(
         "[prerequisite] FM teacher is missing; it will be trained first: "
         f"{teacher_reference.relative_to(PROJECT_ROOT)}"
@@ -130,6 +161,10 @@ def ensure_teacher(choice: TrainingChoice, dry_run: bool) -> Path:
 
 
 def ensure_prerequisites(choice: TrainingChoice, dry_run: bool) -> None:
+    if load_config(choice.config)["dataset"]["name"] == "celeba_latent":
+        # The latent suite owns checkpoint-series selection, teacher binding,
+        # and Reflow pair generation so all three refer to one corrected FM run.
+        return
     if choice.algorithm in {"mf_distill", "consistency"}:
         ensure_teacher(choice, dry_run)
         return
@@ -145,11 +180,16 @@ def ensure_prerequisites(choice: TrainingChoice, dry_run: bool) -> None:
     dataset = selected["dataset"]["name"]
     teacher_choice = CHOICE_BY_KEY[f"{dataset}:mf_distill"]
     teacher = ensure_teacher(teacher_choice, dry_run)
-    teacher_config = "config/fm_celeba64.json" if dataset == "celeba" else "config/fm_full.json"
+    teacher_config = fm_config_for_dataset(dataset)
+    pair_generator = (
+        "scripts/generate_reflow_pairs_latent.py"
+        if dataset == "celeba_latent"
+        else "scripts/generate_reflow_pairs.py"
+    )
     print(f"[prerequisite] Reflow pairs are missing; 50,000 pairs will be generated: {pairs}")
     run([
         sys.executable,
-        "scripts/generate_reflow_pairs.py",
+        pair_generator,
         "--checkpoint", str(teacher),
         "--config", teacher_config,
         "--n-pairs", "50000",

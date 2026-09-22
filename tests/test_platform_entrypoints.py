@@ -85,13 +85,16 @@ def test_windows_cifar_launcher_selects_legacy_backbone_without_forcing_mode() -
     assert "-Mode continue" not in wrapper
 
 
-def test_linux_latent_launcher_covers_suite_without_mutating_git() -> None:
+def test_linux_latent_launcher_covers_suite_and_only_stages_logs() -> None:
     text = (LINUX_DIR / "train_celeba_latent.sh").read_text(encoding="utf-8")
     assert 'ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)' in text
     assert 'LOG_DIR="training_logs/$GPU_TOKEN/latent"' in text
+    assert 'job_log_dir="$LOG_DIR/$job_name"' in text
     assert "representation_space=latent" in text
     assert "scripts/generate_reflow_pairs_latent.py" in text
-    for command in ("git add", "git commit", "git push"):
+    assert "scripts/write_training_log_metadata.py" in text
+    assert 'git add -- "$log_path" "$sidecar_path"' in text
+    for command in ("git commit", "git push"):
         assert command not in text
 
 

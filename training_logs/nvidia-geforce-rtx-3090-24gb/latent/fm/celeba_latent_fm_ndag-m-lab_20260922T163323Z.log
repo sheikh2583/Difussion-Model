@@ -1,0 +1,42 @@
+[run] training_type=latent_diffusion
+[run] representation_space=latent
+[run] dataset=celeba_latent
+[run] algorithm=fm
+[run] job=fm
+[run] source_identity_sha256=1a0feaa6767e5710a5b30d5c3d04961ff22f0fa38cac27689e0e7bfe9a2ef52a
+[run] lifecycle_mode=continue
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] parent_suite_timestamp=20260922T163323Z
+[run] selected_config_sha256=5595f620495dbad9528453889a6a14ad234479c6b54ee3012bb6ba946bbeb5f8
+[run] checkpoint_series=run_3
+[run] started_utc=2026-09-22T16:33:24Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209\ Thesis/Difussion-Model/venv/bin/python train.py --algorithm fm --config config/fm_celeba_latent.json --mode continue --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb 
+[continue] Resuming the latest checkpoint in: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_celeba_latent
+[checkpoints] Active checkpoint series: run_3
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/fm_celeba_latent.json
+[startup] algorithm: fm
+[startup] experiment: fm
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_celeba_latent
+[startup] batch_size: 64
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0002
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.25
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: bfea6378585e017ee9f44495f0c47bf54ab8b0ed+dirty:3b278c80a75e
+[startup] source_identity_sha256: 1a0feaa6767e5710a5b30d5c3d04961ff22f0fa38cac27689e0e7bfe9a2ef52a
+[startup] selected_config_file_sha256: 5595f620495dbad9528453889a6a14ad234479c6b54ee3012bb6ba946bbeb5f8
+[startup] lifecycle_mode: continue
+[startup] checkpoint_series: run_3
+[startup] parent_suite_timestamp: 20260922T163323Z
+2026-09-22 22:33:27,186 [INFO] trainer.FlowMatchingAlgorithm: Resumed from results/fm_celeba_latent/checkpoints/run_3/FlowMatchingAlgorithm_epoch20.pt at epoch 20

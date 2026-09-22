@@ -33,6 +33,12 @@ def test_posix_entrypoints_parse_with_system_sh():
         subprocess.run([shell, "-n", str(path)], check=True)
 
 
+def test_main_launcher_dispatches_all_latent_suite():
+    text = (PROJECT_ROOT / "scripts/linux/train.sh").read_text(encoding="utf-8")
+    assert '"${1:-}" = "--all-latent"' in text
+    assert "scripts/linux/train_celeba_latent.sh --only all" in text
+
+
 def test_initializer_does_not_depend_on_nested_executable_bit():
     text = (PROJECT_ROOT / "scripts" / "linux" / "init.sh").read_text(encoding="utf-8")
     assert 'exec sh "$SCRIPT_DIR/setup.sh"' in text
@@ -55,6 +61,32 @@ def test_training_menu_lists_choices_without_importing_model_stack():
     )
     assert "cifar10:fm" in result.stdout
     assert "celeba:reflow" in result.stdout
+    assert "celeba_latent:fm" in result.stdout
+    assert "celeba_latent:fm_lognorm" in result.stdout
+    assert "celeba_latent:mf" in result.stdout
+    assert "celeba_latent:mf_distill" in result.stdout
+    assert "celeba_latent:consistency" in result.stdout
+    assert "celeba_latent:reflow" in result.stdout
+
+
+def test_latent_prerequisites_use_latent_fm_and_pair_generator(monkeypatch):
+    choice = interactive_train.CHOICE_BY_KEY["celeba_latent:reflow"]
+    commands = []
+
+    monkeypatch.setattr(
+        interactive_train,
+        "run",
+        lambda command, dry_run: commands.append(command),
+    )
+
+    interactive_train.train(
+        choice.algorithm, choice.config, dry_run=True, mode="continue"
+    )
+
+    assert commands[0] == [
+        "bash", "scripts/linux/train_celeba_latent.sh",
+        "--only", "reflow", "--mode", "continue",
+    ]
 
 
 def test_teacher_lookup_accepts_numbered_checkpoint_layout(tmp_path, monkeypatch):

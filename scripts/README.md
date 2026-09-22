@@ -38,7 +38,8 @@ should write `[run] training_type=...`, `[run] dataset=...`, and
 transcript. Logs without metadata are still indexed as `unclassified`.
 
 Diffusion logs are separated by representation under
-`training_logs/<device>/pixel/` and `training_logs/<device>/latent/`; codec
+`training_logs/<device>/pixel/` and `training_logs/<device>/latent/`; new latent
+suite logs add an algorithm partition at `latent/<algorithm>/`. Codec
 transcripts use `training_logs/<device>/codec/`. Historical central transcripts
 were migrated with byte-identical pre/post digests recorded in the timestamped
 `training_logs/log_migration_manifest_*.json` file. The reusable migration tool

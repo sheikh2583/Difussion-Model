@@ -47,6 +47,11 @@ ProjectForClaude.zip
 # Deliberately versioned, generated thesis handoff artifacts.
 !THESIS_SUMMARY.md
 
+# Training transcripts and their metadata are experiment provenance. Keep the
+# device/representation/algorithm partitions eligible for version control.
+!training_logs/
+!training_logs/**
+
 # Agent conversation files
 AGENTS.md
 PLAN.md
