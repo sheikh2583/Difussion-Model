@@ -55,12 +55,17 @@ ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)
 RUN_TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 HOST_TOKEN="$(hostname | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-')"
 HOST_TOKEN="${HOST_TOKEN%-}"
+GPU_NAME=""
+GPU_MEMORY_MB=""
 if command -v nvidia-smi >/dev/null 2>&1; then
-  GPU_NAME="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -n 1 || true)"
-  GPU_MEMORY_MB="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -n 1 | tr -d ' ' || true)"
-else
-  GPU_NAME=""
-  GPU_MEMORY_MB=""
+  GPU_QUERY=""
+  MEMORY_QUERY=""
+  if GPU_QUERY="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null)"; then
+    GPU_NAME="$(printf '%s\n' "$GPU_QUERY" | sed -n '1p')"
+    if MEMORY_QUERY="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null)"; then
+      GPU_MEMORY_MB="$(printf '%s\n' "$MEMORY_QUERY" | sed -n '1p' | tr -d ' ')"
+    fi
+  fi
 fi
 if [[ -n "$GPU_NAME" ]]; then
   GPU_TOKEN="$(printf '%s' "$GPU_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-')"
@@ -75,7 +80,6 @@ fi
 if [[ "$DRY_RUN" == false ]]; then
   mkdir -p "$DEVICE_LOG_DIR"
 fi
-LOG_FILES=()
 FAILURES=()
 
 for dataset in "${DATASETS[@]}"; do
@@ -100,7 +104,6 @@ for dataset in "${DATASETS[@]}"; do
     fi
 
     log_relative="$DEVICE_LOG_DIR/${dataset}_${algorithm}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
-    LOG_FILES+=("$log_relative")
     {
       echo "[run] dataset=$dataset algorithm=$algorithm"
       echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -125,21 +128,6 @@ done
 if [[ "$DRY_RUN" == true ]]; then
   echo "Dry-run complete; no logs, commits, or pushes were created."
   exit 0
-fi
-
-# Commit all per-model logs together only after every requested job has been
-# attempted. This keeps the source code identity identical across model runs.
-git add -- "${LOG_FILES[@]}"
-if git commit -m "logs: record unattended dataset training $RUN_TIMESTAMP" -- "${LOG_FILES[@]}"; then
-  CURRENT_BRANCH="$(git branch --show-current)"
-  if [[ -n "$CURRENT_BRANCH" ]]; then
-    GIT_TERMINAL_PROMPT=0 git push origin "$CURRENT_BRANCH" || {
-      echo "WARNING: logs are committed locally, but Git push failed." >&2
-      echo "Run later: git push origin $CURRENT_BRANCH" >&2
-    }
-  fi
-else
-  echo "WARNING: logs remain on disk, but their Git commit failed." >&2
 fi
 
 if [[ ${#FAILURES[@]} -gt 0 ]]; then

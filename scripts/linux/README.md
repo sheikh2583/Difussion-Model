@@ -17,11 +17,10 @@ To run CIFAR-10 and then CelebA unattended with one command:
 The launchers run each model sequentially in dependency order. CIFAR-10 uses
 the batch-128 exact-JVP MeanFlow configuration. A separate complete terminal
 log is saved for every dataset/model pair under a device-specific directory,
-for example `training_logs/nvidia-geforce-rtx-3090-24gb/`. After all
-requested jobs have been attempted, the logs are committed together and pushed
-to the current branch. Committing at the end keeps one source-code identity
-across every comparison. Large results, checkpoints, datasets, and generated
-samples remain excluded from Git.
+for example `training_logs/nvidia-geforce-rtx-3090-24gb/`. The launchers do not
+stage, commit, or push files; version-control decisions remain with the
+operator. Large results, checkpoints, datasets, and generated samples remain
+excluded from Git.
 
 The machine label is generated automatically from the OS, hostname, GPU, and
 VRAM (for example, `linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb`). No setup
@@ -96,6 +95,16 @@ python scripts/verify_project_layout.py --fail-if-training
 The active latent experiment uses the frozen `CompVis/ldm-celebahq-256`
 VQ-f4 codec. It maps 64x64 RGB images to three-channel 16x16 quantized latents; every
 algorithm then trains its own randomly initialized latent U-Net.
+
+Train or resume all six latent algorithms with per-model logs:
+
+```bash
+./scripts/linux/train_celeba_latent.sh \
+  --machine-label NDAG-M-Lab-RTX3090 \
+  --mode continue
+```
+
+Use `--dry-run` to preview training without writing logs or starting models.
 
 Preview the exact download and validation commands, then run them:
 

@@ -23,6 +23,7 @@ def test_linux_platform_scripts_parse_and_are_executable() -> None:
         "train.sh",
         "train_cifar.sh",
         "train_all_datasets.sh",
+        "train_celeba_latent.sh",
         "make_summary.sh",
         "generate_cifar10_outputs.sh",
         "generate_celeba_outputs.sh",
@@ -32,6 +33,7 @@ def test_linux_platform_scripts_parse_and_are_executable() -> None:
         interpreter = bash if name in (
             "train_cifar.sh",
             "train_all_datasets.sh",
+            "train_celeba_latent.sh",
             "make_summary.sh",
             "generate_cifar10_outputs.sh",
             "generate_celeba_outputs.sh",
@@ -52,7 +54,7 @@ def test_platform_wrappers_reference_shared_entrypoints() -> None:
     ).read_text(encoding="utf-8")
 
 
-def test_linux_cifar_launcher_uses_v3_meanflow_and_tracks_only_text_log() -> None:
+def test_linux_cifar_launcher_uses_v3_meanflow_and_does_not_mutate_git() -> None:
     text = (LINUX_DIR / "train_all_datasets.sh").read_text(encoding="utf-8")
     assert "config/mf_v3_exact_jvp_b128.json" in text
     assert "training_logs/" in text
@@ -61,8 +63,17 @@ def test_linux_cifar_launcher_uses_v3_meanflow_and_tracks_only_text_log() -> Non
     assert "nvidia-smi --query-gpu=memory.total" in text
     assert 'DATASETS=(cifar10 celeba)' in text
     assert 'ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)' in text
-    assert 'git add -- "${LOG_FILES[@]}"' in text
-    assert 'git commit -m "logs: record unattended dataset training' in text
+    for command in ("git add", "git commit", "git push"):
+        assert command not in text
+
+
+def test_linux_latent_launcher_covers_suite_without_mutating_git() -> None:
+    text = (LINUX_DIR / "train_celeba_latent.sh").read_text(encoding="utf-8")
+    assert 'ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)' in text
+    assert 'LOG_DIR="training_logs/$GPU_TOKEN"' in text
+    assert "scripts/generate_reflow_pairs_latent.py" in text
+    for command in ("git add", "git commit", "git push"):
+        assert command not in text
 
 
 def test_generated_outputs_remain_ignored() -> None:

@@ -19,7 +19,10 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PLATFORM_SUFFIXES = {".sh", ".ps1", ".cmd"}
-IGNORED_TREES = {".git", "venv", "results", "__pycache__"}
+# Repository-local IDE/worktree metadata is not part of this checkout's source
+# layout. In particular, .kilo/worktrees may contain complete nested clones
+# whose platform launchers would otherwise be reported as misplaced files.
+IGNORED_TREES = {".git", ".kilo", "venv", "results", "__pycache__"}
 REPORT_FILES = {
     "docs/report/main.tex",
     "docs/report/citations.bib",
