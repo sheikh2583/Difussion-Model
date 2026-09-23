@@ -145,3 +145,23 @@ Defaulting to unsafe serialization. Pass `allow_pickle=False` to raise an error 
 2026-09-23 10:24:53,116 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=84 loss=0.017322 time=199.453s peak_mem=2376.9MB
 2026-09-23 10:28:12,656 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=85 loss=0.017283 time=199.540s peak_mem=2376.9MB
 2026-09-23 10:31:32,056 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=86 loss=0.017254 time=199.399s peak_mem=2376.9MB
+2026-09-23 10:34:55,643 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=87 loss=0.017197 time=203.586s peak_mem=2376.9MB
+2026-09-23 10:38:24,567 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=88 loss=0.017222 time=208.924s peak_mem=2376.9MB
+2026-09-23 10:41:53,292 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=89 loss=0.017129 time=208.724s peak_mem=2376.9MB
+2026-09-23 10:45:21,580 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=90 loss=0.017103 time=208.288s peak_mem=2376.9MB
+2026-09-23 10:45:21,825 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_celeba_latent/checkpoints/run_1/MeanFlowDistillAlgorithm_epoch90.pt
+2026-09-23 10:45:22,308 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_celeba_latent/checkpoints/run_1/archive/MeanFlowDistillAlgorithm_epoch90.zip
+2026-09-23 10:48:50,582 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=91 loss=0.016999 time=208.273s peak_mem=2376.9MB
+2026-09-23 10:52:18,882 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=92 loss=0.016938 time=208.300s peak_mem=2376.9MB
+2026-09-23 10:55:46,541 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=93 loss=0.016970 time=207.658s peak_mem=2376.9MB
+2026-09-23 10:59:14,739 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=94 loss=0.016885 time=208.198s peak_mem=2376.9MB
+2026-09-23 11:02:45,433 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=95 loss=0.016839 time=210.693s peak_mem=2376.9MB
+2026-09-23 11:06:24,335 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=96 loss=0.016820 time=218.901s peak_mem=2376.9MB
+2026-09-23 11:09:55,779 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=97 loss=0.016749 time=211.444s peak_mem=2376.9MB
+2026-09-23 11:13:24,110 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=98 loss=0.016738 time=208.330s peak_mem=2376.9MB
+2026-09-23 11:16:52,692 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=99 loss=0.016678 time=208.582s peak_mem=2376.9MB
+2026-09-23 11:20:20,831 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=100 loss=0.016569 time=208.138s peak_mem=2376.9MB
+2026-09-23 11:20:21,072 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_celeba_latent/checkpoints/run_1/MeanFlowDistillAlgorithm_epoch100.pt
+2026-09-23 11:20:21,527 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_celeba_latent/checkpoints/run_1/archive/MeanFlowDistillAlgorithm_epoch100.zip
+[run] finished_utc=2026-09-23T05:22:36Z
+[run] exit_status=0

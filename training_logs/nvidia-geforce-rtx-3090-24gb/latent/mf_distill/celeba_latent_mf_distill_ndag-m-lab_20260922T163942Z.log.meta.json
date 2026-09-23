@@ -1,0 +1,22 @@
+{
+  "algorithm": "mf_distill",
+  "checkpoint_series": "run_1",
+  "command": "/home/ndag/Desktop/SSD_137_207_209\\ Thesis/Difussion-Model/venv/bin/python train.py --algorithm mf_distill --config results/launcher_configs/20260922T163942Z/mf_distill_celeba_latent.json --mode fresh --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb ",
+  "dataset": "celeba_latent",
+  "exit_status": "0",
+  "finished_utc": "2026-09-23T05:22:36Z",
+  "gpu_memory_gb": "24",
+  "gpu_name": "NVIDIA GeForce RTX 3090",
+  "job": "mf_distill",
+  "lifecycle_mode": "fresh",
+  "machine_label": "linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb",
+  "metadata_schema_version": 1,
+  "parent_suite_timestamp": "20260922T163942Z",
+  "representation_space": "latent",
+  "selected_config_sha256": "6f76864a8b0a9dda0a6760a33b48cbba77c99b6df879e11cd4531570c787358c",
+  "source_identity_sha256": "1a0feaa6767e5710a5b30d5c3d04961ff22f0fa38cac27689e0e7bfe9a2ef52a",
+  "started_utc": "2026-09-22T23:38:42Z",
+  "training_type": "latent_diffusion",
+  "transcript_bytes": 18487,
+  "transcript_sha256": "8371ffe2e34322eeaa347887b0276278f2d1d0fd6d00ee72d56a42c40eb01d59"
+}

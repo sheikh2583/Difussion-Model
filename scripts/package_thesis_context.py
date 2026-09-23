@@ -44,6 +44,7 @@ REQUIRED_SOURCE_PATHS = (
     "scripts/generate_checkpoint_samples.py",
     "scripts/generate_result_gifs.py",
     "scripts/package_thesis_context.py",
+    "scripts/preflight_mf_v2.py",
     "scripts/linux/make_summary.sh",
     "scripts/linux/make_thesis_context.sh",
     "scripts/linux/refresh_thesis_context.sh",
@@ -52,6 +53,7 @@ REQUIRED_SOURCE_PATHS = (
     "tests/test_aggregate_results.py",
     "tests/test_checkpoint_samples.py",
     "tests/test_result_gifs.py",
+    "tests/test_mean_flow_exact_jvp.py",
     "tests/test_web_catalog.py",
 )
 REQUIRED_AGGREGATE_PATHS = (

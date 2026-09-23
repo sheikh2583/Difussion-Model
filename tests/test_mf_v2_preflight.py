@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.preflight_mf_v2 import PreflightError, validate_mf_v2
+from scripts.preflight_mf_v2 import PreflightError, validate_mf_v2, verify_mf_v3
 
 
 def _valid_config() -> dict:
@@ -80,6 +80,9 @@ class MfV2PreflightTests(unittest.TestCase):
             config["evaluation"]["fid_reference_cache"] = "old-cache.npz"
             with self.assertRaisesRegex(PreflightError, "distinct FID"):
                 validate_mf_v2(config, root)
+
+    def test_live_v3_configs_and_cpu_derivatives_pass(self) -> None:
+        verify_mf_v3(Path(__file__).resolve().parents[1])
 
 
 if __name__ == "__main__":

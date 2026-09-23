@@ -136,6 +136,8 @@ def test_linux_reporting_helpers_are_training_safe() -> None:
 
     refresh = (LINUX_DIR / "refresh_thesis_context.sh").read_text(encoding="utf-8")
     assert "make_thesis_context.sh" in refresh
+    assert "scripts/preflight_mf_v2.py" in refresh
+    assert "--verify-v3" in refresh
     assert "flock" in refresh
     assert "--interval" in refresh
     assert "kill" not in refresh

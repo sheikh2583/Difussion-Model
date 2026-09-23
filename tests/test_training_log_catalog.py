@@ -147,6 +147,8 @@ def test_context_required_inventory_covers_current_comparison_and_demo() -> None
     assert "web/inference_ui.html" in required
     assert "tests/test_web_catalog.py" in required
     assert "scripts/linux/refresh_thesis_context.sh" in required
+    assert "scripts/preflight_mf_v2.py" in required
+    assert "tests/test_mean_flow_exact_jvp.py" in required
 
     ignored_context = set(context_package.EXPLICIT_IGNORED_CONTEXT_PATHS)
     assert "AGENTS.md" in ignored_context

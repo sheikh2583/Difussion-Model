@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Periodically rebuild the canonical summary and verified Claude handoff ZIP.
+# Periodically verify Mean Flow and rebuild the canonical thesis handoff ZIP.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,8 +15,9 @@ usage() {
 Usage: ./scripts/linux/refresh_thesis_context.sh [OPTIONS]
 
 Repeatedly rebuild THESIS_SUMMARY.md, results/aggregate, the training-log
-catalog, and the verified thesis_context.zip. No training, sampling, or
-evaluation is started.
+catalog, and the verified thesis_context.zip. Each write cycle first runs the
+CPU-only synthetic Mean Flow verifier. No training, sampling, or evaluation is
+started.
 
 Options:
   --interval SECONDS   Delay between attempts (default: 300; minimum: 10)
@@ -66,7 +67,7 @@ command -v flock >/dev/null 2>&1 || {
     exit 1
 }
 LOCK_KEY="$(printf '%s' "$PROJECT_ROOT" | cksum | awk '{print $1}')"
-LOCK_PATH="${XDG_RUNTIME_DIR:-/tmp}/diffusion-thesis-context-$LOCK_KEY.lock"
+LOCK_PATH="/tmp/diffusion-thesis-context-$LOCK_KEY.lock"
 exec 9>"$LOCK_PATH"
 flock -n 9 || {
     echo "ERROR: another thesis-context refresh watcher owns $LOCK_PATH" >&2
@@ -78,11 +79,25 @@ last_status=0
 while (( ITERATIONS == 0 || attempt < ITERATIONS )); do
     attempt=$((attempt + 1))
     printf '[%s] thesis-context refresh attempt %d\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$attempt"
-    if "$SCRIPT_DIR/make_thesis_context.sh" "${CONTEXT_ARGS[@]}"; then
+    verify_ok=true
+    if [[ "$DRY_RUN" == true ]]; then
+        printf 'Mean Flow verification command: %q %q %q\n' \
+            "$PROJECT_ROOT/venv/bin/python" \
+            "$PROJECT_ROOT/scripts/preflight_mf_v2.py" \
+            --verify-v3
+    else
+        "$PROJECT_ROOT/venv/bin/python" \
+            "$PROJECT_ROOT/scripts/preflight_mf_v2.py" --verify-v3 || {
+            last_status=$?
+            verify_ok=false
+        }
+    fi
+    if [[ "$verify_ok" == true ]] && \
+        "$SCRIPT_DIR/make_thesis_context.sh" "${CONTEXT_ARGS[@]}"; then
         last_status=0
         printf '[%s] refresh verified\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     else
-        last_status=$?
+        [[ "$verify_ok" == false ]] || last_status=$?
         printf '[%s] refresh failed safely (status %d); existing ZIP was preserved\n' \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$last_status" >&2
     fi
