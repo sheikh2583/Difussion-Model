@@ -105,3 +105,48 @@ def test_control_variate_config_uses_repository_schema_and_isolated_run(tmp_path
     optimizer = build_optimizer([_model(latent=True)], cfg)
     scheduler = build_scheduler(optimizer, cfg)
     assert scheduler.T_max == 100
+
+
+def test_control_variate_smoke_no_loss_divergence():
+    """Run 20 training steps on synthetic data and verify loss stays bounded.
+
+    The raw Hutchinson estimator (pre-CV) produced losses of 185-238.
+    With the FD control variate, losses should stay in the single-digit
+    range even on random data with a randomly initialized model.
+    """
+    torch.manual_seed(42)
+    algorithm = MeanFlowHutchinsonAlgorithm(
+        _model(latent=True),
+        {
+            "p_same": 0.1,
+            "p_hutchinson_step": 0.8,
+            "n_probes": 4,
+            "fd_eps_start": 1e-2,
+            "fd_eps_end": 1e-4,
+        },
+    )
+
+    params = []
+    for mod in algorithm.trainable_modules():
+        params.extend(mod.parameters())
+    optimizer = torch.optim.AdamW(params, lr=5e-4)
+
+    losses = []
+    for _ in range(20):
+        optimizer.zero_grad()
+        result = algorithm.training_step(torch.randn(4, 3, 8, 8))
+        loss = result["loss"]
+        assert torch.isfinite(loss), f"Non-finite loss: {loss.item()}"
+        loss.backward()
+        optimizer.step()
+        losses.append(loss.item())
+
+    # No explosion: final/initial ratio should be well below 5x.
+    # Raw Hutchinson had 185/2 ≈ 90x.
+    ratio = losses[-1] / max(losses[0], 1e-8)
+    assert ratio < 5.0, f"Loss diverging: final/initial = {ratio:.2f}"
+
+    # No sustained upward trend in last 10 steps
+    last_10 = losses[-10:]
+    upward = sum(1 for i in range(1, len(last_10)) if last_10[i] > last_10[i - 1])
+    assert upward < 8, f"Sustained upward trend: {upward}/9 steps increasing"
