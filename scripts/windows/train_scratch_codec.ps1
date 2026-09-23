@@ -37,8 +37,27 @@ try {
     $logDir = Get-WorkflowDeviceLogDirectory -Category "codec"
     New-Item -ItemType Directory -Force -Path $logDir | Out-Null
     $log = Join-Path $logDir "celeba_codec_scratch_kl_vae_$((Get-Date).ToString('yyyyMMdd_HHmmss'))_pid$PID.log"
-    & $Python @command 2>&1 | Tee-Object -FilePath $log -Append
-    if ($LASTEXITCODE -ne 0) { throw "Scratch codec training failed." }
+    @(
+        "[run] training_type=scratch_codec"
+        "[run] representation_space=codec"
+        "[run] dataset=celeba"
+        "[run] algorithm=scratch_kl_vae"
+        "[run] started_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
+        "[run] command=$Python $($command -join ' ')"
+    ) | Set-Content -LiteralPath $log
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $Python @command 2>&1 | Tee-Object -FilePath $log -Append
+        $status = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorAction
+    }
+    @(
+        "[run] finished_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
+        "[run] exit_status=$status"
+    ) | Add-Content -LiteralPath $log
+    if ($status -ne 0) { throw "Scratch codec training failed with exit code $status." }
 } finally {
     Stop-WorkflowGuard -Python $Python
 }

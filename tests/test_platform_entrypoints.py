@@ -6,9 +6,46 @@ from pathlib import Path
 
 import pytest
 
+from scripts.verify_platform_parity import parity_errors
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LINUX_DIR = PROJECT_ROOT / "scripts" / "linux"
 WINDOWS_DIR = PROJECT_ROOT / "scripts" / "windows"
+
+
+def test_every_linux_launcher_has_a_windows_counterpart_and_option_parity() -> None:
+    assert parity_errors(PROJECT_ROOT) == []
+
+
+def test_platform_parity_reports_missing_counterparts_and_options(
+    tmp_path: Path,
+) -> None:
+    linux = tmp_path / "scripts" / "linux"
+    windows = tmp_path / "scripts" / "windows"
+    linux.mkdir(parents=True)
+    windows.mkdir(parents=True)
+    (linux / "example.sh").write_text(
+        """#!/usr/bin/env bash
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) shift ;;
+  esac
+done
+""",
+        encoding="utf-8",
+    )
+
+    assert parity_errors(tmp_path) == ["Missing Windows counterpart for example.sh"]
+
+    (windows / "example.ps1").write_text("param()\n", encoding="utf-8")
+    assert parity_errors(tmp_path) == [
+        "example.ps1 lacks -dry-run from example.sh"
+    ]
+
+    (windows / "example.ps1").write_text(
+        "param([switch]$DryRun)\n", encoding="utf-8"
+    )
+    assert parity_errors(tmp_path) == []
 
 
 def test_linux_platform_scripts_parse_and_are_executable() -> None:
@@ -56,6 +93,11 @@ def test_platform_wrappers_reference_shared_entrypoints() -> None:
     assert "Start-WorkflowGuard" in complete_windows_init
     assert "Stop-WorkflowGuard" in complete_windows_init
     assert "verify_workflow.py --dataset none" in complete_windows_init
+    assert "verify_platform_parity.py" in complete_windows_init
+    assert "@baseParameters" in complete_windows_init
+    assert "@latentParameters" in complete_windows_init
+    assert "@baseArguments" not in complete_windows_init
+    assert "@latentArguments" not in complete_windows_init
     assert "train.py" not in complete_windows_init
 
     assert "setup.sh" in (LINUX_DIR / "init.sh").read_text(encoding="utf-8")
@@ -112,6 +154,44 @@ def test_linux_latent_launcher_covers_suite_without_mutating_git() -> None:
     assert "scripts/print_run_provenance.py" in text
     for command in ("git add", "git commit", "git push"):
         assert command not in text
+
+    windows = (WINDOWS_DIR / "train_celeba_latent.ps1").read_text(encoding="utf-8")
+    assert "AllowTeacherSourceMismatch" in windows
+    assert "--allow-source-identity-mismatch" in windows
+
+
+def test_windows_suite_provenance_matches_linux_contract() -> None:
+    pixel = (WINDOWS_DIR / "train_all_datasets.ps1").read_text(encoding="utf-8")
+    assert "config/mf_v3_exact_jvp_b128.json" in pixel
+    assert "config/cifar_legacy" in pixel
+    for field in (
+        "source_identity_sha256",
+        "parent_suite_timestamp",
+        "checkpoint_series",
+        "started_utc",
+        "finished_utc",
+        "exit_status",
+    ):
+        assert f"[run] {field}=" in pixel
+
+    for name in ("prepare_pretrained_codec.ps1", "train_scratch_codec.ps1"):
+        text = (WINDOWS_DIR / name).read_text(encoding="utf-8")
+        for field in (
+            "training_type",
+            "representation_space",
+            "dataset",
+            "algorithm",
+            "started_utc",
+            "finished_utc",
+            "exit_status",
+        ):
+            assert f"[run] {field}=" in text
+
+    latent_setup = (WINDOWS_DIR / "setup_celeba_latent.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert '"--num-workers", "$NumWorkers"' in latent_setup
+    assert "--build-fid-cache-only" not in latent_setup
 
 
 def test_generated_outputs_remain_ignored() -> None:

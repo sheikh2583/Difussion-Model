@@ -62,6 +62,9 @@ and GPU index/UUID/name/memory, matching the Linux launcher.
 All Windows Command Prompt and PowerShell entrypoints live in this directory.
 They call the platform-independent Python tools in the parent `scripts`
 directory, so training and evaluation logic remains shared with Linux.
+Every Linux launcher has a same-stem Windows counterpart and matching public
+options; `venv\Scripts\python.exe scripts\verify_platform_parity.py` checks the
+mapping statically without starting a workload.
 
 The CIFAR-10 configurations save every 10 epochs. Outputs are stored under
 `results\<algorithm>_cifar10\` and are ignored by Git.

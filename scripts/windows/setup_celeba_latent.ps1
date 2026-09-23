@@ -5,13 +5,13 @@
 .DESCRIPTION
     Ensures every prerequisite for CelebA latent diffusion training is met:
 
-    Stage 1 -- Install missing Python packages (huggingface-hub, diffusers,
-              accelerate, safetensors) that the base init.cmd skips.
+    Stage 1 -- Verify/install latent-pipeline Python packages when this script
+              is run independently of the complete initializer.
     Stage 2 -- Validate the pretrained VQ-F4 codec and produce
               results/codecs/celeba_vq_f4/accepted_codec.pt.
     Stage 3 -- Cache normalised CelebA latents to data/latent_cache/.
-    Stage 4 -- Build the latent-space FID reference statistics
-              (results/metrics/fid_reference_stats_celeba64_latent_ch3.npz).
+    Stage 4 -- Report whether latent-space FID reference statistics already
+              exist; the evaluator creates them during the first real run.
 
     Every stage is idempotent: re-running skips completed work.
 
@@ -263,6 +263,7 @@ if ($latentCacheReady) {
         "--output-dir", $LatentCacheDir,
         "--split", "both",
         "--batch-size", "$BatchSize",
+        "--num-workers", "$NumWorkers",
         "--device", "cuda")
     Write-Host "  [CMD] $Python $($cacheArgs -join ' ')" -ForegroundColor DarkCyan
 
@@ -276,18 +277,16 @@ if ($latentCacheReady) {
 }
 
 # ===================================================================
-# Stage 4 -- Build latent FID reference statistics
+# Stage 4 -- Report latent FID reference status
 # ===================================================================
 if (Test-Path -LiteralPath $FidRefLatent) {
     Write-Stage "4" "FID reference stats (latent)" "SKIP"
     Write-Host "  Latent FID reference already exists at $FidRefLatent" -ForegroundColor Green
 } else {
-    Write-Stage "4" "FID reference stats (latent)" $(if ($DryRun) { "PLAN" } else { "RUN" })
+    Write-Stage "4" "FID reference stats (latent)" "DEFER"
 
     Write-Host "  [NOTE] The latent FID reference cache is built automatically" -ForegroundColor Yellow
-    Write-Host "  during the first evaluation run. Skipping explicit generation." -ForegroundColor Yellow
-    Write-Host "  If you want to pre-build it, run:" -ForegroundColor Yellow
-    Write-Host "    $Python evaluate.py --algorithm mf_hutchinson --config config/mf_hutchinson_cv_celeba_latent.json --build-fid-cache-only" -ForegroundColor DarkCyan
+    Write-Host "  during the first evaluation run; setup does not start evaluation." -ForegroundColor Yellow
 }
 
 # ===================================================================

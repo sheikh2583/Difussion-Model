@@ -8,6 +8,7 @@ param(
     [ValidateRange(0, 1000000)][int]$CheckpointEvery = 0,
     [switch]$TrainOnly,
     [string]$LogDir = "",
+    [switch]$AllowTeacherSourceMismatch,
     [switch]$DryRun,
     [switch]$List
 )
@@ -121,6 +122,9 @@ try {
             $teacher = Get-TeacherCheckpoint
             $pairCommand = @("scripts/generate_reflow_pairs_latent.py", "--checkpoint", $teacher,
                 "--config", $configs.fm, "--output", $reflowPairs, "--n-pairs", "50000", "--nfe", "50")
+            if ($AllowTeacherSourceMismatch) {
+                $pairCommand += "--allow-source-identity-mismatch"
+            }
             $env:DIFFUSION_CHECKPOINT_SERIES = Split-Path -Leaf (Split-Path -Parent $teacher)
             Invoke-LatentCommand -Job "reflow_pairs" -ConfigPath $configs.fm -Command $pairCommand
         }

@@ -61,20 +61,21 @@ if (-not $SkipLatentAssets -and -not (Test-Path -LiteralPath $LatentSetup)) {
     throw "Missing latent setup script: $LatentSetup"
 }
 
-$baseArguments = @("-Yes", "-Datasets", "all")
-if ($SkipTorch) { $baseArguments += "-SkipTorch" }
-if ($Gpu) { $baseArguments += @("-Gpu", $Gpu) }
+$baseParameters = @{
+    Yes = $true
+    Datasets = "all"
+    SkipTorch = [bool]$SkipTorch
+}
+if ($Gpu) { $baseParameters.Gpu = $Gpu }
 
-$latentArguments = @(
-    "-BatchSize", "$BatchSize",
-    "-NumWorkers", "$NumWorkers",
-    "-SkipPackages"
-)
+$latentParameters = @{
+    BatchSize = $BatchSize
+    NumWorkers = $NumWorkers
+    SkipPackages = $true
+}
 if ($AcceptQualityFailure) {
-    $latentArguments += @(
-        "-AcceptQualityFailure",
-        "-AcceptanceReason", $AcceptanceReason
-    )
+    $latentParameters.AcceptQualityFailure = $true
+    $latentParameters.AcceptanceReason = $AcceptanceReason
 }
 
 Write-Host ""
@@ -88,11 +89,15 @@ Write-Host "  Latent assets : $(if ($SkipLatentAssets) { 'skip' } else { 'prepar
 Write-Host "  Dry run       : $DryRun"
 
 Write-Host ""
-Write-Host "[PLAN] powershell -File $BaseSetup $($baseArguments -join ' ')" -ForegroundColor DarkCyan
+Write-Host "[PLAN] $BaseSetup -Yes -Datasets all$(if ($SkipTorch) { ' -SkipTorch' })$(if ($Gpu) { " -Gpu $Gpu" })" -ForegroundColor DarkCyan
 if (-not $SkipLatentAssets) {
-    Write-Host "[PLAN] powershell -File $LatentSetup $($latentArguments -join ' ')" -ForegroundColor DarkCyan
+    $latentPlan = "$LatentSetup -BatchSize $BatchSize -NumWorkers $NumWorkers -SkipPackages"
+    if ($AcceptQualityFailure) {
+        $latentPlan += " -AcceptQualityFailure -AcceptanceReason `"$AcceptanceReason`""
+    }
+    Write-Host "[PLAN] $latentPlan" -ForegroundColor DarkCyan
 }
-Write-Host "[PLAN] verify dependency imports and workflow configuration" -ForegroundColor DarkCyan
+Write-Host "[PLAN] verify dependency imports, platform parity, and workflow configuration" -ForegroundColor DarkCyan
 
 if ($DryRun) {
     Write-Host ""
@@ -104,7 +109,7 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw "Git is required by the provenance-aware training launchers. Install Git for Windows and rerun INIT_ALL.cmd."
 }
 
-& $BaseSetup @baseArguments
+& $BaseSetup @baseParameters
 if ($LASTEXITCODE -ne 0) {
     throw "Base environment setup failed with exit code $LASTEXITCODE."
 }
@@ -137,7 +142,7 @@ if (-not $SkipLatentAssets) {
     Start-WorkflowGuard -Python $Python -CommandName "init_all.ps1 latent setup" `
         -IdentityArguments @("--launcher", "scripts/windows/init_all.ps1")
     try {
-        & $LatentSetup @latentArguments
+        & $LatentSetup @latentParameters
         if ($LASTEXITCODE -ne 0) {
             throw "CelebA latent asset setup failed with exit code $LASTEXITCODE."
         }
@@ -147,6 +152,10 @@ if (-not $SkipLatentAssets) {
     }
 }
 
+& $Python scripts/verify_platform_parity.py
+if ($LASTEXITCODE -ne 0) {
+    throw "Linux-to-Windows launcher parity verification failed."
+}
 & $Python scripts/verify_workflow.py --dataset none
 if ($LASTEXITCODE -ne 0) {
     throw "Workflow configuration verification failed."

@@ -28,6 +28,14 @@ See the platform-specific README before the first run:
 All launchers resolve the repository root from their own location, so they work
 even when the clone is stored in a path containing spaces.
 
+Every maintained `scripts/linux/*.sh` launcher has a same-stem Windows
+counterpart (`.ps1` or `.cmd`) with matching public options. Check this contract
+without launching any workload:
+
+```powershell
+venv\Scripts\python.exe scripts\verify_platform_parity.py
+```
+
 The compact thesis context ZIP is intended for external reviewers and agents.
 It includes source, configs, report material, metrics, provenance, plots,
 samples, and training logs, but excludes raw datasets and checkpoint binaries.

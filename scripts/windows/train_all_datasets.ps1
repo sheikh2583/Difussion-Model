@@ -24,6 +24,12 @@ Get-ChildItem config -Filter "*_full.json" -File | ForEach-Object {
 Get-ChildItem config -Filter "*_celeba64.json" -File | ForEach-Object {
     $identityArgs += @("--config", $_.FullName)
 }
+if (Test-Path -LiteralPath "config/mf_v3_exact_jvp_b128.json") {
+    $identityArgs += @("--config", "config/mf_v3_exact_jvp_b128.json")
+}
+Get-ChildItem config/cifar_legacy -Filter "*.json" -File | ForEach-Object {
+    $identityArgs += @("--config", $_.FullName)
+}
 Start-WorkflowGuard -Python $Python -CommandName "train_all_datasets.ps1" `
     -DryRun:$DryRun -IdentityArguments $identityArgs
 try {
@@ -59,24 +65,35 @@ try {
             }
 
             Test-WorkflowSource -Python $Python
-            $logDirectory = Join-Path $logRoot $algorithm
-            New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
-            $logPath = Join-Path $logDirectory "${datasetName}_pixel_${algorithm}_${hostToken}_${timestamp}.log"
+            New-Item -ItemType Directory -Force -Path $logRoot | Out-Null
+            $logPath = Join-Path $logRoot "${datasetName}_pixel_${algorithm}_${hostToken}_${timestamp}.log"
+            $status = 0
             try {
                 @(
                     "[run] training_type=pixel_diffusion"
                     "[run] representation_space=pixel"
                     "[run] dataset=$datasetName"
                     "[run] algorithm=$algorithm"
+                    "[run] source_identity_sha256=$($env:DIFFUSION_SOURCE_IDENTITY)"
                     "[run] lifecycle_mode=$Mode"
+                    "[run] parent_suite_timestamp=$($env:DIFFUSION_PARENT_SUITE_TIMESTAMP)"
+                    "[run] checkpoint_series=resolved-by-train.py"
                     "[run] started_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
+                    "[run] command=$PSScriptRoot\train_all.ps1 $($display -join ' ')"
                 ) | Set-Content -LiteralPath $logPath
                 & "$PSScriptRoot\train_all.ps1" @parameters 2>&1 | Tee-Object -FilePath $logPath -Append
-                "[run] exit_status=0" | Add-Content -LiteralPath $logPath
+                if ($LASTEXITCODE -ne 0) { $status = $LASTEXITCODE }
             } catch {
-                "[run] exit_status=1" | Add-Content -LiteralPath $logPath
+                $status = if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { $LASTEXITCODE } else { 1 }
+                "[run] error=$($_.Exception.Message)" | Add-Content -LiteralPath $logPath
+            }
+            @(
+                "[run] finished_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
+                "[run] exit_status=$status"
+            ) | Add-Content -LiteralPath $logPath
+            if ($status -ne 0) {
                 $failures.Add("${datasetName}:${algorithm}")
-                Write-Warning "$datasetName/$algorithm failed; continuing. $($_.Exception.Message)"
+                Write-Warning "$datasetName/$algorithm failed with exit code $status; continuing."
             }
         }
     }

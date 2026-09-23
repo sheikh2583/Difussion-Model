@@ -46,8 +46,27 @@ try {
         & $Python @download 2>&1 | Tee-Object -FilePath $log -Append
         if ($LASTEXITCODE -ne 0) { throw "Codec download failed." }
     }
-    & $Python @validate 2>&1 | Tee-Object -FilePath $log -Append
-    if ($LASTEXITCODE -ne 0) { throw "Codec validation failed." }
+    @(
+        "[run] training_type=codec_validation"
+        "[run] representation_space=codec"
+        "[run] dataset=celeba"
+        "[run] algorithm=pretrained_vq_f4"
+        "[run] started_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
+        "[run] command=$Python $($validate -join ' ')"
+    ) | Add-Content -LiteralPath $log
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $Python @validate 2>&1 | Tee-Object -FilePath $log -Append
+        $status = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorAction
+    }
+    @(
+        "[run] finished_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
+        "[run] exit_status=$status"
+    ) | Add-Content -LiteralPath $log
+    if ($status -ne 0) { throw "Codec validation failed with exit code $status." }
 } finally {
     Stop-WorkflowGuard -Python $Python
 }
