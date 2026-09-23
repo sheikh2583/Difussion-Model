@@ -19,6 +19,7 @@ MACHINE_LABEL="${DIFFUSION_MACHINE_LABEL:-}"
 CHECKPOINT_EVERY=""
 TRAIN_ONLY=false
 DRY_RUN=false
+ALLOW_TEACHER_SOURCE_MISMATCH=false
 LOG_DIR=""
 ALGORITHMS=(fm fm_lognorm mf mf_hutchinson mf_distill consistency reflow)
 
@@ -38,6 +39,9 @@ Options:
   --train-only             Skip evaluation and final sampling
   --log-dir PATH           Override the auto-detected device log directory
   --dry-run                Print commands without training or writing logs
+  --allow-teacher-source-mismatch
+                           Permit Reflow pair generation from a structurally
+                           compatible FM teacher with an older source identity
   --list                   List all algorithms in full-suite order, then exit
   -h, --help               Show this help
 
@@ -68,6 +72,8 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || { echo "ERROR: --log-dir requires a value" >&2; exit 2; }
       LOG_DIR="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --allow-teacher-source-mismatch)
+      ALLOW_TEACHER_SOURCE_MISMATCH=true; shift ;;
     --list)
       printf '%s\n' "${ALGORITHMS[@]}"
       exit 0 ;;
@@ -99,7 +105,7 @@ declare -A CONFIGS=(
   [fm]="config/fm_celeba_latent.json"
   [fm_lognorm]="config/fm_lognorm_celeba_latent.json"
   [mf]="config/mf_celeba_latent.json"
-  [mf_hutchinson]="config/mf_hutchinson_celeba_latent.json"
+  [mf_hutchinson]="config/mf_hutchinson_cv_celeba_latent.json"
   [mf_distill]="config/mf_distill_celeba_latent.json"
   [consistency]="config/consistency_celeba_latent.json"
   [reflow]="config/reflow_celeba_latent.json"
@@ -365,13 +371,18 @@ if [[ "$ONLY" == "all" || "$ONLY" == "reflow" ]]; then
     workflow_guard_verify_source "$DRY_RUN"
     export DIFFUSION_SELECTED_CONFIG_SHA256="$(sha256sum "${CONFIGS[fm]}" | awk '{print $1}')"
     export DIFFUSION_CHECKPOINT_SERIES="$(basename "$(dirname "$FM_CHECKPOINT")")"
-    run_logged reflow_pairs "${CONFIGS[fm]}" \
-      "$PYTHON" scripts/generate_reflow_pairs_latent.py \
-      --checkpoint "$FM_CHECKPOINT" \
-      --config "${CONFIGS[fm]}" \
-      --output "$REFLOW_PAIRS" \
-      --n-pairs 50000 \
+    reflow_pair_command=(
+      "$PYTHON" scripts/generate_reflow_pairs_latent.py
+      --checkpoint "$FM_CHECKPOINT"
+      --config "${CONFIGS[fm]}"
+      --output "$REFLOW_PAIRS"
+      --n-pairs 50000
       --nfe 50
+    )
+    if [[ "$ALLOW_TEACHER_SOURCE_MISMATCH" == true ]]; then
+      reflow_pair_command+=(--allow-source-identity-mismatch)
+    fi
+    run_logged reflow_pairs "${CONFIGS[fm]}" "${reflow_pair_command[@]}"
   else
     echo "[OK] latent Reflow pairs: $REFLOW_PAIRS"
   fi

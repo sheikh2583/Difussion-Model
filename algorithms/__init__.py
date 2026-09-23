@@ -11,8 +11,11 @@ Trainer / Evaluator / Sampler / plots.py need zero changes.
     mf_distill  MeanFlowDistillAlgorithm       — Mean Flow, FM teacher   [Geng+Salimans]
     consistency ConsistencyAlgorithm           — Consistency Models      [Song 2023]
     reflow      ReflowAlgorithm                — Rectified Flow Reflow   [Liu 2022 §3]
+    mf_hutchinson MeanFlowHutchinsonAlgorithm  — MF, CV-Hutchinson VJP   [latent only]
 
-    mf_hutchinson MeanFlowHutchinsonAlgorithm  - latent-only randomized VJP [Geng 2025]
+Inference-time wrappers (not entries in ALGORITHM_REGISTRY):
+    AdaptiveMeanFlowSampler      — adaptive per-sample NFE for trained MF models
+    MultiScaleMeanFlowPipeline   — coarse-to-fine sampling with trained MF models
 
 Fairness note on mf_distill and consistency:
     Both require a pre-trained FM teacher checkpoint. Their results are NOT
@@ -48,6 +51,7 @@ __all__ = [
     "FlowMatchingAlgorithm",
     "FlowMatchingLognormAlgorithm",
     "MeanFlowAlgorithm",
+    "MeanFlowHutchinsonAlgorithm",
     "MeanFlowDistillAlgorithm",
     "ConsistencyAlgorithm",
     "ReflowAlgorithm",

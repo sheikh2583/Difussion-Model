@@ -777,7 +777,7 @@ but is also included in `-Only all`:
 | CelebA latent | FM | `config/fm_celeba_latent.json` |
 | CelebA latent | FM-LN | `config/fm_lognorm_celeba_latent.json` |
 | CelebA latent | MF | `config/mf_celeba_latent.json` |
-| CelebA latent | MF-Hutchinson diagnostic | `config/mf_hutchinson_celeba_latent.json` |
+| CelebA latent | MF-Hutchinson CV diagnostic | `config/mf_hutchinson_cv_celeba_latent.json` |
 | CelebA latent | MF-Distill | `config/mf_distill_celeba_latent.json` |
 | CelebA latent | Consistency | `config/consistency_celeba_latent.json` |
 | CelebA latent | Reflow | `config/reflow_celeba_latent.json` |

@@ -24,7 +24,7 @@
         config/reflow_full.json         -- Rectified Flow Reflow
         config/fm_celeba64.json         -- FM on CelebA 64x64
         config/mf_celeba64.json         -- MF on CelebA 64x64
-        config/mf_hutchinson_celeba_latent.json -- latent-only Hutchinson MF
+        config/mf_hutchinson_cv_celeba_latent.json -- latent-only CV-Hutchinson MF
 
 .PARAMETER ExperimentName
     Override the experiment_name field in the config (used as the output
@@ -49,7 +49,7 @@
 .EXAMPLE
     # Hutchinson MF is supported only on CelebA latent space:
     .\scripts\windows\run_train.ps1 -Algorithm mf_hutchinson `
-        -Config config/mf_hutchinson_celeba_latent.json -Mode fresh
+        -Config config/mf_hutchinson_cv_celeba_latent.json -Mode fresh
 #>
 
 [CmdletBinding()]

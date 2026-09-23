@@ -182,6 +182,16 @@ class MeanFlowHutchinsonAlgorithm(BaseAlgorithm):
 
     def training_step(self, batch: torch.Tensor) -> Dict[str, torch.Tensor]:
         x_data = batch
+
+        # Latent-only guard: the CV estimator is tuned for VQ-f4 latents.
+        if x_data.ndim != 4 or x_data.shape[-2:] != (16, 16):
+            spatial_size = tuple(x_data.shape[-2:]) if x_data.ndim >= 2 else ()
+            raise ValueError(
+                "MeanFlowHutchinsonAlgorithm expects latent inputs (H=W=16), "
+                f"got spatial size {spatial_size}. "
+                "Use MeanFlowAlgorithm for pixel-space training."
+            )
+
         batch_size, device = x_data.shape[0], x_data.device
 
         epsilon = torch.randn_like(x_data)

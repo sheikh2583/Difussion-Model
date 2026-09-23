@@ -38,6 +38,13 @@ def test_hutchinson_accepts_latent_space_backbone():
     assert algorithm.model.cfg.sample_clamp is False
 
 
+def test_hutchinson_training_step_rejects_non_latent_spatial_size():
+    algorithm = MeanFlowHutchinsonAlgorithm(_model(latent=True))
+
+    with pytest.raises(ValueError, match=r"expects latent inputs \(H=W=16\)"):
+        algorithm.training_step(torch.randn(2, 3, 64, 64))
+
+
 def test_control_variate_recovers_linear_directional_derivative():
     algorithm = MeanFlowHutchinsonAlgorithm(
         _model(latent=True),
@@ -134,7 +141,7 @@ def test_control_variate_smoke_no_loss_divergence():
     losses = []
     for _ in range(20):
         optimizer.zero_grad()
-        result = algorithm.training_step(torch.randn(4, 3, 8, 8))
+        result = algorithm.training_step(torch.randn(4, 3, 16, 16))
         loss = result["loss"]
         assert torch.isfinite(loss), f"Non-finite loss: {loss.item()}"
         loss.backward()

@@ -50,6 +50,35 @@ class CheckpointProvenanceTests(unittest.TestCase):
             validate_provenance(self.expected, self.expected, Path("matching.pt"))
         )
 
+    def test_source_mismatch_requires_explicit_override(self) -> None:
+        actual = copy.deepcopy(self.expected)
+        actual["source_identity_sha256"] = "teacher-source"
+        expected = copy.deepcopy(self.expected)
+        expected["source_identity_sha256"] = "current-source"
+
+        with self.assertRaisesRegex(ResumeCompatibilityError, "source identity"):
+            validate_provenance(actual, expected, Path("teacher.pt"))
+        with self.assertWarnsRegex(UserWarning, "Accepted source identity mismatch"):
+            self.assertTrue(
+                validate_provenance(
+                    actual,
+                    expected,
+                    Path("teacher.pt"),
+                    allow_source_identity_mismatch=True,
+                )
+            )
+
+    def test_source_override_does_not_accept_structural_mismatch(self) -> None:
+        actual = copy.deepcopy(self.expected)
+        actual["identity"]["dataset"]["image_size"] = 64
+        with self.assertRaisesRegex(ResumeCompatibilityError, "dataset.image_size"):
+            validate_provenance(
+                actual,
+                self.expected,
+                Path("wrong.pt"),
+                allow_source_identity_mismatch=True,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

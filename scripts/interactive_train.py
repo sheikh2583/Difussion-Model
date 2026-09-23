@@ -45,7 +45,7 @@ CHOICES = (
     TrainingChoice("celeba_latent:fm", "CelebA latent - Flow Matching", "fm", "config/fm_celeba_latent.json"),
     TrainingChoice("celeba_latent:fm_lognorm", "CelebA latent - Flow Matching, logit-normal", "fm_lognorm", "config/fm_lognorm_celeba_latent.json"),
     TrainingChoice("celeba_latent:mf", "CelebA latent - Mean Flow", "mf", "config/mf_celeba_latent.json"),
-    TrainingChoice("celeba_latent:mf_hutchinson", "CelebA latent - Mean Flow, Hutchinson VJP", "mf_hutchinson", "config/mf_hutchinson_celeba_latent.json"),
+    TrainingChoice("celeba_latent:mf_hutchinson", "CelebA latent - Mean Flow, CV-Hutchinson VJP", "mf_hutchinson", "config/mf_hutchinson_cv_celeba_latent.json"),
     TrainingChoice("celeba_latent:mf_distill", "CelebA latent - Mean Flow Distillation", "mf_distill", "config/mf_distill_celeba_latent.json", "latent FM teacher"),
     TrainingChoice("celeba_latent:consistency", "CelebA latent - Consistency Model", "consistency", "config/consistency_celeba_latent.json", "latent FM teacher"),
     TrainingChoice("celeba_latent:reflow", "CelebA latent - Reflow", "reflow", "config/reflow_celeba_latent.json", "latent FM teacher + generated pairs"),

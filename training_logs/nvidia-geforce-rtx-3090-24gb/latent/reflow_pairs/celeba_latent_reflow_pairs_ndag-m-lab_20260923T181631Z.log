@@ -1,0 +1,49 @@
+[run] training_type=latent_diffusion
+[run] representation_space=latent
+[run] dataset=celeba_latent
+[run] algorithm=reflow_pairs
+[run] job=reflow_pairs
+[run] launcher_session_id=e121d781d51448ef9dbaa898bf4b5c12
+[run] hostname=NDAG-M-Lab
+[run] os_name=Linux
+[run] os_release=7.0.0-31-generic
+[run] architecture=x86_64
+[run] python_version=3.12.2
+[run] torch_version=2.5.1+cu121
+[run] cuda_version=12.1
+[run] cuda_visible_devices=unavailable
+[run] gpu_device_index=0
+[run] gpu_uuid=d4eecee8-2e57-baf1-f631-0660b6517f2b
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] gpu_count=1
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] git_commit=490719776ef2040dd86545e4226213e249fc69e4
+[run] git_dirty=true
+[run] git_diff_sha256=9cf536dafc572d84c28da6139d74c926ab3d7644d8e715ff93fc645734cab6e0
+[run] code_identity=490719776ef2040dd86545e4226213e249fc69e4+dirty:9cf536dafc57
+[run] source_identity_sha256=f2fba295bb804852a3a7843bcd1b6d45911c01720c65b5c0252db9ac7bddae2a
+[run] source_manifest=results/source_manifests/20260923T181631Z_pid57219.json
+[run] parent_suite_timestamp=20260923T181631Z
+[run] lifecycle_mode=fresh
+[run] checkpoint_series=run_4
+[run] selected_config_path=config/fm_celeba_latent.json
+[run] selected_config_sha256=5595f620495dbad9528453889a6a14ad234479c6b54ee3012bb6ba946bbeb5f8
+[run] log_device_token=nvidia-geforce-rtx-3090-24gb
+[run] log_path=training_logs/nvidia-geforce-rtx-3090-24gb/latent/reflow_pairs/celeba_latent_reflow_pairs_ndag-m-lab_20260923T181631Z.log
+[run] git_log_policy=eligible-not-auto-staged
+[run] started_utc=2026-09-23T18:16:33Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209\ Thesis/Difussion-Model/venv/bin/python scripts/generate_reflow_pairs_latent.py --checkpoint results/fm_celeba_latent/checkpoints/run_4/FlowMatchingAlgorithm_epoch100.pt --config config/fm_celeba_latent.json --output data/reflow_pairs_celeba_latent.pt --n-pairs 50000 --nfe 50 
+Traceback (most recent call last):
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/generate_reflow_pairs_latent.py", line 239, in <module>
+    main()
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/generate_reflow_pairs_latent.py", line 235, in main
+    _generate(args)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/generate_reflow_pairs_latent.py", line 160, in _generate
+    provenance_ok = validate_provenance(
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/utils/checkpoint_provenance.py", line 119, in validate_provenance
+    raise ResumeCompatibilityError(
+utils.checkpoint_provenance.ResumeCompatibilityError: Cannot resume /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_celeba_latent/checkpoints/run_4/FlowMatchingAlgorithm_epoch100.pt: checkpoint source identity 1a0feaa6767e5710a5b30d5c3d04961ff22f0fa38cac27689e0e7bfe9a2ef52a differs from current suite identity f2fba295bb804852a3a7843bcd1b6d45911c01720c65b5c0252db9ac7bddae2a.
+[run] finished_utc=2026-09-23T18:16:34Z
+[run] exit_status=1

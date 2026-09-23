@@ -24,7 +24,7 @@
 #                         config/fm_celeba_latent.json   (FM on CelebA VQ-f4 latents)
 #                         config/fm_lognorm_celeba_latent.json
 #                         config/mf_celeba_latent.json
-#                         config/mf_hutchinson_celeba_latent.json (latent only)
+#                         config/mf_hutchinson_cv_celeba_latent.json (latent only)
 #                         config/mf_distill_celeba_latent.json
 #                         config/consistency_celeba_latent.json
 #                         config/reflow_celeba_latent.json
@@ -42,7 +42,7 @@
 #   bash scripts/linux/run_train.sh -a fm -c config/fm_full.json
 #   bash scripts/linux/run_train.sh -a mf -c config/mf_full.json -e 200 -n mf_run2
 #   bash scripts/linux/run_train.sh -a consistency -c config/consistency_celeba_latent.json
-#   bash scripts/linux/run_train.sh -a mf_hutchinson -c config/mf_hutchinson_celeba_latent.json
+#   bash scripts/linux/run_train.sh -a mf_hutchinson -c config/mf_hutchinson_cv_celeba_latent.json
 # =============================================================================
 
 set -euo pipefail

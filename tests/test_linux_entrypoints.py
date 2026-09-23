@@ -68,6 +68,10 @@ def test_training_menu_lists_choices_without_importing_model_stack():
     assert "celeba_latent:mf_distill" in result.stdout
     assert "celeba_latent:consistency" in result.stdout
     assert "celeba_latent:reflow" in result.stdout
+    assert (
+        interactive_train.CHOICE_BY_KEY["celeba_latent:mf_hutchinson"].config
+        == "config/mf_hutchinson_cv_celeba_latent.json"
+    )
 
 
 def test_latent_prerequisites_use_latent_fm_and_pair_generator(monkeypatch):
@@ -102,7 +106,7 @@ def test_latent_menu_uses_windows_launcher_on_windows(monkeypatch):
 
     interactive_train.train(
         "mf_hutchinson",
-        "config/mf_hutchinson_celeba_latent.json",
+        "config/mf_hutchinson_cv_celeba_latent.json",
         dry_run=True,
         mode="fresh",
     )

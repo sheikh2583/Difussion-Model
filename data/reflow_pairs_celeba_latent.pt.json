@@ -1,0 +1,21 @@
+{
+  "chunk_size": 1000,
+  "config_identity_sha256": "aeef362883b0f0b624a4a1a3e577cde223fbb767a1c50af3c22e5d237d54dea2",
+  "config_sha256": "5595f620495dbad9528453889a6a14ad234479c6b54ee3012bb6ba946bbeb5f8",
+  "dataset": "celeba_latent",
+  "fm_checkpoint": "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_celeba_latent/checkpoints/run_4/FlowMatchingAlgorithm_epoch100.pt",
+  "fm_checkpoint_sha256": "f33c3b92e51d2bdb78dd625b602ae7efb56e866858f4d43f6fbac69f74308164",
+  "fm_checkpoint_source_identity_sha256": "1a0feaa6767e5710a5b30d5c3d04961ff22f0fa38cac27689e0e7bfe9a2ef52a",
+  "nfe": 50,
+  "pair_count": 50000,
+  "pair_generation_source_identity_sha256": "600972b2044964c9d003a582166ab09d0f21c91c7794b2b0799a0d8f048be50e",
+  "schema_version": 1,
+  "seed": 0,
+  "shape": [
+    50000,
+    3,
+    16,
+    16
+  ],
+  "source_identity_mismatch_accepted": true
+}

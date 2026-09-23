@@ -107,3 +107,18 @@ def test_latent_suite_dry_run_is_serialized_in_dependency_order() -> None:
     assert "[PLAN] gpu_name=" in result.stdout
     assert "[PLAN] gpu_memory_mb=" in result.stdout
     assert "Dry-run complete; no training, pair generation, or log writes occurred." in result.stdout
+
+
+def test_reflow_dry_run_can_explicitly_accept_older_teacher_source() -> None:
+    result = subprocess.run(
+        [
+            "bash", "scripts/linux/train_celeba_latent.sh",
+            "--dry-run", "--only", "reflow", "--mode", "fresh",
+            "--allow-teacher-source-mismatch",
+        ],
+        cwd=PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "--allow-source-identity-mismatch" in result.stdout

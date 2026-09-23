@@ -83,6 +83,8 @@ def validate_provenance(
     actual: Optional[Mapping[str, Any]],
     expected: Mapping[str, Any],
     checkpoint_path: Path,
+    *,
+    allow_source_identity_mismatch: bool = False,
 ) -> bool:
     """Validate metadata, returning False with a warning for legacy payloads."""
     if actual is None:
@@ -116,6 +118,15 @@ def validate_provenance(
     expected_source = expected.get("source_identity_sha256")
     actual_source = actual.get("source_identity_sha256")
     if expected_source and actual_source and actual_source != expected_source:
+        if allow_source_identity_mismatch:
+            warnings.warn(
+                f"Accepted source identity mismatch for {checkpoint_path}: "
+                f"checkpoint {actual_source}, current suite {expected_source}. "
+                "Structured checkpoint identity still matches.",
+                UserWarning,
+                stacklevel=2,
+            )
+            return True
         raise ResumeCompatibilityError(
             f"Cannot resume {checkpoint_path}: checkpoint source identity "
             f"{actual_source} differs from current suite identity {expected_source}."

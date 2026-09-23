@@ -53,6 +53,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--lock-file", default=str(DEFAULT_LOCK_PATH))
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument(
+        "--allow-source-identity-mismatch",
+        action="store_true",
+        help=(
+            "Accept a teacher produced by a different source suite only when its "
+            "structured algorithm, dataset, and backbone identity still matches"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -158,7 +166,10 @@ def _generate(args: argparse.Namespace) -> None:
     if not isinstance(checkpoint, Mapping):
         raise ValueError("FM checkpoint must be a mapping with model state and provenance")
     provenance_ok = validate_provenance(
-        checkpoint.get("provenance"), expected_provenance, checkpoint_path
+        checkpoint.get("provenance"),
+        expected_provenance,
+        checkpoint_path,
+        allow_source_identity_mismatch=args.allow_source_identity_mismatch,
     )
     if not provenance_ok:
         raise ValueError("Latent pair generation requires a provenance-bearing FM checkpoint")
@@ -168,6 +179,14 @@ def _generate(args: argparse.Namespace) -> None:
     model.load_state_dict(extract_model_state(checkpoint), strict=True)
     model.to(device).eval()
 
+    checkpoint_provenance = checkpoint["provenance"]
+    checkpoint_source_identity = checkpoint_provenance.get("source_identity_sha256")
+    current_source_identity = expected_provenance.get("source_identity_sha256")
+    source_identity_mismatch = bool(
+        checkpoint_source_identity
+        and current_source_identity
+        and checkpoint_source_identity != current_source_identity
+    )
     metadata = {
         "schema_version": SCHEMA_VERSION,
         "fm_checkpoint_sha256": sha256_file(checkpoint_path),
@@ -179,6 +198,11 @@ def _generate(args: argparse.Namespace) -> None:
         "chunk_size": args.chunk_size,
         "config_sha256": sha256_file(config_path),
         "config_identity_sha256": expected_provenance["identity_sha256"],
+        "fm_checkpoint_source_identity_sha256": checkpoint_source_identity,
+        "pair_generation_source_identity_sha256": current_source_identity,
+        "source_identity_mismatch_accepted": (
+            source_identity_mismatch and args.allow_source_identity_mismatch
+        ),
         "dataset": "celeba_latent",
     }
     chunk_dir = output_path.with_name(f"{output_path.name}.chunks")
