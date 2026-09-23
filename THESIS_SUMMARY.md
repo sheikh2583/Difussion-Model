@@ -27,6 +27,7 @@ Generated from the canonical experiment metric files by `scripts/aggregate_resul
 | celeba_latent | latent | mf_hutchinson_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@7893916c5fb5 | MeanFlowHutchinsonAlgorithm | 2 | — | unknown | — | — | — | — | — | — |
 | cifar10 | pixel | mf_v3_exact_jvp_b128_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@86185312c104 | MeanFlowAlgorithm | 100 | 100 | 5000 | 86.588 | 69.054 | 69.014 | 67.890 | — | 4.788 |
 | cifar10 | pixel | mf_v3_exact_jvp_b128_probe_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@86185312c104 | MeanFlowAlgorithm | 10 | — | unknown | — | — | — | — | — | — |
+| celeba_latent | latent | reflow_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@490719776ef2 | ReflowAlgorithm | 97 | 75 | 5000 | 300.627 | 299.655 | 299.442 | 299.311 | — | 2.534 |
 | cifar10 | pixel | reflow_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@2ea2a5e2039b | ReflowAlgorithm | 100 | 100 | 5000 | 53.573 | 50.510 | 50.220 | 50.020 | — | 5.511 |
 
 ## Controlled comparison artifacts
@@ -34,7 +35,7 @@ Generated from the canonical experiment metric files by `scripts/aggregate_resul
 The aggregate directory contains protocol-matched FM-relative gains, cross-dataset transfer checks, pixel-versus-latent pairs, Pareto flags, and an experiment-coverage matrix. Positive `fid_improvement_percent` means lower FID than FM. Missing peers remain explicit instead of being silently compared.
 
 - Transfer groups available: 35
-- Pixel/latent pairs available: 25
+- Pixel/latent pairs available: 30
 - Latent FID includes codec reconstruction error; decoder time and codec quality must be reported separately.
 
 ## Interactive checkpoint demo and external handoff
@@ -62,4 +63,5 @@ Build the verified Claude Web handoff with `./scripts/linux/make_thesis_context.
 | mf_hutchinson_celeba_latent | MeanFlowHutchinsonAlgorithm | 2 | 0.08 | 624.0 |
 | mf_v3_exact_jvp_b128_cifar10 | MeanFlowAlgorithm | 100 | 1.51 | 4737.0 |
 | mf_v3_exact_jvp_b128_probe_cifar10 | MeanFlowAlgorithm | 10 | 0.15 | 3517.6 |
+| reflow_celeba_latent | ReflowAlgorithm | 97 | 2.61 | 2167.9 |
 | reflow_cifar10 | ReflowAlgorithm | 100 | 0.75 | 3809.3 |
