@@ -1,9 +1,14 @@
-"""Mean Flow with an unbiased randomized VJP estimator of its target JVP.
+"""Mean Flow with a control-variate randomized VJP target estimator.
 
 For ``u(z, r, t)`` and trajectory direction ``(v, 0, 1)``, Mean Flow needs
 ``d = (du/dz) v + du/dt``. Given a Rademacher output probe ``xi``, reverse-mode
-AD computes ``g_z = (du/dz).T xi`` and ``g_t = (du/dt).T xi``. Therefore
-``d_hat = xi * (dot(g_z, v) + g_t)`` is unbiased because ``E[xi xi.T] = I``.
+AD computes ``q = xi.T d``.  A finite-difference baseline ``d_fd`` removes
+most of the high-dimensional probe variance while preserving unbiasedness:
+
+``d_hat = d_fd + xi * (q - xi.T d_fd)``.
+
+Because ``E[xi xi.T] = I``, ``E[d_hat] = d``. Its variance depends on the
+finite-difference residual ``d - d_fd`` instead of the full derivative ``d``.
 """
 
 from typing import Any, Dict, List
@@ -32,6 +37,14 @@ class MeanFlowHutchinsonAlgorithm(BaseAlgorithm):
             self.algorithm_kwargs.get("p_hutchinson_step", 0.8)
         )
         self.n_probes = int(self.algorithm_kwargs.get("n_probes", 1))
+        self.fd_eps_start = float(
+            self.algorithm_kwargs.get("fd_eps_start", 1e-2)
+        )
+        self.fd_eps_end = float(
+            self.algorithm_kwargs.get("fd_eps_end", 1e-4)
+        )
+        self._epoch = 0
+        self._total_epochs = 100
 
         if not 0.0 <= self.p_same <= 1.0:
             raise ValueError("p_same must be in [0, 1]")
@@ -39,6 +52,21 @@ class MeanFlowHutchinsonAlgorithm(BaseAlgorithm):
             raise ValueError("p_hutchinson_step must be in [0, 1]")
         if self.n_probes < 1:
             raise ValueError("n_probes must be >= 1")
+        if self.fd_eps_start <= 0 or self.fd_eps_end <= 0:
+            raise ValueError("fd_eps_start and fd_eps_end must be positive")
+
+    def on_epoch_end(self, epoch: int, total_epochs: int) -> None:
+        """Advance the finite-difference control-variate schedule."""
+        self._epoch = epoch
+        self._total_epochs = total_epochs
+
+    @property
+    def fd_eps(self) -> float:
+        """Linearly anneal the control-variate step over training."""
+        progress = self._epoch / max(self._total_epochs, 1)
+        return self.fd_eps_start + (
+            self.fd_eps_end - self.fd_eps_start
+        ) * progress
 
     def trainable_modules(self) -> List[nn.Module]:
         return [self.model, self.r_cond]
@@ -80,7 +108,15 @@ class MeanFlowHutchinsonAlgorithm(BaseAlgorithm):
         t: torch.Tensor,
         v: torch.Tensor,
     ) -> torch.Tensor:
-        """Estimate ``(du/dz) v + du/dt`` as a detached output-shaped tensor."""
+        """Estimate ``(du/dz) v + du/dt`` with an FD control variate.
+
+        For each Rademacher probe ``xi``, reverse-mode AD supplies
+        ``q = xi.T d``.  The unbiased correction estimates only the residual
+        between ``d`` and the finite-difference baseline ``d_fd``:
+
+        ``d_hat = d_fd + mean[xi * (q - xi.T d_fd)]``.
+        """
+        batch_size = z_t.shape[0]
         z_leaf = z_t.detach().float().requires_grad_(True)
         t_leaf = t.detach().float().requires_grad_(True)
         r_fixed = r.detach().float()
@@ -90,7 +126,42 @@ class MeanFlowHutchinsonAlgorithm(BaseAlgorithm):
             device_type=z_t.device.type, enabled=False
         ):
             u = self._forward(z_leaf, r_fixed, t_leaf)
-            estimate = torch.zeros_like(u)
+
+            # Use the same boundary-safe, per-sample step for z, t, and the
+            # divisor. Forward differences are preferred; near t=1 a backward
+            # step avoids evaluating the time embedding outside [0, 1].
+            delta = torch.full_like(t_leaf, self.fd_eps)
+            forward_capacity = (1.0 - t_leaf).clamp_min(0.0)
+            backward_capacity = (t_leaf - r_fixed).clamp_min(0.0)
+            forward = torch.minimum(delta, forward_capacity)
+            backward = -torch.minimum(delta, backward_capacity)
+            threshold = torch.maximum(
+                delta * 0.1,
+                torch.full_like(delta, torch.finfo(t_leaf.dtype).eps * 16),
+            )
+            can_forward = forward >= threshold
+            can_backward = (-backward) >= threshold
+            fallback = -torch.minimum(delta, t_leaf.clamp_min(delta))
+            step = torch.where(
+                can_forward,
+                forward,
+                torch.where(can_backward, backward, fallback),
+            )
+            if not torch.isfinite(step).all() or (step == 0).any():
+                raise FloatingPointError(
+                    "Could not construct a finite non-zero Hutchinson FD step"
+                )
+            step_image = step.view(-1, 1, 1, 1)
+
+            with torch.no_grad():
+                u_perturbed = self._forward(
+                    z_leaf.detach() + step_image * v_fixed,
+                    r_fixed,
+                    t_leaf.detach() + step,
+                )
+            d_fd = (u_perturbed - u.detach()) / step_image
+
+            correction = torch.zeros_like(u)
 
             for probe_index in range(self.n_probes):
                 xi = torch.empty_like(u).bernoulli_(0.5).mul_(2).sub_(1)
@@ -102,9 +173,12 @@ class MeanFlowHutchinsonAlgorithm(BaseAlgorithm):
                     create_graph=False,
                 )
                 q = (g_z * v_fixed).flatten(1).sum(1) + g_t
-                estimate.add_(xi * q.view(-1, 1, 1, 1))
+                q_fd = (xi * d_fd).flatten(1).sum(1)
+                correction.add_(
+                    xi * (q - q_fd).view(batch_size, 1, 1, 1)
+                )
 
-        return (estimate / self.n_probes).detach()
+        return (d_fd + correction / self.n_probes).detach()
 
     def training_step(self, batch: torch.Tensor) -> Dict[str, torch.Tensor]:
         x_data = batch

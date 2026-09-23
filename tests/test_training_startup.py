@@ -65,21 +65,22 @@ def test_config_hash_enrichment_does_not_mutate_environment():
 
 
 def test_hutchinson_startup_summary_reports_its_actual_controls(capsys, tmp_path):
-    config_path = PROJECT_ROOT / "config/mf_hutchinson_celeba_latent.json"
+    config_path = PROJECT_ROOT / "config/mf_hutchinson_cv_celeba_latent.json"
     cfg = ExperimentConfig.load(str(config_path))
 
     print_startup_summary(
         config_path=str(config_path),
         algorithm_key="mf_hutchinson",
         cfg=cfg,
-        result_dir=tmp_path / "results" / "mf_hutchinson_celeba_latent",
+        result_dir=tmp_path / "results" / "mf_hutchinson_cv_celeba_latent",
         run_environment={},
     )
     output = capsys.readouterr().out
 
     assert "p_same: 0.1" in output
     assert "p_hutchinson_step: 0.8" in output
-    assert "n_probes: 1" in output
+    assert "n_probes: 4" in output
+    assert "fd_eps_range: 0.01 -> 0.0001" in output
     assert "p_fd_step" not in output
     assert "jvp_delta_range" not in output
 

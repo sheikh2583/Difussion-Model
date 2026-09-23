@@ -111,6 +111,11 @@ def print_startup_summary(
             ("p_same", kwargs.get("p_same", 0.1)),
             ("p_hutchinson_step", kwargs.get("p_hutchinson_step", 0.8)),
             ("n_probes", kwargs.get("n_probes", 1)),
+            (
+                "fd_eps_range",
+                f"{kwargs.get('fd_eps_start', 1e-2)} -> "
+                f"{kwargs.get('fd_eps_end', 1e-4)}",
+            ),
         ])
     lines.extend([
         ("machine_label", run_environment.get("machine_label")),
