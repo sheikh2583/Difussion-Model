@@ -32,6 +32,7 @@ def test_environment_manifest_and_metrics_share_comparison_identity(tmp_path: Pa
     assert metric["machine_label"] == "linux-lab"
     assert metric["gpu_name"] == "Test GPU"
     assert metric["gpu_memory_gb"] == 24
+    assert metric["gpu_device_index"] == 0
     assert metric["git_commit"] == "abc123"
     assert metric["git_dirty"] is False
     assert metric["code_identity"] == "abc123"

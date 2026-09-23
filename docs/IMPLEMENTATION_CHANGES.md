@@ -1,9 +1,13 @@
 # Implementation Changes
 
-Last updated: 2026-09-17
+Last updated: 2026-09-23
 
 This document summarizes the portability, setup, training, evaluation, sampling,
 packaging, and documentation work completed for DiffusionProject.
+
+Sections dated by the original Windows bring-up are retained as historical
+validation evidence. Current operator behavior is defined by `README.md`,
+`RUNBOOK.md`, and the platform guides.
 
 ## Relevant commits
 
@@ -90,9 +94,9 @@ in the main README, after which initialization can be rerun safely.
 It also supports non-interactive automation:
 
 ```bash
-python scripts/interactive_train.py --list
-python scripts/interactive_train.py --choice cifar10:mf --yes
-python scripts/interactive_train.py --choice celeba:fm --dry-run
+venv/bin/python scripts/interactive_train.py --list
+venv/bin/python scripts/interactive_train.py --choice cifar10:mf --yes
+venv/bin/python scripts/interactive_train.py --choice celeba:fm --dry-run
 ```
 
 ### Automatic prerequisites
@@ -256,7 +260,7 @@ sampling, and evaluation rows together.
 Run it with:
 
 ```bash
-python scripts/aggregate_results.py
+venv/bin/python scripts/aggregate_results.py
 ```
 
 ## Batch training and evaluation
@@ -352,3 +356,24 @@ remain unavailable because they inherently require CelebA model training.
 | Verify workflow | `venv\Scripts\python.exe scripts\verify_workflow.py` | `venv/bin/python scripts/verify_workflow.py` |
 | Aggregate results | `venv\Scripts\python.exe scripts\aggregate_results.py` | `venv/bin/python scripts/aggregate_results.py` |
 | Inference UI | `venv\Scripts\python.exe web\inference_server.py` | `venv/bin/python web/inference_server.py` |
+
+## 23 September 2026 repository audit
+
+- Python 3.10 is now the consistently documented minimum, and maintained
+  launchers invoke the project interpreter without requiring activation.
+- Linux and Windows latent suites contain seven serialized jobs. The seventh,
+  MF-Hutchinson, is restricted to CelebA latent space and has no pixel preset.
+- The interactive picker dispatches latent selections to Bash on POSIX and the
+  PowerShell latent launcher on Windows.
+- `verify_workflow.py` discovers every experiment JSON recursively, validates
+  all three dataset registrations, and reports latent codec/teacher/Reflow
+  prerequisites as explicit blockers.
+- Per-job latent transcripts and schema-2 sidecars carry Git commit/dirty-diff,
+  frozen source/config digests, checkpoint series, and GPU
+  index/UUID/name/memory under device-specific log partitions.
+- `pytest` and Pillow are direct requirements because the documented
+  verification suite and report-figure utility import them directly.
+- Static validation completed on Linux: full tests, shell parsing, project-layout
+  verification, MF-v3 preflight, seven-job latent dry-run, and dependency
+  consistency. No model training, sampling, evaluation, or artifact migration
+  was started by this audit.

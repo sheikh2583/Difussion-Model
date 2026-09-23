@@ -15,23 +15,18 @@ if str(PROJECT_ROOT) not in sys.path:
 os.chdir(PROJECT_ROOT)
 
 REQUIRED_ALGORITHMS = {
-    "fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow"
+    "fm", "fm_lognorm", "mf", "mf_hutchinson", "mf_distill",
+    "consistency", "reflow",
 }
-CONFIGS = (
-    "config/fm_full.json",
-    "config/fm_lognorm_full.json",
-    "config/mf_full.json",
-    "config/mf_distill_full.json",
-    "config/consistency_full.json",
-    "config/reflow_full.json",
-    "config/fm_celeba64.json",
-    "config/fm_lognorm_celeba64.json",
-    "config/mf_celeba64.json",
-    "config/mf_distill_celeba64.json",
-    "config/consistency_celeba64.json",
-    "config/reflow_celeba64.json",
-    "config/mf_coarse16.json",
-)
+REQUIRED_DATASETS = {"cifar10", "celeba", "celeba_latent"}
+
+
+def config_paths() -> tuple[str, ...]:
+    """Discover every experiment preset so this verifier cannot go stale."""
+    return tuple(
+        path.relative_to(PROJECT_ROOT).as_posix()
+        for path in sorted((PROJECT_ROOT / "config").rglob("*.json"))
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,7 +35,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dataset",
-        choices=("none", "cifar10", "celeba"),
+        choices=("none", "cifar10", "celeba", "celeba_latent"),
         default="none",
         help="Also load and validate one real dataset batch (may download data).",
     )
@@ -72,13 +67,13 @@ def main() -> int:
         if extras:
             print(f"[OK] additional utility algorithms: {extras}")
 
-    if not {"cifar10", "celeba"} <= set(DATASET_REGISTRY):
+    if not REQUIRED_DATASETS <= set(DATASET_REGISTRY):
         failures.append(f"dataset registry is incomplete: {sorted(DATASET_REGISTRY)}")
     else:
-        print("[OK] dataset registry: cifar10, celeba")
+        print(f"[OK] dataset registry: {', '.join(sorted(REQUIRED_DATASETS))}")
 
     loaded_configs: dict[str, ExperimentConfig] = {}
-    for relative_path in CONFIGS:
+    for relative_path in config_paths():
         path = PROJECT_ROOT / relative_path
         if not path.is_file():
             failures.append(f"missing config: {relative_path}")
@@ -96,6 +91,10 @@ def main() -> int:
         ("celeba", "config/mf_distill_celeba64.json", "teacher_checkpoint", "CelebA MF-Distill teacher"),
         ("celeba", "config/consistency_celeba64.json", "teacher_checkpoint", "CelebA Consistency teacher"),
         ("celeba", "config/reflow_celeba64.json", "pairs_path", "CelebA Reflow pairs"),
+        ("celeba_latent", "config/fm_celeba_latent.json", "codec_checkpoint", "accepted latent codec"),
+        ("celeba_latent", "config/mf_distill_celeba_latent.json", "teacher_checkpoint", "latent MF-Distill teacher"),
+        ("celeba_latent", "config/consistency_celeba_latent.json", "teacher_checkpoint", "latent Consistency teacher"),
+        ("celeba_latent", "config/reflow_celeba_latent.json", "pairs_path", "latent Reflow pairs"),
     )
     for dataset, config_path, field, label in prerequisite_fields:
         if args.dataset != "none" and args.dataset != dataset:
@@ -103,9 +102,18 @@ def main() -> int:
         cfg = loaded_configs.get(config_path)
         if cfg is None:
             continue
-        relative_target = cfg.algorithm_kwargs.get(field)
+        relative_target = (
+            cfg.dataset.codec_checkpoint
+            if field == "codec_checkpoint"
+            else cfg.algorithm_kwargs.get(field)
+        )
         if not relative_target:
-            failures.append(f"{config_path} has no algorithm_kwargs.{field}")
+            location = (
+                "dataset.codec_checkpoint"
+                if field == "codec_checkpoint"
+                else f"algorithm_kwargs.{field}"
+            )
+            failures.append(f"{config_path} has no {location}")
             continue
         target = PROJECT_ROOT / relative_target
         if field == "teacher_checkpoint":
@@ -117,11 +125,11 @@ def main() -> int:
             print(f"[BLOCKED] {label}: {relative_target}")
 
     if args.dataset != "none":
-        config_path = (
-            "config/smoke_fast.json"
-            if args.dataset == "cifar10"
-            else "config/fm_celeba64.json"
-        )
+        config_path = {
+            "cifar10": "config/smoke_fast.json",
+            "celeba": "config/fm_celeba64.json",
+            "celeba_latent": "config/fm_celeba_latent.json",
+        }[args.dataset]
         cfg = ExperimentConfig.load(str(PROJECT_ROOT / config_path))
         train_loader, _ = get_dataloaders_for_config(cfg)
         images, _ = next(iter(train_loader))

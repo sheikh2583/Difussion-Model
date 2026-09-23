@@ -60,11 +60,11 @@ else
 fi
 ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)
 
-if [[ -x "$PROJECT_ROOT/venv/bin/python" ]]; then
-  PYTHON="$PROJECT_ROOT/venv/bin/python"
-else
-  PYTHON="python3"
-fi
+PYTHON="$PROJECT_ROOT/venv/bin/python"
+[[ -x "$PYTHON" ]] || {
+  echo "ERROR: project environment not found. Run ./scripts/linux/init.sh first." >&2
+  exit 1
+}
 source scripts/linux/workflow_guard.sh
 IDENTITY_ARGS=(
   --launcher scripts/linux/train_all_datasets.sh
@@ -164,7 +164,7 @@ for dataset in "${DATASETS[@]}"; do
 done
 
 if [[ "$DRY_RUN" == true ]]; then
-  echo "Dry-run complete; no logs, commits, or pushes were created."
+  echo "Dry-run complete; no logs or model artifacts were created."
   exit 0
 fi
 

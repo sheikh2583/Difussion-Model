@@ -34,7 +34,10 @@ GATE_LINE = re.compile(r"^GATE RESULT:\s*(\S+)")
 
 FIELDS = [
     "path", "training_type", "representation_space", "dataset", "algorithm", "started_utc",
-    "machine_label", "gpu_name", "gpu_memory_gb",
+    "machine_label", "gpu_device_index", "gpu_uuid", "gpu_name", "gpu_memory_gb",
+    "cuda_visible_devices", "git_commit", "git_dirty", "git_diff_sha256",
+    "code_identity", "source_identity_sha256", "selected_config_sha256",
+    "log_device_token",
     "finished_utc", "exit_status", "completed_epoch", "target_epochs",
     "last_loss", "rfid", "psnr", "minimum_latent_std", "gate_result",
     "bytes", "modified_utc", "sha256",

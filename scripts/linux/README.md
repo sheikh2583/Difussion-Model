@@ -19,9 +19,10 @@ the batch-128 exact-JVP MeanFlow configuration. A separate complete terminal
 log is saved for every dataset/model pair under a device-specific directory,
 with pixel and latent transcripts separated under `pixel/` and `latent/`, for
 example `training_logs/nvidia-geforce-rtx-3090-24gb/pixel/`. The latent suite
-stages only its completed transcript and metadata sidecar by default; no
-launcher commits or pushes. Large results, checkpoints, datasets, and generated
-samples remain excluded from Git.
+writes a completed transcript and metadata sidecar for each job but never
+stages, commits, or pushes them. Version-control decisions remain with the
+operator. Large results, checkpoints, datasets, and generated samples remain
+excluded from Git.
 
 All GPU launchers share the ownership-checked `results/.lock`, and nested suite
 calls inherit its random token without reacquiring it. Each suite also freezes
@@ -46,11 +47,12 @@ For the model-selection menu:
 ./scripts/linux/train.sh
 ```
 
-The menu includes all six CelebA latent algorithms. They can also be selected
+The menu includes all seven CelebA latent algorithms. They can also be selected
 non-interactively, for example:
 
 ```bash
 ./scripts/linux/train.sh --choice celeba_latent:mf --mode continue --yes
+./scripts/linux/train.sh --choice celeba_latent:mf_hutchinson --mode fresh --yes
 ./scripts/linux/train.sh --choice celeba_latent:mf_distill --mode fresh --yes
 ./scripts/linux/train.sh --choice celeba_latent:consistency --mode fresh --yes
 ./scripts/linux/train.sh --choice celeba_latent:reflow --mode fresh --yes
@@ -66,9 +68,9 @@ Run the complete dependency-ordered latent workflow through the main launcher:
 ```
 
 Each completed transcript and metadata sidecar is stored under
-`training_logs/<device>/latent/<algorithm>/` and staged with path-scoped
-`git add`, making new logs Git-tracked without staging unrelated files. Pass
-`--no-track-logs` to keep a run's logs unstaged.
+`training_logs/<device>/latent/<algorithm>/`. Launchers do not mutate Git.
+Schema-2 sidecars preserve transcript hashes plus Git commit/dirty-diff,
+frozen source/config, checkpoint-series, and GPU index/UUID/name/memory fields.
 
 Useful checks that do not start training:
 
@@ -76,7 +78,12 @@ Useful checks that do not start training:
 ./scripts/linux/train.sh --list
 ./scripts/linux/train_cifar.sh --dry-run
 ./scripts/linux/train_all_datasets.sh --dry-run
+./scripts/linux/train_celeba_latent.sh --only mf_hutchinson --dry-run
 ```
+
+MF-Hutchinson is supported only by the CelebA latent workflow. There is no
+pixel-space Hutchinson preset, training/evaluation reject pixel configs, and
+the algorithm is included in the full `--all-latent`/`--only all` workflow.
 
 The CIFAR-10 suite keeps each preset's controlled batch size: 128 for FM,
 FM-LN, exact-JVP MF, Consistency, and Reflow; 64 for MF-Distill.
@@ -132,22 +139,22 @@ member by SHA-256 before replacing `thesis_context.zip`.
 Small ignored provenance records (the collaboration plans/decisions, codec
 model card, and latent-cache manifest) are included explicitly; ignored binary
 weights, tensor caches, datasets, checkpoints, and FID caches remain excluded.
-`refresh_thesis_context.sh` runs this complete operation repeatedly under a
-single-instance lock. It retries safely after failures and preserves the last
-verified ZIP.
+`refresh_thesis_context.sh` runs the CPU-only MF-v3 preflight before each write
+cycle, then repeats the complete operation under a single-instance lock. It
+retries safely after failures and preserves the last verified ZIP.
 The generated `thesis_context.zip` and reporting-generated
 `THESIS_SUMMARY.md` are written to the repository root and are Git-trackable.
 
 Run the read-only repository health check at any time:
 
 ```bash
-python scripts/verify_project_layout.py
+venv/bin/python scripts/verify_project_layout.py
 ```
 
 Before a structural migration, require training to be stopped:
 
 ```bash
-python scripts/verify_project_layout.py --fail-if-training
+venv/bin/python scripts/verify_project_layout.py --fail-if-training
 ```
 
 ## Pretrained CelebA latent codec (primary path)
@@ -156,7 +163,7 @@ The active latent experiment uses the frozen `CompVis/ldm-celebahq-256`
 VQ-f4 codec. It maps 64×64 RGB images to three-channel 16×16 quantized latents;
 every algorithm then trains its own randomly initialized latent U-Net.
 
-Train or resume all six latent algorithms with per-model logs:
+Train or resume all seven latent algorithms with per-model, GPU-partitioned logs:
 
 ```bash
 ./scripts/linux/train_celeba_latent.sh \

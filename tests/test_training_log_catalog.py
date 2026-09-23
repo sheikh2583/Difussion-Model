@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -120,6 +122,35 @@ def test_annotation_adds_uniform_transcript_identity(tmp_path: Path) -> None:
     assert metadata["gpu_memory_gb"] == 24
     assert metadata["transcript_bytes"] == len(b"historical suite\n")
     assert len(metadata["transcript_sha256"]) == 64
+
+
+def test_launcher_provenance_records_git_config_and_device_partition() -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/print_run_provenance.py",
+            "--config", "config/mf_hutchinson_celeba_latent.json",
+            "--machine-label", "test-machine",
+            "--log-device-token", "test-gpu-24gb",
+            "--log-path", "training_logs/test-gpu-24gb/latent/test.log",
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    headers = dict(
+        line.removeprefix("[run] ").split("=", 1)
+        for line in result.stdout.splitlines()
+    )
+
+    assert headers["machine_label"] == "test-machine"
+    assert headers["log_device_token"] == "test-gpu-24gb"
+    assert headers["selected_config_path"] == "config/mf_hutchinson_celeba_latent.json"
+    assert len(headers["selected_config_sha256"]) == 64
+    assert "git_commit" in headers
+    assert "git_dirty" in headers
+    assert "gpu_uuid" in headers
 
 
 def test_catalog_outputs_and_context_manifest_inventory(tmp_path: Path) -> None:

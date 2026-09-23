@@ -18,8 +18,8 @@ Set-Location $ProjectRoot
 $Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $Python)) { throw "Run scripts\windows\init.cmd first." }
 
-$canonical = @("fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow")
-if ($List) { $canonical + "mf_hutchinson" | ForEach-Object { Write-Output $_ }; exit 0 }
+$algorithms = @("fm", "fm_lognorm", "mf", "mf_hutchinson", "mf_distill", "consistency", "reflow")
+if ($List) { $algorithms | ForEach-Object { Write-Output $_ }; exit 0 }
 $configs = @{
     fm = "config/fm_celeba_latent.json"
     fm_lognorm = "config/fm_lognorm_celeba_latent.json"
@@ -35,13 +35,13 @@ $classes = @{
     mf_distill = "MeanFlowDistillAlgorithm"; consistency = "ConsistencyAlgorithm"
     reflow = "ReflowAlgorithm"
 }
-$jobs = if ($Only -eq "all") { $canonical } else { @($Only) }
+$jobs = if ($Only -eq "all") { $algorithms } else { @($Only) }
 $codec = "results/codecs/celeba_vq_f4/accepted_codec.pt"
 $reflowPairs = "data/reflow_pairs_celeba_latent.pt"
 
 . "$PSScriptRoot\workflow_guard.ps1"
 $identityArgs = @("--launcher", "scripts/windows/train_celeba_latent.ps1")
-foreach ($name in $configs.Keys) { $identityArgs += @("--config", $configs[$name]) }
+foreach ($name in $algorithms) { $identityArgs += @("--config", $configs[$name]) }
 Start-WorkflowGuard -Python $Python -CommandName "train_celeba_latent.ps1" `
     -DryRun:$DryRun -IdentityArguments $identityArgs
 try {
@@ -49,15 +49,19 @@ try {
         throw "Missing accepted codec: $codec"
     }
     if ($DryRun) { Write-Host "[PLANNED] accepted codec: $codec" }
-    if (-not $LogDir) { $LogDir = Get-WorkflowDeviceLogDirectory -Category "latent" }
-    if (-not $MachineLabel) { $MachineLabel = "$($env:COMPUTERNAME)-windows".ToLowerInvariant() }
+    $deviceLogRoot = Get-WorkflowDeviceLogDirectory -Category "latent"
+    $deviceToken = ($deviceLogRoot.Replace('\', '/') -split '/')[1]
+    if (-not $LogDir) { $LogDir = $deviceLogRoot }
+    if (-not $MachineLabel) {
+        $MachineLabel = "windows-$($env:COMPUTERNAME)-$deviceToken".ToLowerInvariant()
+    }
     $env:DIFFUSION_MACHINE_LABEL = $MachineLabel
     $timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
     $plannedTeacher = (& $Python scripts/checkpoint_path.py --run-dir results/fm_celeba_latent `
         --class-name FlowMatchingAlgorithm --epoch 100 --planned-mode $Mode).Trim()
 
     function Invoke-LatentCommand {
-        param([string]$Job, [string[]]$Command)
+        param([string]$Job, [string]$ConfigPath, [string[]]$Command)
         Write-Host "[PLAN] job=$Job"
         Write-Host "[PLAN] $Python $($Command -join ' ')"
         if ($DryRun) { return }
@@ -71,14 +75,25 @@ try {
             "[run] representation_space=latent"
             "[run] dataset=celeba_latent"
             "[run] algorithm=$Job"
-            "[run] lifecycle_mode=$Mode"
-            "[run] machine_label=$MachineLabel"
-            "[run] started_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
         ) | Set-Content -LiteralPath $log
+        $env:DIFFUSION_SELECTED_CONFIG_SHA256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $ConfigPath).Hash.ToLowerInvariant()
+        & $Python scripts/print_run_provenance.py --config $ConfigPath `
+            --machine-label $MachineLabel --log-device-token $deviceToken `
+            --log-path $log | Add-Content -LiteralPath $log
+        @(
+            "[run] command=$Python $($Command -join ' ')"
+            "[run] started_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
+        ) | Add-Content -LiteralPath $log
         & $Python @Command 2>&1 | Tee-Object -FilePath $log -Append
-        if ($LASTEXITCODE -ne 0) { throw "$Job failed with exit code $LASTEXITCODE" }
-        "[run] exit_status=0" | Add-Content -LiteralPath $log
+        $status = $LASTEXITCODE
+        @(
+            "[run] finished_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
+            "[run] exit_status=$status"
+        ) | Add-Content -LiteralPath $log
         & $Python scripts/write_training_log_metadata.py --log $log | Out-Null
+        Write-Host "[LOG] $log"
+        Write-Host "[METADATA] ${log}.meta.json"
+        if ($status -ne 0) { throw "$Job failed with exit code $status" }
     }
 
     function Get-TeacherCheckpoint {
@@ -106,13 +121,18 @@ try {
             $teacher = Get-TeacherCheckpoint
             $pairCommand = @("scripts/generate_reflow_pairs_latent.py", "--checkpoint", $teacher,
                 "--config", $configs.fm, "--output", $reflowPairs, "--n-pairs", "50000", "--nfe", "50")
-            Invoke-LatentCommand -Job "reflow_pairs" -Command $pairCommand
+            $env:DIFFUSION_CHECKPOINT_SERIES = Split-Path -Leaf (Split-Path -Parent $teacher)
+            Invoke-LatentCommand -Job "reflow_pairs" -ConfigPath $configs.fm -Command $pairCommand
         }
         $command = @("train.py", "--algorithm", $algorithm, "--config", $effectiveConfig,
             "--mode", $Mode, "--machine-label", $MachineLabel)
         if ($CheckpointEvery -gt 0) { $command += @("--checkpoint-every", "$CheckpointEvery") }
         if ($TrainOnly) { $command += "--train-only" }
-        Invoke-LatentCommand -Job $algorithm -Command $command
+        $resolvedCheckpoint = (& $Python scripts/checkpoint_path.py `
+            --run-dir "results/${algorithm}_celeba_latent" `
+            --class-name $classes[$algorithm] --epoch 100 --planned-mode $Mode).Trim()
+        $env:DIFFUSION_CHECKPOINT_SERIES = Split-Path -Leaf (Split-Path -Parent $resolvedCheckpoint)
+        Invoke-LatentCommand -Job $algorithm -ConfigPath $effectiveConfig -Command $command
     }
     if ($DryRun) { Write-Host "Dry-run complete; no model commands were executed." -ForegroundColor Green }
     else { Write-Host "CelebA latent workflow complete." -ForegroundColor Green }

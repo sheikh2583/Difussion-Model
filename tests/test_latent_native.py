@@ -13,12 +13,14 @@ from algorithms.consistency import ConsistencyAlgorithm
 from algorithms.flow_matching import FlowMatchingAlgorithm
 from algorithms.flow_matching_lognorm import FlowMatchingLognormAlgorithm
 from algorithms.mean_flow import MeanFlowAlgorithm
+from algorithms.mean_flow_hutchinson import MeanFlowHutchinsonAlgorithm
 from algorithms.mean_flow_distill import MeanFlowDistillAlgorithm
 from algorithms.reflow import ReflowAlgorithm
 from codec.codec_factory import load_codec
 from codec.scratch_vae import ScratchKLVAE
-from config.config import DatasetConfig, ExperimentConfig
+from config.config import BackboneConfig, DatasetConfig, ExperimentConfig
 from data.celeba_latent import CelebALatentDataset, sha256_file
+from models.backbone import SimpleUNet
 from scripts.generate_reflow_pairs_latent import assemble_chunks, integrate_fm
 
 
@@ -26,7 +28,9 @@ class ConstantBackbone(nn.Module):
     def __init__(self, *, sample_clamp: bool):
         super().__init__()
         self.anchor = nn.Parameter(torch.tensor(0.0))
-        self.cfg = SimpleNamespace(in_channels=3, sample_clamp=sample_clamp)
+        self.cfg = SimpleNamespace(
+            in_channels=3, sample_clamp=sample_clamp, time_embed_dim=8
+        )
         self._expected_image_size = 16
 
     def forward(self, inputs: torch.Tensor, time: torch.Tensor) -> torch.Tensor:
@@ -67,14 +71,15 @@ def test_every_json_config_parses_and_latent_run_names_are_isolated() -> None:
     config_dir = Path(__file__).resolve().parents[1] / "config"
     configs = [ExperimentConfig.load(str(path)) for path in sorted(config_dir.glob("*.json"))]
     latent = [cfg for cfg in configs if cfg.dataset.name == "celeba_latent"]
-    assert len(latent) == 6
+    canonical = {"fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow"}
+    assert canonical.issubset({cfg.experiment_name for cfg in latent})
     latent_names = {f"{cfg.experiment_name}_{cfg.dataset.name}" for cfg in latent}
     pixel_names = {
         f"{cfg.experiment_name}_{cfg.dataset.name}"
         for cfg in configs
         if cfg.dataset.name != "celeba_latent"
     }
-    assert len(latent_names) == 6
+    assert len(latent_names) == len(latent)
     assert latent_names.isdisjoint(pixel_names)
     assert all(
         cfg.dataset.image_size == 16
@@ -82,6 +87,49 @@ def test_every_json_config_parses_and_latent_run_names_are_isolated() -> None:
         and not cfg.backbone.sample_clamp
         for cfg in latent
     )
+
+
+def test_mf_hutchinson_executes_on_three_channel_latents() -> None:
+    model = SimpleUNet(
+        BackboneConfig(
+            in_channels=3,
+            base_channels=8,
+            channel_mults=[1],
+            num_res_blocks=1,
+            time_embed_dim=8,
+            sample_clamp=False,
+        )
+    )
+    model._expected_image_size = 16
+    algorithm = MeanFlowHutchinsonAlgorithm(
+        model,
+        {"p_same": 0.1, "p_hutchinson_step": 1.0, "n_probes": 1},
+    )
+    latent_batch = torch.randn(2, 3, 16, 16)
+
+    loss = algorithm.training_step(latent_batch)["loss"]
+    loss.backward()
+    samples = algorithm.sample(2, 1, torch.device("cpu"))
+
+    assert torch.isfinite(loss)
+    assert samples.shape == latent_batch.shape
+    assert torch.isfinite(samples).all()
+    assert any(parameter.grad is not None for parameter in model.parameters())
+
+
+def test_mf_hutchinson_rejects_pixel_backbone() -> None:
+    model = SimpleUNet(
+        BackboneConfig(
+            in_channels=3,
+            base_channels=8,
+            channel_mults=[1],
+            num_res_blocks=1,
+            time_embed_dim=8,
+            sample_clamp=True,
+        )
+    )
+    with pytest.raises(ValueError, match="pixel-space models are not supported"):
+        MeanFlowHutchinsonAlgorithm(model)
 
 
 def _write_cache(
@@ -176,10 +224,21 @@ def _algorithm_pair(cls, tmp_path: Path):
             pairs,
         )
         kwargs["pairs_path"] = str(pairs)
-    return (
+    algorithms = (
         cls(ConstantBackbone(sample_clamp=True), kwargs),
         cls(ConstantBackbone(sample_clamp=False), kwargs),
     )
+    if cls is MeanFlowAlgorithm:
+        for algorithm in algorithms:
+            algorithm._forward = (
+                lambda inputs, r, time, model=algorithm.model: model(inputs, time)
+            )
+    if cls is MeanFlowDistillAlgorithm:
+        for algorithm in algorithms:
+            algorithm._student_forward = (
+                lambda inputs, r, time, model=algorithm.model: model(inputs, time)
+            )
+    return algorithms
 
 
 @pytest.mark.parametrize(

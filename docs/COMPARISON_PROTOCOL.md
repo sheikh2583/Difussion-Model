@@ -20,6 +20,10 @@ Positive values are improvements. Training loss is diagnostic only because
 the algorithms optimize different objectives and their raw loss scales are not
 generally comparable.
 
+MF-Hutchinson is a seventh, latent-only estimator diagnostic. Report it as an
+ablation against latent MF; do not silently add it to the canonical six-method
+cross-dataset leaderboard because no corresponding pixel run exists.
+
 ## 2. Dataset transfer
 
 First establish each method's improvement relative to FM on CIFAR-10. Repeat

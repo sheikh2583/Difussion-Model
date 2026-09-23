@@ -136,7 +136,8 @@ underlying input.
 
 ## Phase 4 — Confirm checkpoint paths
 
-The six latent configs have been aligned with Phase 2's output. Verify all six:
+All seven latent configs, including latent-only MF-Hutchinson, are aligned with
+Phase 2's output. Verify all seven:
 
 ```bash
 rg 'codec_checkpoint' config/*_celeba_latent.json
@@ -173,10 +174,26 @@ reported failure before training.
 
 ## Phase 6 — Training order (one GPU job at a time)
 
-Use explicit fresh-run lifecycle control. Start with FM and monitor at least the
-first five epochs for finite, decreasing loss and acceptable GPU memory. The
-initial planning estimate is 10–14 hours for 100 FM epochs on an RTX 3090, but
-measure the first epochs and revise the estimate from observed throughput.
+Prefer the dependency-aware launcher because it owns the GPU lock, freezes the
+source/config identity, binds teacher checkpoints, generates Reflow pairs, and
+writes GPU-partitioned logs plus schema-2 metadata sidecars. Preview first:
+
+```bash
+./scripts/linux/train_celeba_latent.sh --only all --mode fresh --dry-run
+```
+
+Then run the seven serialized latent jobs:
+
+```bash
+./scripts/linux/train_celeba_latent.sh --only all --mode fresh
+```
+
+Start with FM and monitor at least the first five epochs for finite, decreasing
+loss and acceptable GPU memory. The initial planning estimate is 10–14 hours
+for 100 FM epochs on an RTX 3090, but revise it from observed throughput.
+
+The direct commands below are recovery/debugging equivalents. Do not run them
+concurrently with the suite.
 
 ```bash
 venv/bin/python train.py --algorithm fm \
@@ -192,11 +209,17 @@ venv/bin/python train.py --algorithm fm_lognorm \
 
 venv/bin/python train.py --algorithm mf \
   --config config/mf_celeba_latent.json --mode fresh
+
+venv/bin/python train.py --algorithm mf_hutchinson \
+  --config config/mf_hutchinson_celeba_latent.json --mode fresh
 ```
 
-After FM epoch 100 exists at
-`results/fm_celeba_latent/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt`,
-the teacher-dependent runs may be launched separately:
+MF-Hutchinson is a latent-only randomized-VJP diagnostic. Training and
+evaluation reject it with pixel datasets, and no pixel preset exists.
+
+After a compatible latent FM epoch-100 checkpoint exists, the
+teacher-dependent runs may be launched separately. The shared checkpoint
+resolver selects the latest numbered series; do not hard-code `run_1`.
 
 ```bash
 venv/bin/python train.py --algorithm mf_distill \
@@ -209,8 +232,12 @@ venv/bin/python train.py --algorithm consistency \
 Generate Reflow pairs only after the same FM checkpoint exists:
 
 ```bash
+FM_CHECKPOINT="$(venv/bin/python scripts/checkpoint_path.py \
+  --run-dir results/fm_celeba_latent \
+  --class-name FlowMatchingAlgorithm --epoch 100)"
+
 venv/bin/python scripts/generate_reflow_pairs_latent.py \
-  --checkpoint results/fm_celeba_latent/checkpoints/run_1/FlowMatchingAlgorithm_epoch100.pt \
+  --checkpoint "$FM_CHECKPOINT" \
   --config config/fm_celeba_latent.json \
   --output data/reflow_pairs_celeba_latent.pt \
   --n-pairs 50000 \
@@ -226,3 +253,9 @@ venv/bin/python train.py --algorithm reflow \
 If a training job is interrupted, inspect its logs and use `--mode continue`
 for that same run rather than starting another fresh run. Never run two CUDA
 jobs concurrently on the RTX 3090.
+
+Each new suite transcript lives under
+`training_logs/<gpu>/latent/<algorithm>/` and records Git commit/dirty-diff
+identity, frozen source identity, selected config digest, checkpoint series,
+machine label, and GPU index/UUID/name/memory. Logs are eligible for Git but
+are never staged or committed automatically.

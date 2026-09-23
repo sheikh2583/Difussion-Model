@@ -25,6 +25,7 @@ from utils.checkpoints import load_algorithm_state, resolve_checkpoint_reference
 from utils.checkpoint_runs import run_directory_from_checkpoint
 from utils.device import resolve_device
 from utils.gpu_lock import acquire_gpu_lock
+from utils.algorithm_compatibility import validate_algorithm_dataset
 
 
 def parse_args():
@@ -44,6 +45,8 @@ def _main():
     cfg  = ExperimentConfig.load(args.config) if args.config else ExperimentConfig()
     if args.experiment_name:
         cfg.experiment_name = args.experiment_name
+
+    validate_algorithm_dataset(args.algorithm, cfg)
 
     device = resolve_device(cfg)
     checkpoint_path = resolve_checkpoint_reference(args.checkpoint).resolve()

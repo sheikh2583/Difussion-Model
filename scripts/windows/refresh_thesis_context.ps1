@@ -12,6 +12,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Continue"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $ProjectRoot
+$Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $Python)) {
+    throw "Project environment not found. Run scripts\windows\init.cmd first."
+}
 if ($Once -or $DryRun) { $Iterations = 1 }
 $mutexName = "Global\DiffusionThesisContext_$(([Math]::Abs($ProjectRoot.GetHashCode())))"
 $mutex = [Threading.Mutex]::new($false, $mutexName)
@@ -28,6 +32,14 @@ try {
         if ($Output) { $arguments += @("-Output", $Output) }
         if ($MaxMiB -gt 0) { $arguments += @("-MaxMiB", "$MaxMiB") }
         try {
+            if ($DryRun) {
+                Write-Host "Mean Flow verification command: $Python scripts/preflight_mf_v2.py --verify-v3"
+            } else {
+                & $Python scripts/preflight_mf_v2.py --verify-v3
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Mean Flow verification failed with status $LASTEXITCODE"
+                }
+            }
             & "$PSScriptRoot\make_thesis_context.ps1" @arguments
             if (-not $? -or $LASTEXITCODE -ne 0) {
                 throw "make_thesis_context.ps1 exited with status $LASTEXITCODE"

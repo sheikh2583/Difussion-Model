@@ -13,12 +13,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 cd "$PROJECT_ROOT"
 
-if [[ -x "$PROJECT_ROOT/venv/bin/python" ]]; then
-  PYTHON="$PROJECT_ROOT/venv/bin/python"
-elif [[ -f "$PROJECT_ROOT/venv/Scripts/python.exe" ]]; then
-  # Git Bash on Windows; native Linux clones use venv/bin/python.
-  PYTHON="$PROJECT_ROOT/venv/Scripts/python.exe"
-else
+PYTHON="$PROJECT_ROOT/venv/bin/python"
+if [[ ! -x "$PYTHON" ]]; then
   echo "ERROR: project environment not found. Run ./scripts/linux/setup.sh --yes first." >&2
   exit 1
 fi

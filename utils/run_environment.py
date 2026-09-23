@@ -88,9 +88,10 @@ def collect_run_environment(
         code_identity = f"{commit}+dirty:{diff_sha256[:12]}"
     cuda_available = torch.cuda.is_available()
     gpu_name = torch.cuda.get_device_name(0) if cuda_available else None
+    gpu_properties = torch.cuda.get_device_properties(0) if cuda_available else None
     gpu_memory_gb = (
-        round(torch.cuda.get_device_properties(0).total_memory / (1024 ** 3))
-        if cuda_available
+        round(gpu_properties.total_memory / (1024 ** 3))
+        if gpu_properties is not None
         else None
     )
     label = (
@@ -111,7 +112,10 @@ def collect_run_environment(
         "cuda_version": torch.version.cuda,
         "gpu_name": gpu_name,
         "gpu_memory_gb": gpu_memory_gb,
+        "gpu_device_index": 0 if cuda_available else None,
+        "gpu_uuid": getattr(gpu_properties, "uuid", None),
         "gpu_count": torch.cuda.device_count() if cuda_available else 0,
+        "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "git_commit": commit,
         "git_dirty": bool(dirty_output) if dirty_output is not None else None,
         "git_diff_sha256": diff_sha256,
@@ -124,6 +128,7 @@ def collect_run_environment(
         "parent_suite_timestamp": "DIFFUSION_PARENT_SUITE_TIMESTAMP",
         "lifecycle_mode": "DIFFUSION_LIFECYCLE_MODE",
         "checkpoint_series": "DIFFUSION_CHECKPOINT_SERIES",
+        "selected_config_sha256": "DIFFUSION_SELECTED_CONFIG_SHA256",
     }
     for field, variable in suite_fields.items():
         value = os.environ.get(variable)

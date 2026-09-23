@@ -60,3 +60,140 @@
 2026-09-23 12:06:47,660 [INFO] trainer.ConsistencyAlgorithm: epoch=17 loss=0.002122 time=166.995s peak_mem=840.8MB
 2026-09-23 12:09:35,354 [INFO] trainer.ConsistencyAlgorithm: epoch=18 loss=0.002034 time=167.694s peak_mem=840.8MB
 2026-09-23 12:12:21,784 [INFO] trainer.ConsistencyAlgorithm: epoch=19 loss=0.001986 time=166.429s peak_mem=840.8MB
+2026-09-23 12:14:53,887 [INFO] trainer.ConsistencyAlgorithm: epoch=20 loss=0.001991 time=152.103s peak_mem=840.8MB
+2026-09-23 12:14:54,195 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch20.pt
+2026-09-23 12:14:54,776 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch20.zip
+2026-09-23 12:17:26,579 [INFO] trainer.ConsistencyAlgorithm: epoch=21 loss=0.001959 time=151.803s peak_mem=840.8MB
+2026-09-23 12:20:12,742 [INFO] trainer.ConsistencyAlgorithm: epoch=22 loss=0.001945 time=166.162s peak_mem=840.8MB
+2026-09-23 12:22:59,439 [INFO] trainer.ConsistencyAlgorithm: epoch=23 loss=0.001922 time=166.697s peak_mem=840.8MB
+2026-09-23 12:25:46,180 [INFO] trainer.ConsistencyAlgorithm: epoch=24 loss=0.001900 time=166.740s peak_mem=840.8MB
+2026-09-23 12:28:33,178 [INFO] trainer.ConsistencyAlgorithm: epoch=25 loss=0.001893 time=166.997s peak_mem=840.8MB
+An error occurred while trying to fetch /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/data/pretrained/ldm-celebahq-256/vqvae: Error no file named diffusion_pytorch_model.safetensors found in directory /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/data/pretrained/ldm-celebahq-256/vqvae.
+Defaulting to unsafe serialization. Pass `allow_pickle=False` to raise an error instead.
+/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: Metric `InceptionScore` will save all extracted features in buffer. For large datasets this may lead to large memory footprint.
+  warnings.warn(*args, **kwargs)
+2026-09-23 12:33:43,724 [INFO] trainer.ConsistencyAlgorithm: epoch=26 loss=0.001814 time=169.321s peak_mem=1722.3MB
+2026-09-23 12:36:24,212 [INFO] trainer.ConsistencyAlgorithm: epoch=27 loss=0.001850 time=160.488s peak_mem=1722.3MB
+2026-09-23 12:38:55,214 [INFO] trainer.ConsistencyAlgorithm: epoch=28 loss=0.001791 time=151.002s peak_mem=1722.3MB
+2026-09-23 12:41:25,736 [INFO] trainer.ConsistencyAlgorithm: epoch=29 loss=0.001795 time=150.521s peak_mem=1722.3MB
+2026-09-23 12:43:55,912 [INFO] trainer.ConsistencyAlgorithm: epoch=30 loss=0.001723 time=150.176s peak_mem=1722.3MB
+2026-09-23 12:43:56,221 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch30.pt
+2026-09-23 12:43:56,794 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch30.zip
+2026-09-23 12:46:26,262 [INFO] trainer.ConsistencyAlgorithm: epoch=31 loss=0.001771 time=149.467s peak_mem=1722.3MB
+2026-09-23 12:49:04,637 [INFO] trainer.ConsistencyAlgorithm: epoch=32 loss=0.001695 time=158.374s peak_mem=1722.3MB
+2026-09-23 12:51:42,109 [INFO] trainer.ConsistencyAlgorithm: epoch=33 loss=0.001699 time=157.471s peak_mem=1722.3MB
+2026-09-23 12:54:29,954 [INFO] trainer.ConsistencyAlgorithm: epoch=34 loss=0.001669 time=167.845s peak_mem=1722.3MB
+2026-09-23 12:57:08,522 [INFO] trainer.ConsistencyAlgorithm: epoch=35 loss=0.001667 time=158.568s peak_mem=1722.3MB
+2026-09-23 12:59:39,171 [INFO] trainer.ConsistencyAlgorithm: epoch=36 loss=0.001664 time=150.648s peak_mem=1722.3MB
+2026-09-23 13:02:09,949 [INFO] trainer.ConsistencyAlgorithm: epoch=37 loss=0.001644 time=150.777s peak_mem=1722.3MB
+2026-09-23 13:04:40,449 [INFO] trainer.ConsistencyAlgorithm: epoch=38 loss=0.001622 time=150.500s peak_mem=1722.3MB
+2026-09-23 13:07:11,058 [INFO] trainer.ConsistencyAlgorithm: epoch=39 loss=0.001637 time=150.608s peak_mem=1722.3MB
+2026-09-23 13:09:41,586 [INFO] trainer.ConsistencyAlgorithm: epoch=40 loss=0.001587 time=150.527s peak_mem=1722.3MB
+2026-09-23 13:09:41,901 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch40.pt
+2026-09-23 13:09:42,460 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch40.zip
+2026-09-23 13:12:12,060 [INFO] trainer.ConsistencyAlgorithm: epoch=41 loss=0.001594 time=149.600s peak_mem=1722.3MB
+2026-09-23 13:14:41,413 [INFO] trainer.ConsistencyAlgorithm: epoch=42 loss=0.001564 time=149.352s peak_mem=1722.3MB
+2026-09-23 13:17:20,756 [INFO] trainer.ConsistencyAlgorithm: epoch=43 loss=0.001606 time=159.343s peak_mem=1722.3MB
+2026-09-23 13:19:55,209 [INFO] trainer.ConsistencyAlgorithm: epoch=44 loss=0.001532 time=154.452s peak_mem=1722.3MB
+2026-09-23 13:22:30,137 [INFO] trainer.ConsistencyAlgorithm: epoch=45 loss=0.001571 time=154.928s peak_mem=1722.3MB
+2026-09-23 13:25:00,156 [INFO] trainer.ConsistencyAlgorithm: epoch=46 loss=0.001531 time=150.018s peak_mem=1722.3MB
+2026-09-23 13:27:30,988 [INFO] trainer.ConsistencyAlgorithm: epoch=47 loss=0.001540 time=150.831s peak_mem=1722.3MB
+2026-09-23 13:30:01,733 [INFO] trainer.ConsistencyAlgorithm: epoch=48 loss=0.001497 time=150.745s peak_mem=1722.3MB
+2026-09-23 13:32:32,614 [INFO] trainer.ConsistencyAlgorithm: epoch=49 loss=0.001515 time=150.880s peak_mem=1722.3MB
+2026-09-23 13:35:03,161 [INFO] trainer.ConsistencyAlgorithm: epoch=50 loss=0.001520 time=150.547s peak_mem=1722.3MB
+2026-09-23 13:35:03,466 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch50.pt
+2026-09-23 13:35:04,048 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch50.zip
+2026-09-23 13:39:45,017 [INFO] trainer.ConsistencyAlgorithm: epoch=51 loss=0.001447 time=149.925s peak_mem=1613.2MB
+2026-09-23 13:42:14,896 [INFO] trainer.ConsistencyAlgorithm: epoch=52 loss=0.001515 time=149.879s peak_mem=1613.2MB
+2026-09-23 13:44:44,925 [INFO] trainer.ConsistencyAlgorithm: epoch=53 loss=0.001495 time=150.028s peak_mem=1613.2MB
+2026-09-23 13:47:14,937 [INFO] trainer.ConsistencyAlgorithm: epoch=54 loss=0.001433 time=150.012s peak_mem=1613.2MB
+2026-09-23 13:49:47,044 [INFO] trainer.ConsistencyAlgorithm: epoch=55 loss=0.001454 time=152.106s peak_mem=1613.2MB
+2026-09-23 13:52:18,637 [INFO] trainer.ConsistencyAlgorithm: epoch=56 loss=0.001447 time=151.593s peak_mem=1613.2MB
+2026-09-23 13:55:03,693 [INFO] trainer.ConsistencyAlgorithm: epoch=57 loss=0.001443 time=165.056s peak_mem=1613.2MB
+2026-09-23 13:57:51,913 [INFO] trainer.ConsistencyAlgorithm: epoch=58 loss=0.001442 time=168.219s peak_mem=1613.2MB
+2026-09-23 14:00:40,005 [INFO] trainer.ConsistencyAlgorithm: epoch=59 loss=0.001409 time=168.091s peak_mem=1613.2MB
+2026-09-23 14:03:19,599 [INFO] trainer.ConsistencyAlgorithm: epoch=60 loss=0.001433 time=159.593s peak_mem=1613.2MB
+2026-09-23 14:03:19,906 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch60.pt
+2026-09-23 14:03:20,500 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch60.zip
+2026-09-23 14:05:50,316 [INFO] trainer.ConsistencyAlgorithm: epoch=61 loss=0.001417 time=149.815s peak_mem=1613.2MB
+2026-09-23 14:08:20,221 [INFO] trainer.ConsistencyAlgorithm: epoch=62 loss=0.001416 time=149.905s peak_mem=1613.2MB
+2026-09-23 14:10:50,358 [INFO] trainer.ConsistencyAlgorithm: epoch=63 loss=0.001405 time=150.136s peak_mem=1613.2MB
+2026-09-23 14:13:21,024 [INFO] trainer.ConsistencyAlgorithm: epoch=64 loss=0.001415 time=150.666s peak_mem=1613.2MB
+2026-09-23 14:16:07,725 [INFO] trainer.ConsistencyAlgorithm: epoch=65 loss=0.001350 time=166.700s peak_mem=1613.2MB
+2026-09-23 14:18:55,948 [INFO] trainer.ConsistencyAlgorithm: epoch=66 loss=0.001369 time=168.222s peak_mem=1613.2MB
+2026-09-23 14:21:44,600 [INFO] trainer.ConsistencyAlgorithm: epoch=67 loss=0.001389 time=168.652s peak_mem=1613.2MB
+2026-09-23 14:24:33,867 [INFO] trainer.ConsistencyAlgorithm: epoch=68 loss=0.001354 time=169.266s peak_mem=1613.2MB
+2026-09-23 14:27:10,880 [INFO] trainer.ConsistencyAlgorithm: epoch=69 loss=0.001386 time=157.013s peak_mem=1613.2MB
+2026-09-23 14:29:41,287 [INFO] trainer.ConsistencyAlgorithm: epoch=70 loss=0.001320 time=150.407s peak_mem=1613.2MB
+2026-09-23 14:29:41,601 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch70.pt
+2026-09-23 14:29:42,156 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch70.zip
+2026-09-23 14:32:11,493 [INFO] trainer.ConsistencyAlgorithm: epoch=71 loss=0.001344 time=149.337s peak_mem=1613.2MB
+2026-09-23 14:34:41,548 [INFO] trainer.ConsistencyAlgorithm: epoch=72 loss=0.001364 time=150.054s peak_mem=1613.2MB
+2026-09-23 14:37:11,458 [INFO] trainer.ConsistencyAlgorithm: epoch=73 loss=0.001320 time=149.909s peak_mem=1613.2MB
+2026-09-23 14:39:41,734 [INFO] trainer.ConsistencyAlgorithm: epoch=74 loss=0.001344 time=150.276s peak_mem=1613.2MB
+2026-09-23 14:42:18,195 [INFO] trainer.ConsistencyAlgorithm: epoch=75 loss=0.001310 time=156.460s peak_mem=1613.2MB
+2026-09-23 14:47:09,413 [INFO] trainer.ConsistencyAlgorithm: epoch=76 loss=0.001333 time=155.570s peak_mem=2392.0MB
+2026-09-23 14:49:44,978 [INFO] trainer.ConsistencyAlgorithm: epoch=77 loss=0.001331 time=155.565s peak_mem=2392.0MB
+2026-09-23 14:52:20,381 [INFO] trainer.ConsistencyAlgorithm: epoch=78 loss=0.001298 time=155.402s peak_mem=2392.0MB
+2026-09-23 14:54:55,904 [INFO] trainer.ConsistencyAlgorithm: epoch=79 loss=0.001304 time=155.523s peak_mem=2392.0MB
+2026-09-23 14:57:31,591 [INFO] trainer.ConsistencyAlgorithm: epoch=80 loss=0.001315 time=155.686s peak_mem=2392.0MB
+2026-09-23 14:57:31,910 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch80.pt
+2026-09-23 14:57:32,481 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch80.zip
+2026-09-23 15:00:08,127 [INFO] trainer.ConsistencyAlgorithm: epoch=81 loss=0.001284 time=155.645s peak_mem=2392.0MB
+2026-09-23 15:02:43,854 [INFO] trainer.ConsistencyAlgorithm: epoch=82 loss=0.001292 time=155.727s peak_mem=2392.0MB
+2026-09-23 15:05:18,227 [INFO] trainer.ConsistencyAlgorithm: epoch=83 loss=0.001272 time=154.372s peak_mem=2392.0MB
+2026-09-23 15:07:52,515 [INFO] trainer.ConsistencyAlgorithm: epoch=84 loss=0.001284 time=154.287s peak_mem=2392.0MB
+2026-09-23 15:10:26,879 [INFO] trainer.ConsistencyAlgorithm: epoch=85 loss=0.001282 time=154.364s peak_mem=2392.0MB
+2026-09-23 15:13:01,080 [INFO] trainer.ConsistencyAlgorithm: epoch=86 loss=0.001285 time=154.201s peak_mem=2392.0MB
+2026-09-23 15:15:35,431 [INFO] trainer.ConsistencyAlgorithm: epoch=87 loss=0.001271 time=154.350s peak_mem=2392.0MB
+2026-09-23 15:18:09,808 [INFO] trainer.ConsistencyAlgorithm: epoch=88 loss=0.001269 time=154.376s peak_mem=2392.0MB
+2026-09-23 15:20:44,223 [INFO] trainer.ConsistencyAlgorithm: epoch=89 loss=0.001256 time=154.415s peak_mem=2392.0MB
+2026-09-23 15:23:18,441 [INFO] trainer.ConsistencyAlgorithm: epoch=90 loss=0.001270 time=154.217s peak_mem=2392.0MB
+2026-09-23 15:23:18,751 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch90.pt
+2026-09-23 15:23:19,337 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch90.zip
+2026-09-23 15:25:53,588 [INFO] trainer.ConsistencyAlgorithm: epoch=91 loss=0.001240 time=154.250s peak_mem=2392.0MB
+2026-09-23 15:28:28,012 [INFO] trainer.ConsistencyAlgorithm: epoch=92 loss=0.001248 time=154.423s peak_mem=2392.0MB
+2026-09-23 15:31:02,416 [INFO] trainer.ConsistencyAlgorithm: epoch=93 loss=0.001234 time=154.404s peak_mem=2392.0MB
+2026-09-23 15:33:36,672 [INFO] trainer.ConsistencyAlgorithm: epoch=94 loss=0.001252 time=154.255s peak_mem=2392.0MB
+2026-09-23 15:36:10,895 [INFO] trainer.ConsistencyAlgorithm: epoch=95 loss=0.001229 time=154.223s peak_mem=2392.0MB
+2026-09-23 15:38:45,032 [INFO] trainer.ConsistencyAlgorithm: epoch=96 loss=0.001226 time=154.137s peak_mem=2392.0MB
+2026-09-23 15:41:19,122 [INFO] trainer.ConsistencyAlgorithm: epoch=97 loss=0.001219 time=154.090s peak_mem=2392.0MB
+2026-09-23 15:43:53,311 [INFO] trainer.ConsistencyAlgorithm: epoch=98 loss=0.001220 time=154.188s peak_mem=2392.0MB
+2026-09-23 15:46:27,524 [INFO] trainer.ConsistencyAlgorithm: epoch=99 loss=0.001231 time=154.212s peak_mem=2392.0MB
+2026-09-23 15:49:01,669 [INFO] trainer.ConsistencyAlgorithm: epoch=100 loss=0.001253 time=154.145s peak_mem=2392.0MB
+Traceback (most recent call last):
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torch/serialization.py", line 850, in save
+    _save(
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torch/serialization.py", line 1114, in _save
+    zip_file.write_record(name, storage, num_bytes)
+OSError: [Errno 28] No space left on device
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 324, in <module>
+    with acquire_gpu_lock(command="train.py"):
+    ^^^^^^
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 320, in main
+    runner.run_full(resume_checkpoint=resume_checkpoint)
+    ^^^^^^^
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 315, in _main
+    )
+^^^^^^
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/experiments/runner.py", line 166, in run_full
+    self.train(resume_checkpoint=resume_checkpoint, evaluation_enabled=True)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/experiments/runner.py", line 162, in train
+    trainer.fit(start_epoch=start_epoch)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 404, in fit
+    self.save_checkpoint(epoch)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 250, in save_checkpoint
+    _atomic_torch_save(payload, path)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 78, in _atomic_torch_save
+    torch.save(payload, handle)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torch/serialization.py", line 849, in save
+    with _open_zipfile_writer(f) as opened_zipfile:
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torch/serialization.py", line 706, in __exit__
+    self.file_like.write_end_of_file()
+RuntimeError: [enforce fail at inline_container.cc:603] . unexpected pos 163564736 vs 163564628
+[run] finished_utc=2026-09-23T09:49:02Z
+[run] exit_status=1

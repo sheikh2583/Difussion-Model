@@ -3,8 +3,8 @@
     Start the local results browser and inference UI server.
 
 .DESCRIPTION
-    Activates the project virtual environment, sets PYTHONPATH, and
-    launches inference_server.py.  Open http://127.0.0.1:8000 in a
+    Uses the project virtual-environment interpreter directly, sets PYTHONPATH,
+    and launches inference_server.py. Open http://127.0.0.1:8000 in a
     browser to inspect results or use checkpoint inference after startup.
 
     The server auto-discovers trained checkpoints under the results
@@ -57,13 +57,12 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 # ---------------------------------------------------------------------------
-# Activate virtual environment
+# Resolve the project interpreter
 # ---------------------------------------------------------------------------
-$VenvActivate = Join-Path $ProjectRoot "venv\Scripts\Activate.ps1"
-if (-not (Test-Path $VenvActivate)) {
-    Write-Error "Virtual environment not found at '$VenvActivate'."
+$Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $Python)) {
+    throw "Project interpreter not found at '$Python'. Run scripts\windows\init.cmd first."
 }
-. $VenvActivate
 
 # ---------------------------------------------------------------------------
 # Set PYTHONPATH
@@ -89,8 +88,9 @@ Write-Host "=== DiffusionProject Inference Server ===" -ForegroundColor Cyan
 if (-not $SelfTest) {
     Write-Host "UI will be available at: http://${Host}:${Port}" -ForegroundColor Green
 }
-Write-Host "Command: python $($Args -join ' ')"
+Write-Host "Command: $Python $($Args -join ' ')"
 Write-Host ""
 
 Set-Location $ProjectRoot
-python @Args
+& $Python @Args
+exit $LASTEXITCODE

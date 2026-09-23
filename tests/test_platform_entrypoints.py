@@ -52,7 +52,7 @@ def test_platform_wrappers_reference_shared_entrypoints() -> None:
     )
     assert "setup.ps1" in (WINDOWS_DIR / "init.cmd").read_text(encoding="utf-8")
     assert "scripts\\interactive_train.py" in (WINDOWS_DIR / "train.cmd").read_text(encoding="utf-8")
-    assert "scripts\\windows\\train_all.ps1" in (
+    assert "scripts\\windows\\train_all_datasets.ps1" in (
         WINDOWS_DIR / "train_cifar.cmd"
     ).read_text(encoding="utf-8")
 
@@ -85,16 +85,19 @@ def test_windows_cifar_launcher_selects_legacy_backbone_without_forcing_mode() -
     assert "-Mode continue" not in wrapper
 
 
-def test_linux_latent_launcher_covers_suite_and_only_stages_logs() -> None:
+def test_linux_latent_launcher_covers_suite_without_mutating_git() -> None:
     text = (LINUX_DIR / "train_celeba_latent.sh").read_text(encoding="utf-8")
-    assert 'ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)' in text
+    assert (
+        'ALGORITHMS=(fm fm_lognorm mf mf_hutchinson mf_distill consistency reflow)'
+        in text
+    )
     assert 'LOG_DIR="training_logs/$GPU_TOKEN/latent"' in text
     assert 'job_log_dir="$LOG_DIR/$job_name"' in text
     assert "representation_space=latent" in text
     assert "scripts/generate_reflow_pairs_latent.py" in text
     assert "scripts/write_training_log_metadata.py" in text
-    assert 'git add -- "$log_path" "$sidecar_path"' in text
-    for command in ("git commit", "git push"):
+    assert "scripts/print_run_provenance.py" in text
+    for command in ("git add", "git commit", "git push"):
         assert command not in text
 
 
@@ -141,6 +144,22 @@ def test_linux_reporting_helpers_are_training_safe() -> None:
     assert "flock" in refresh
     assert "--interval" in refresh
     assert "kill" not in refresh
+
+    windows_refresh = (WINDOWS_DIR / "refresh_thesis_context.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "scripts/preflight_mf_v2.py" in windows_refresh
+    assert "--verify-v3" in windows_refresh
+
+
+def test_single_run_wrappers_use_project_interpreters_and_matching_controls() -> None:
+    linux = (LINUX_DIR / "run_train.sh").read_text(encoding="utf-8")
+    windows = (WINDOWS_DIR / "run_train.ps1").read_text(encoding="utf-8")
+    assert 'PYTHON="$PROJECT_ROOT/venv/bin/python"' in linux
+    assert 'venv\\Scripts\\python.exe' in windows
+    assert "Activate.ps1" not in windows
+    for option in ("BatchSize", "CheckpointEvery", "TrainOnly", "MachineLabel"):
+        assert option in windows
 
     for name, dataset in (
         ("generate_cifar10_outputs.sh", "cifar10"),

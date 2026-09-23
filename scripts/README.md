@@ -9,13 +9,16 @@ training implementation.
 | Interactive training | `./scripts/linux/train.sh` | `scripts\windows\train.cmd` |
 | Train/resume CIFAR-10 suite | `./scripts/linux/train_cifar.sh` | `scripts\windows\train_cifar.cmd` |
 | Rerun CIFAR with frozen backbone | `./scripts/linux/train_cifar.sh --cifar-backbone legacy --mode fresh` | `scripts\windows\train_cifar.cmd -CifarBackbone legacy -Mode fresh` |
-| Train/resume CelebA latent suite | `./scripts/linux/train_celeba_latent.sh` | Use `run_train.ps1` with each latent config |
+| Train/resume CelebA latent suite | `./scripts/linux/train_celeba_latent.sh` | `.\scripts\windows\train_celeba_latent.ps1` |
 | Build aggregate summary | `./scripts/linux/make_summary.sh` | `.\scripts\windows\make_summary.ps1` |
 | Build dataset bundles | `venv/bin/python scripts/package_dataset_bundles.py` | `venv\Scripts\python.exe scripts\package_dataset_bundles.py` |
 | Build compact thesis context | `./scripts/linux/make_thesis_context.sh` | `.\scripts\windows\make_thesis_context.ps1` |
 | Generate CIFAR-10 GIFs | `./scripts/linux/generate_cifar10_outputs.sh` | `.\scripts\windows\generate_cifar10_outputs.ps1` |
 | Generate CelebA pixel/latent GIFs and sample grids | `./scripts/linux/generate_celeba_outputs.sh` | `.\scripts\windows\generate_celeba_outputs.ps1` |
-| Verify project layout | `python scripts/verify_project_layout.py` | `python scripts\verify_project_layout.py` |
+| Verify project layout | `venv/bin/python scripts/verify_project_layout.py` | `venv\Scripts\python.exe scripts\verify_project_layout.py` |
+
+Python 3.10 or newer is required. Maintained launchers invoke the interpreter
+inside `venv/` directly, so activating the environment is optional.
 
 See the platform-specific README before the first run:
 
@@ -37,6 +40,10 @@ should write `[run] training_type=...`, `[run] dataset=...`, and
 `[run] algorithm=...` headers, or place a `<log>.meta.json` sidecar next to the
 transcript. Logs without metadata are still indexed as `unclassified`.
 
+Latent launcher transcripts and schema-2 sidecars carry Git commit/dirty-diff
+identity, frozen source and config digests, and GPU index/UUID/name/memory. They
+are eligible for Git tracking, but launchers do not stage or commit files.
+
 Diffusion logs are separated by representation under
 `training_logs/<device>/pixel/` and `training_logs/<device>/latent/`; new latent
 suite logs add an algorithm partition at `latent/<algorithm>/`. Codec
@@ -46,5 +53,5 @@ were migrated with byte-identical pre/post digests recorded in the timestamped
 is preview-only unless `--apply` is provided:
 
 ```bash
-python scripts/migrate_training_logs.py
+venv/bin/python scripts/migrate_training_logs.py
 ```

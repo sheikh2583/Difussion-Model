@@ -31,7 +31,7 @@ The maintained Windows workflows mirror the Linux launchers:
 # Serialized CIFAR-10 and CelebA pixel suite with per-job logs
 .\scripts\windows\train_all_datasets.ps1 -Dataset all -Mode continue -DryRun
 
-# CelebA latent suite (also supports -Only mf_hutchinson)
+# Seven-method CelebA latent suite (-Only mf_hutchinson is also available)
 .\scripts\windows\train_celeba_latent.ps1 -Only all -Mode continue -DryRun
 
 # Prepare or train a CelebA codec
@@ -45,6 +45,13 @@ The maintained Windows workflows mirror the Linux launchers:
 Training launchers acquire the shared `results/.lock`, freeze source identity,
 and release the lock on exit. Remove `-DryRun` only when ready to start the
 corresponding GPU workflow.
+
+Python 3.10 or newer is required. PowerShell launchers call
+`venv\Scripts\python.exe` directly; activating the environment is optional.
+The latent suite writes logs and metadata without staging or committing them.
+Its device-partitioned transcripts and schema-2 sidecars include Git
+commit/dirty-diff identity, frozen source/config digests, checkpoint series,
+and GPU index/UUID/name/memory, matching the Linux launcher.
 
 All Windows Command Prompt and PowerShell entrypoints live in this directory.
 They call the platform-independent Python tools in the parent `scripts`
@@ -62,7 +69,7 @@ Preview output commands without writing anything:
 .\scripts\windows\generate_cifar10_outputs.ps1 -DryRun
 .\scripts\windows\generate_celeba_outputs.ps1 -DryRun
 .\scripts\windows\make_thesis_context.ps1 -DryRun
-python scripts\verify_project_layout.py
+.\venv\Scripts\python.exe scripts\verify_project_layout.py
 ```
 
 The reporting wrappers refuse to modify generated outputs while training is
@@ -70,3 +77,6 @@ active unless `-AllowRunning` is explicitly supplied for a read-only snapshot.
 They never stop or signal a training process. The CelebA wrapper keeps pixel
 and latent animations separate and generates decoded checkpoint grids only
 when training is inactive; `-AllowRunning` skips checkpoint sampling.
+
+The refresh watcher runs the same CPU-only MF-v3 preflight as Linux before
+rebuilding summaries and the verified context ZIP.
