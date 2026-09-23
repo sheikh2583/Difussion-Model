@@ -12,7 +12,7 @@ Trainer / Evaluator / Sampler / plots.py need zero changes.
     consistency ConsistencyAlgorithm           — Consistency Models      [Song 2023]
     reflow      ReflowAlgorithm                — Rectified Flow Reflow   [Liu 2022 §3]
 
-    mf_hutchinson MeanFlowHutchinsonAlgorithm  - Mean Flow, randomized VJP [Geng 2025]
+    mf_hutchinson MeanFlowHutchinsonAlgorithm  - latent-only randomized VJP [Geng 2025]
 
 Fairness note on mf_distill and consistency:
     Both require a pre-trained FM teacher checkpoint. Their results are NOT
