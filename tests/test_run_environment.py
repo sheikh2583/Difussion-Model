@@ -9,13 +9,24 @@ from utils.run_environment import collect_run_environment, write_run_environment
 from scripts.aggregate_results import deduplicate
 
 
+class _CudaUuidStub:
+    """Mimic PyTorch's non-JSON-serializable private CUDA UUID value."""
+
+    def __str__(self) -> str:
+        return "GPU-deadbeef"
+
+
 def test_environment_manifest_and_metrics_share_comparison_identity(tmp_path: Path) -> None:
     with (
         patch("utils.run_environment.torch.cuda.is_available", return_value=True),
         patch("utils.run_environment.torch.cuda.get_device_name", return_value="Test GPU"),
         patch(
             "utils.run_environment.torch.cuda.get_device_properties",
-            return_value=type("GPU", (), {"total_memory": 24 * 1024 ** 3})(),
+            return_value=type(
+                "GPU",
+                (),
+                {"total_memory": 24 * 1024 ** 3, "uuid": _CudaUuidStub()},
+            )(),
         ),
         patch("utils.run_environment.torch.cuda.device_count", return_value=1),
         patch("utils.run_environment._git_value", side_effect=["abc123", "", ""]),
@@ -33,6 +44,7 @@ def test_environment_manifest_and_metrics_share_comparison_identity(tmp_path: Pa
     assert metric["gpu_name"] == "Test GPU"
     assert metric["gpu_memory_gb"] == 24
     assert metric["gpu_device_index"] == 0
+    assert metric["gpu_uuid"] == "GPU-deadbeef"
     assert metric["git_commit"] == "abc123"
     assert metric["git_dirty"] is False
     assert metric["code_identity"] == "abc123"

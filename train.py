@@ -81,7 +81,7 @@ def print_startup_summary(
         if config_path
         else "<ExperimentConfig defaults>"
     )
-    lines = (
+    lines = [
         ("config", resolved_config),
         ("algorithm", algorithm_key),
         ("experiment", cfg.experiment_name),
@@ -93,15 +93,26 @@ def print_startup_summary(
         ("learning_rate", cfg.optim.learning_rate),
         ("scheduler", cfg.optim.scheduler),
         ("gradient_clip_norm", cfg.optim.gradient_clip_norm),
-        ("use_exact_jvp", kwargs.get("use_exact_jvp", False)),
-        ("fd_force_fp32", kwargs.get("fd_force_fp32", False)),
-        ("p_same", kwargs.get("p_same", 0.25)),
-        ("p_fd_step", kwargs.get("p_fd_step", 0.5)),
-        (
-            "jvp_delta_range",
-            f"{kwargs.get('jvp_delta_start', 1e-2)} -> "
-            f"{kwargs.get('jvp_delta_end', 1e-4)}",
-        ),
+    ]
+    if algorithm_key == "mf":
+        lines.extend([
+            ("use_exact_jvp", kwargs.get("use_exact_jvp", False)),
+            ("fd_force_fp32", kwargs.get("fd_force_fp32", False)),
+            ("p_same", kwargs.get("p_same", 0.25)),
+            ("p_fd_step", kwargs.get("p_fd_step", 0.5)),
+            (
+                "jvp_delta_range",
+                f"{kwargs.get('jvp_delta_start', 1e-2)} -> "
+                f"{kwargs.get('jvp_delta_end', 1e-4)}",
+            ),
+        ])
+    elif algorithm_key == "mf_hutchinson":
+        lines.extend([
+            ("p_same", kwargs.get("p_same", 0.1)),
+            ("p_hutchinson_step", kwargs.get("p_hutchinson_step", 0.8)),
+            ("n_probes", kwargs.get("n_probes", 1)),
+        ])
+    lines.extend([
         ("machine_label", run_environment.get("machine_label")),
         ("code_identity", run_environment.get("code_identity")),
         ("source_identity_sha256", run_environment.get("source_identity_sha256")),
@@ -109,7 +120,7 @@ def print_startup_summary(
         ("lifecycle_mode", run_environment.get("lifecycle_mode")),
         ("checkpoint_series", run_environment.get("checkpoint_series")),
         ("parent_suite_timestamp", run_environment.get("parent_suite_timestamp")),
-    )
+    ])
     print("[startup] Resolved experiment configuration (before dataset loading):")
     for key, value in lines:
         print(f"[startup] {key}: {value}")

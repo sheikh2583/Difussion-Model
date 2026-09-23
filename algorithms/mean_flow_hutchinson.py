@@ -24,7 +24,7 @@ class MeanFlowHutchinsonAlgorithm(BaseAlgorithm):
         if getattr(model.cfg, "sample_clamp", True):
             raise ValueError(
                 "mf_hutchinson is restricted to latent-space backbones; "
-                "pixel-space configurations are not supported"
+                "pixel-space models are not supported"
             )
         self.r_cond = RCond(model.cfg.time_embed_dim)
         self.p_same = float(self.algorithm_kwargs.get("p_same", 0.1))

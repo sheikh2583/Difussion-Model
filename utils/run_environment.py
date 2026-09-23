@@ -94,6 +94,11 @@ def collect_run_environment(
         if gpu_properties is not None
         else None
     )
+    gpu_uuid_value = getattr(gpu_properties, "uuid", None)
+    # PyTorch exposes this as a private ``_CUuuid`` object on some CUDA
+    # builds. Its text form is stable, but the object itself is not accepted
+    # by json.dumps(). Keep all collected provenance JSON-safe as promised.
+    gpu_uuid = str(gpu_uuid_value) if gpu_uuid_value is not None else None
     label = (
         machine_label
         or os.environ.get("DIFFUSION_MACHINE_LABEL")
@@ -113,7 +118,7 @@ def collect_run_environment(
         "gpu_name": gpu_name,
         "gpu_memory_gb": gpu_memory_gb,
         "gpu_device_index": 0 if cuda_available else None,
-        "gpu_uuid": getattr(gpu_properties, "uuid", None),
+        "gpu_uuid": gpu_uuid,
         "gpu_count": torch.cuda.device_count() if cuda_available else 0,
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
         "git_commit": commit,

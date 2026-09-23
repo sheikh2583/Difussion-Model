@@ -64,6 +64,26 @@ def test_config_hash_enrichment_does_not_mutate_environment():
     assert len(enriched["config_sha256"]) == 64
 
 
+def test_hutchinson_startup_summary_reports_its_actual_controls(capsys, tmp_path):
+    config_path = PROJECT_ROOT / "config/mf_hutchinson_celeba_latent.json"
+    cfg = ExperimentConfig.load(str(config_path))
+
+    print_startup_summary(
+        config_path=str(config_path),
+        algorithm_key="mf_hutchinson",
+        cfg=cfg,
+        result_dir=tmp_path / "results" / "mf_hutchinson_celeba_latent",
+        run_environment={},
+    )
+    output = capsys.readouterr().out
+
+    assert "p_same: 0.1" in output
+    assert "p_hutchinson_step: 0.8" in output
+    assert "n_probes: 1" in output
+    assert "p_fd_step" not in output
+    assert "jvp_delta_range" not in output
+
+
 def test_mf_hutchinson_is_restricted_to_latent_space():
     latent_cfg = ExperimentConfig.load(
         str(PROJECT_ROOT / "config/mf_hutchinson_celeba_latent.json")

@@ -74,6 +74,7 @@ def test_latent_prerequisites_use_latent_fm_and_pair_generator(monkeypatch):
     choice = interactive_train.CHOICE_BY_KEY["celeba_latent:reflow"]
     commands = []
 
+    monkeypatch.setattr(interactive_train.sys, "platform", "linux")
     monkeypatch.setattr(
         interactive_train,
         "run",

@@ -104,7 +104,7 @@ def test_run_local_and_orchestration_logs_are_classified() -> None:
 def test_annotation_adds_uniform_transcript_identity(tmp_path: Path) -> None:
     log = tmp_path / "training_logs/gpu/pixel/cifar10_training.log"
     log.parent.mkdir(parents=True)
-    log.write_text("historical suite\n", encoding="utf-8")
+    log.write_bytes(b"historical suite\n")
     identification = {
         "machine_label": "linux-lab-test-gpu-24gb",
         "gpu_name": "Test GPU",
