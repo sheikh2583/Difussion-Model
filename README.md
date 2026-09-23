@@ -387,12 +387,28 @@ The lower-level noninteractive entrypoint is:
 ### Windows: Command Prompt
 
 ```bat
+INIT_ALL.cmd
+```
+
+`INIT_ALL.cmd` is the complete one-shot initializer. It installs the full
+training environment, downloads CIFAR-10 and CelebA, checks CUDA, and prepares
+the accepted CelebA codec and latent cache. Codec quality failures still require
+an explicit, documented override:
+
+```bat
+INIT_ALL.cmd -AcceptQualityFailure -AcceptanceReason "Approved for the documented VQ-f4 latent experiment"
+```
+
+Use `-DryRun` to preview the stages, or `-SkipLatentAssets` on a machine that
+only needs the pixel-space workflows. For the smaller CIFAR-10-only setup, use:
+
+```bat
 scripts\windows\init.cmd
 scripts\windows\train.cmd
 ```
 
-`init.cmd` is the easiest Windows entrypoint. It delegates to the maintained
-PowerShell setup while avoiding manual execution-policy and quoting mistakes.
+Both Command Prompt entrypoints delegate to maintained PowerShell setup scripts
+while avoiding manual execution-policy and quoting mistakes.
 
 ### Windows: PowerShell
 

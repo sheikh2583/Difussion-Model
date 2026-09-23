@@ -3,9 +3,15 @@
 From Command Prompt in the repository root:
 
 ```bat
-scripts\windows\init.cmd
+INIT_ALL.cmd
 scripts\windows\train_cifar.cmd
 ```
+
+`INIT_ALL.cmd` prepares both datasets and the CelebA latent assets in one
+idempotent workflow. Preview it without changing the machine with
+`INIT_ALL.cmd -DryRun`. Use `INIT_ALL.cmd -SkipLatentAssets` when only the
+pixel-space suites are needed. The smaller `scripts\windows\init.cmd` remains
+available for a CIFAR-10-only environment.
 
 The machine label is generated automatically from the OS, hostname, GPU, and
 VRAM. No setup is required. To use a shorter custom label instead, optionally

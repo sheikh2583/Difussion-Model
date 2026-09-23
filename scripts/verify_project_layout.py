@@ -18,6 +18,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PLATFORM_SUFFIXES = {".sh", ".ps1", ".cmd"}
+ROOT_PLATFORM_ENTRYPOINTS = {"INIT_ALL.cmd"}
 # Repository-local IDE/worktree metadata is not part of this checkout's source
 # layout. In particular, .kilo/worktrees may contain complete nested clones
 # whose platform launchers would otherwise be reported as misplaced files.
@@ -59,6 +60,8 @@ def platform_placement_errors(root: Path) -> list[str]:
     windows = root / "scripts" / "windows"
     for path in project_files(root):
         if path.suffix not in PLATFORM_SUFFIXES:
+            continue
+        if path.parent == root and path.name in ROOT_PLATFORM_ENTRYPOINTS:
             continue
         if path.suffix == ".sh" and linux not in path.parents:
             errors.append(f"Linux shell script outside scripts/linux: {path.relative_to(root)}")
@@ -120,6 +123,14 @@ def entrypoint_errors(root: Path) -> list[str]:
         data = path.read_bytes()
         if b"\n" in data and b"\r\n" not in data:
             errors.append(f"Windows script lacks CRLF: {path.relative_to(root)}")
+    for name in sorted(ROOT_PLATFORM_ENTRYPOINTS):
+        path = root / name
+        if not path.is_file():
+            errors.append(f"Missing root entrypoint: {name}")
+            continue
+        data = path.read_bytes()
+        if b"\n" in data and b"\r\n" not in data:
+            errors.append(f"Windows script lacks CRLF: {name}")
     return errors
 
 

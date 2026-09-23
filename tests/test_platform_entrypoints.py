@@ -45,6 +45,19 @@ def test_linux_platform_scripts_parse_and_are_executable() -> None:
 
 
 def test_platform_wrappers_reference_shared_entrypoints() -> None:
+    root_init = (PROJECT_ROOT / "INIT_ALL.cmd").read_text(encoding="utf-8")
+    assert "scripts\\windows\\init_all.ps1" in root_init
+
+    complete_windows_init = (WINDOWS_DIR / "init_all.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert '"-Datasets", "all"' in complete_windows_init
+    assert "setup_celeba_latent.ps1" in complete_windows_init
+    assert "Start-WorkflowGuard" in complete_windows_init
+    assert "Stop-WorkflowGuard" in complete_windows_init
+    assert "verify_workflow.py --dataset none" in complete_windows_init
+    assert "train.py" not in complete_windows_init
+
     assert "setup.sh" in (LINUX_DIR / "init.sh").read_text(encoding="utf-8")
     assert "scripts/interactive_train.py" in (LINUX_DIR / "train.sh").read_text(encoding="utf-8")
     assert "train_all_datasets.sh" in (LINUX_DIR / "train_cifar.sh").read_text(

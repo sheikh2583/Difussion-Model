@@ -42,3 +42,15 @@ def test_platform_placement_rejects_scattered_launchers(tmp_path: Path) -> None:
 
     assert any("orphan.sh" in error for error in errors)
     assert any("orphan.ps1" in error for error in errors)
+
+
+def test_platform_placement_allows_only_the_documented_root_initializer(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "INIT_ALL.cmd").write_text("@echo off\r\n", encoding="utf-8")
+    (tmp_path / "other.cmd").write_text("@echo off\r\n", encoding="utf-8")
+
+    errors = platform_placement_errors(tmp_path)
+
+    assert not any("INIT_ALL.cmd" in error for error in errors)
+    assert any("other.cmd" in error for error in errors)
