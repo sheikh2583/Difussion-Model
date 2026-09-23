@@ -131,3 +131,69 @@ Defaulting to unsafe serialization. Pass `allow_pickle=False` to raise an error 
 2026-09-23 14:34:41,548 [INFO] trainer.ConsistencyAlgorithm: epoch=72 loss=0.001364 time=150.054s peak_mem=1613.2MB
 2026-09-23 14:37:11,458 [INFO] trainer.ConsistencyAlgorithm: epoch=73 loss=0.001320 time=149.909s peak_mem=1613.2MB
 2026-09-23 14:39:41,734 [INFO] trainer.ConsistencyAlgorithm: epoch=74 loss=0.001344 time=150.276s peak_mem=1613.2MB
+2026-09-23 14:42:18,195 [INFO] trainer.ConsistencyAlgorithm: epoch=75 loss=0.001310 time=156.460s peak_mem=1613.2MB
+2026-09-23 14:47:09,413 [INFO] trainer.ConsistencyAlgorithm: epoch=76 loss=0.001333 time=155.570s peak_mem=2392.0MB
+2026-09-23 14:49:44,978 [INFO] trainer.ConsistencyAlgorithm: epoch=77 loss=0.001331 time=155.565s peak_mem=2392.0MB
+2026-09-23 14:52:20,381 [INFO] trainer.ConsistencyAlgorithm: epoch=78 loss=0.001298 time=155.402s peak_mem=2392.0MB
+2026-09-23 14:54:55,904 [INFO] trainer.ConsistencyAlgorithm: epoch=79 loss=0.001304 time=155.523s peak_mem=2392.0MB
+2026-09-23 14:57:31,591 [INFO] trainer.ConsistencyAlgorithm: epoch=80 loss=0.001315 time=155.686s peak_mem=2392.0MB
+2026-09-23 14:57:31,910 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch80.pt
+2026-09-23 14:57:32,481 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch80.zip
+2026-09-23 15:00:08,127 [INFO] trainer.ConsistencyAlgorithm: epoch=81 loss=0.001284 time=155.645s peak_mem=2392.0MB
+2026-09-23 15:02:43,854 [INFO] trainer.ConsistencyAlgorithm: epoch=82 loss=0.001292 time=155.727s peak_mem=2392.0MB
+2026-09-23 15:05:18,227 [INFO] trainer.ConsistencyAlgorithm: epoch=83 loss=0.001272 time=154.372s peak_mem=2392.0MB
+2026-09-23 15:07:52,515 [INFO] trainer.ConsistencyAlgorithm: epoch=84 loss=0.001284 time=154.287s peak_mem=2392.0MB
+2026-09-23 15:10:26,879 [INFO] trainer.ConsistencyAlgorithm: epoch=85 loss=0.001282 time=154.364s peak_mem=2392.0MB
+2026-09-23 15:13:01,080 [INFO] trainer.ConsistencyAlgorithm: epoch=86 loss=0.001285 time=154.201s peak_mem=2392.0MB
+2026-09-23 15:15:35,431 [INFO] trainer.ConsistencyAlgorithm: epoch=87 loss=0.001271 time=154.350s peak_mem=2392.0MB
+2026-09-23 15:18:09,808 [INFO] trainer.ConsistencyAlgorithm: epoch=88 loss=0.001269 time=154.376s peak_mem=2392.0MB
+2026-09-23 15:20:44,223 [INFO] trainer.ConsistencyAlgorithm: epoch=89 loss=0.001256 time=154.415s peak_mem=2392.0MB
+2026-09-23 15:23:18,441 [INFO] trainer.ConsistencyAlgorithm: epoch=90 loss=0.001270 time=154.217s peak_mem=2392.0MB
+2026-09-23 15:23:18,751 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_celeba_latent/checkpoints/run_1/ConsistencyAlgorithm_epoch90.pt
+2026-09-23 15:23:19,337 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_celeba_latent/checkpoints/run_1/archive/ConsistencyAlgorithm_epoch90.zip
+2026-09-23 15:25:53,588 [INFO] trainer.ConsistencyAlgorithm: epoch=91 loss=0.001240 time=154.250s peak_mem=2392.0MB
+2026-09-23 15:28:28,012 [INFO] trainer.ConsistencyAlgorithm: epoch=92 loss=0.001248 time=154.423s peak_mem=2392.0MB
+2026-09-23 15:31:02,416 [INFO] trainer.ConsistencyAlgorithm: epoch=93 loss=0.001234 time=154.404s peak_mem=2392.0MB
+2026-09-23 15:33:36,672 [INFO] trainer.ConsistencyAlgorithm: epoch=94 loss=0.001252 time=154.255s peak_mem=2392.0MB
+2026-09-23 15:36:10,895 [INFO] trainer.ConsistencyAlgorithm: epoch=95 loss=0.001229 time=154.223s peak_mem=2392.0MB
+2026-09-23 15:38:45,032 [INFO] trainer.ConsistencyAlgorithm: epoch=96 loss=0.001226 time=154.137s peak_mem=2392.0MB
+2026-09-23 15:41:19,122 [INFO] trainer.ConsistencyAlgorithm: epoch=97 loss=0.001219 time=154.090s peak_mem=2392.0MB
+2026-09-23 15:43:53,311 [INFO] trainer.ConsistencyAlgorithm: epoch=98 loss=0.001220 time=154.188s peak_mem=2392.0MB
+2026-09-23 15:46:27,524 [INFO] trainer.ConsistencyAlgorithm: epoch=99 loss=0.001231 time=154.212s peak_mem=2392.0MB
+2026-09-23 15:49:01,669 [INFO] trainer.ConsistencyAlgorithm: epoch=100 loss=0.001253 time=154.145s peak_mem=2392.0MB
+Traceback (most recent call last):
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torch/serialization.py", line 850, in save
+    _save(
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torch/serialization.py", line 1114, in _save
+    zip_file.write_record(name, storage, num_bytes)
+OSError: [Errno 28] No space left on device
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 324, in <module>
+    with acquire_gpu_lock(command="train.py"):
+    ^^^^^^
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 320, in main
+    runner.run_full(resume_checkpoint=resume_checkpoint)
+    ^^^^^^^
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 315, in _main
+    )
+^^^^^^
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/experiments/runner.py", line 166, in run_full
+    self.train(resume_checkpoint=resume_checkpoint, evaluation_enabled=True)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/experiments/runner.py", line 162, in train
+    trainer.fit(start_epoch=start_epoch)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 404, in fit
+    self.save_checkpoint(epoch)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 250, in save_checkpoint
+    _atomic_torch_save(payload, path)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 78, in _atomic_torch_save
+    torch.save(payload, handle)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torch/serialization.py", line 849, in save
+    with _open_zipfile_writer(f) as opened_zipfile:
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torch/serialization.py", line 706, in __exit__
+    self.file_like.write_end_of_file()
+RuntimeError: [enforce fail at inline_container.cc:603] . unexpected pos 163564736 vs 163564628
+[run] finished_utc=2026-09-23T09:49:02Z
+[run] exit_status=1
