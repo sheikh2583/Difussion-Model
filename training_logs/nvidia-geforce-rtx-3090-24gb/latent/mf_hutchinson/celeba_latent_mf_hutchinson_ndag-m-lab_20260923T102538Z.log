@@ -1,0 +1,62 @@
+[run] training_type=latent_diffusion
+[run] representation_space=latent
+[run] dataset=celeba_latent
+[run] algorithm=mf_hutchinson
+[run] job=mf_hutchinson
+[run] launcher_session_id=1b42717b48764a15a56a2385f6afc4f5
+[run] hostname=NDAG-M-Lab
+[run] os_name=Linux
+[run] os_release=7.0.0-31-generic
+[run] architecture=x86_64
+[run] python_version=3.12.2
+[run] torch_version=2.5.1+cu121
+[run] cuda_version=12.1
+[run] cuda_visible_devices=unavailable
+[run] gpu_device_index=0
+[run] gpu_uuid=d4eecee8-2e57-baf1-f631-0660b6517f2b
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] gpu_count=1
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] git_commit=7893916c5fb5e4fe0a04d474d1780a6ab33aff0b
+[run] git_dirty=false
+[run] git_diff_sha256=unavailable
+[run] code_identity=7893916c5fb5e4fe0a04d474d1780a6ab33aff0b
+[run] source_identity_sha256=5cd10cd74614561819bd8df7f69545ee669638aa1d3844a817ab872befb1ef5e
+[run] source_manifest=results/source_manifests/20260923T102538Z_pid314283.json
+[run] parent_suite_timestamp=20260923T102538Z
+[run] lifecycle_mode=fresh
+[run] checkpoint_series=run_1
+[run] selected_config_path=config/mf_hutchinson_celeba_latent.json
+[run] selected_config_sha256=0916c87398fa135c38e2d6997b59b64a65425c4733affc8377cf42f2ad5b08cc
+[run] log_device_token=nvidia-geforce-rtx-3090-24gb
+[run] log_path=training_logs/nvidia-geforce-rtx-3090-24gb/latent/mf_hutchinson/celeba_latent_mf_hutchinson_ndag-m-lab_20260923T102538Z.log
+[run] git_log_policy=eligible-not-auto-staged
+[run] started_utc=2026-09-23T10:25:40Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209\ Thesis/Difussion-Model/venv/bin/python train.py --algorithm mf_hutchinson --config config/mf_hutchinson_celeba_latent.json --mode fresh --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb 
+[fresh] No previous run artifacts found; starting at epoch 1.
+[checkpoints] Active checkpoint series: run_1
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/mf_hutchinson_celeba_latent.json
+[startup] algorithm: mf_hutchinson
+[startup] experiment: mf_hutchinson
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/mf_hutchinson_celeba_latent
+[startup] batch_size: 32
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 5e-05
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] p_same: 0.1
+[startup] p_hutchinson_step: 0.8
+[startup] n_probes: 1
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 7893916c5fb5e4fe0a04d474d1780a6ab33aff0b
+[startup] source_identity_sha256: 5cd10cd74614561819bd8df7f69545ee669638aa1d3844a817ab872befb1ef5e
+[startup] selected_config_file_sha256: 0916c87398fa135c38e2d6997b59b64a65425c4733affc8377cf42f2ad5b08cc
+[startup] lifecycle_mode: fresh
+[startup] checkpoint_series: run_1
+[startup] parent_suite_timestamp: 20260923T102538Z
+2026-09-23 16:28:11,357 [INFO] trainer.MeanFlowHutchinsonAlgorithm: epoch=1 loss=185.930880 time=148.673s peak_mem=624.0MB
+2026-09-23 16:30:39,421 [INFO] trainer.MeanFlowHutchinsonAlgorithm: epoch=2 loss=238.573902 time=148.063s peak_mem=624.0MB

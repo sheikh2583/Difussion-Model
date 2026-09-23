@@ -1,0 +1,93 @@
+[run] training_type=latent_diffusion
+[run] representation_space=latent
+[run] dataset=celeba_latent
+[run] algorithm=mf_hutchinson
+[run] job=mf_hutchinson
+[run] launcher_session_id=15339553e7644bc4b4998e09da4e9536
+[run] hostname=NDAG-M-Lab
+[run] os_name=Linux
+[run] os_release=7.0.0-31-generic
+[run] architecture=x86_64
+[run] python_version=3.12.2
+[run] torch_version=2.5.1+cu121
+[run] cuda_version=12.1
+[run] cuda_visible_devices=unavailable
+[run] gpu_device_index=0
+[run] gpu_uuid=d4eecee8-2e57-baf1-f631-0660b6517f2b
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] gpu_count=1
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] git_commit=30d568083edc3da07620d79a46feb004d1f71592
+[run] git_dirty=false
+[run] git_diff_sha256=unavailable
+[run] code_identity=30d568083edc3da07620d79a46feb004d1f71592
+[run] source_identity_sha256=e904d4966d872af4a9bdc803f65499f8d30793ed2fe7b56bcb238d58d5116d72
+[run] source_manifest=results/source_manifests/20260923T101822Z_pid311279.json
+[run] parent_suite_timestamp=20260923T101822Z
+[run] lifecycle_mode=fresh
+[run] checkpoint_series=run_1
+[run] selected_config_path=config/mf_hutchinson_celeba_latent.json
+[run] selected_config_sha256=0916c87398fa135c38e2d6997b59b64a65425c4733affc8377cf42f2ad5b08cc
+[run] log_device_token=nvidia-geforce-rtx-3090-24gb
+[run] log_path=training_logs/nvidia-geforce-rtx-3090-24gb/latent/mf_hutchinson/celeba_latent_mf_hutchinson_ndag-m-lab_20260923T101822Z.log
+[run] git_log_policy=eligible-not-auto-staged
+[run] started_utc=2026-09-23T10:18:23Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209\ Thesis/Difussion-Model/venv/bin/python train.py --algorithm mf_hutchinson --config config/mf_hutchinson_celeba_latent.json --mode fresh --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb --train-only 
+[fresh] No previous run artifacts found; starting at epoch 1.
+[checkpoints] Active checkpoint series: run_1
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/mf_hutchinson_celeba_latent.json
+[startup] algorithm: mf_hutchinson
+[startup] experiment: mf_hutchinson
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/mf_hutchinson_celeba_latent
+[startup] batch_size: 32
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 5e-05
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] use_exact_jvp: False
+[startup] fd_force_fp32: False
+[startup] p_same: 0.1
+[startup] p_fd_step: 0.5
+[startup] jvp_delta_range: 0.01 -> 0.0001
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 30d568083edc3da07620d79a46feb004d1f71592
+[startup] source_identity_sha256: e904d4966d872af4a9bdc803f65499f8d30793ed2fe7b56bcb238d58d5116d72
+[startup] selected_config_file_sha256: 0916c87398fa135c38e2d6997b59b64a65425c4733affc8377cf42f2ad5b08cc
+[startup] lifecycle_mode: fresh
+[startup] checkpoint_series: run_1
+[startup] parent_suite_timestamp: 20260923T101822Z
+Traceback (most recent call last):
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 329, in <module>
+    main()
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 325, in main
+    _main()
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 302, in _main
+    runner = ExperimentRunner(
+             ^^^^^^^^^^^^^^^^^
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/experiments/runner.py", line 78, in __init__
+    write_run_environment(Path(self.run_dir), self.run_environment)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/utils/run_environment.py", line 145, in write_run_environment
+    temporary.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ndag/anaconda3/lib/python3.12/json/__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ^^^^^^^^^^^
+  File "/home/ndag/anaconda3/lib/python3.12/json/encoder.py", line 202, in encode
+    chunks = list(chunks)
+             ^^^^^^^^^^^^
+  File "/home/ndag/anaconda3/lib/python3.12/json/encoder.py", line 432, in _iterencode
+    yield from _iterencode_dict(o, _current_indent_level)
+  File "/home/ndag/anaconda3/lib/python3.12/json/encoder.py", line 406, in _iterencode_dict
+    yield from chunks
+  File "/home/ndag/anaconda3/lib/python3.12/json/encoder.py", line 439, in _iterencode
+    o = _default(o)
+        ^^^^^^^^^^^
+  File "/home/ndag/anaconda3/lib/python3.12/json/encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+TypeError: Object of type _CUuuid is not JSON serializable
+[run] finished_utc=2026-09-23T10:18:26Z
+[run] exit_status=1
