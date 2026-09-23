@@ -1,0 +1,46 @@
+
+<div style="padding:1rem 0">
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem;font-size:12px;color:var(--text-secondary);">
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:24px;height:2px;background:#2a78d6;display:inline-block;"></span>FM</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:24px;height:2px;background:#eb6834;display:inline-block;"></span>FM-LN</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:24px;height:2px;background:#1baf7a;display:inline-block;"></span>MF-Distill</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:24px;height:2px;background:#6250d6;display:inline-block;"></span>Reflow</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:24px;height:2px;background:#898781;border-top:2px dashed #898781;display:inline-block;"></span>MF (diverged)</span>
+</div>
+<p style="font-size:11px;color:var(--text-muted);margin:0 0 0.5rem;">Consistency omitted — loss scale (0.0002) too small to compare on same axis</p>
+<div style="position:relative;width:100%;height:300px;">
+  <canvas id="lossChart" role="img" aria-label="Training loss by epoch for FM, FM-LN, MF-Distill, Reflow, and MF. FM and FM-LN converge smoothly. Reflow and MF-Distill drop rapidly. MF diverges sharply after epoch 90.">Training loss curves over 100 epochs for five algorithms.</canvas>
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const epochs = Array.from({length:100},(_,i)=>i+1);
+
+const fm = [0.3201,0.2618,0.2302,0.2143,0.2058,0.2007,0.1969,0.1951,0.1941,0.1929,0.1921,0.191,0.19,0.1894,0.1889,0.1884,0.1882,0.1877,0.188,0.1883,0.1879,0.187,0.1873,0.187,0.1871,0.1866,0.1863,0.1858,0.1858,0.1857,0.1851,0.185,0.1847,0.1847,0.1842,0.1843,0.1842,0.1844,0.1842,0.1841,0.1839,0.1837,0.1834,0.1836,0.1836,0.1834,0.1832,0.1832,0.1832,0.1833,0.1823,0.1826,0.1824,0.1822,0.1826,0.1822,0.1822,0.1825,0.1822,0.182,0.1822,0.182,0.182,0.1821,0.1821,0.1821,0.1818,0.182,0.1818,0.1817,0.1811,0.1812,0.1815,0.1813,0.1813,0.1812,0.1814,0.1813,0.1812,0.1814,0.1812,0.1799,0.1801,0.1802,0.1802,0.1801,0.18,0.1801,0.1802,0.1802,0.1802,0.1794,0.1795,0.1796,0.1797,0.1797,0.1796,0.1797,0.1796,0.1799,0.179];
+const fmln = [0.2569,0.2121,0.1853,0.1735,0.1665,0.1634,0.1588,0.1574,0.1562,0.1527,0.152,0.1515,0.1511,0.1506,0.1509,0.1509,0.1507,0.1499,0.1496,0.149,0.1489,0.1488,0.1485,0.1486,0.1483,0.1479,0.1477,0.1476,0.1474,0.1469,0.1469,0.1468,0.1466,0.1468,0.1469,0.146,0.1463,0.1459,0.1462,0.1457,0.1457,0.1459,0.1457,0.1455,0.1455,0.1448,0.1449,0.1455,0.1449,0.1446,0.1446,0.1448,0.1446,0.1442,0.1446,0.1440,0.1442,0.1444,0.1436,0.1438,0.1438,0.1436,0.1439,0.1437,0.1441,0.1441,0.1439,0.1435,0.1434,0.1432,0.1433,0.1435,0.1433,0.1431,0.1432,0.1430,0.1428,0.1426,0.1427,0.1427,0.1427,0.1428,0.1426,0.1427,0.1425,0.1425,0.1426,0.1425,0.1422,0.1421,0.1422,0.1422,0.1421,0.1421,0.142,0.1421,0.1422,0.142,0.142,0.142];
+const reflow = [0.1172,0.0409,0.0286,0.0218,0.0181,0.0149,0.0142,0.0121,0.0111,0.0104,0.0096,0.0089,0.0086,0.0082,0.0078,0.0073,0.0073,0.0068,0.0065,0.0067,0.006,0.0056,0.006,0.0057,0.0056,0.0054,0.0053,0.0051,0.005,0.0047,0.0046,0.0049,0.0045,0.0045,0.0045,0.0045,0.0042,0.0045,0.0041,0.0040,0.0043,0.0043,0.0038,0.0044,0.0037,0.0039,0.0039,0.0038,0.0038,0.0037,0.0034,0.0036,0.0035,0.0034,0.0037,0.0034,0.0033,0.0033,0.0034,0.0032,0.0034,0.0033,0.0033,0.0033,0.0033,0.0032,0.0033,0.0030,0.0032,0.0031,0.0034,0.0030,0.0030,0.0031,0.0031,0.0029,0.0031,0.0031,0.0031,0.003,0.003,0.0030,0.0028,0.003,0.0027,0.0029,0.0029,0.0029,0.0029,0.0029,0.0028,0.003,0.0026,0.0027,0.0027,0.0027,0.0027,0.0025,0.0029,0.0027,0.0026];
+const mfdistill = [0.1522,0.0615,0.0468,0.0389,0.034,0.03,0.0268,0.0242,0.0224,0.0209,0.0191,0.0181,0.0171,0.0159,0.0153,0.0143,0.0138,0.013,0.0124,0.012,0.0116,0.0113,0.0107,0.0104,0.0103,0.0098,0.0096,0.0091,0.0091,0.0089,0.0086,0.0085,0.0081,0.0081,0.0079,0.0076,0.0076,0.0074,0.0072,0.0071,0.0068,0.007,0.0069,0.0065,0.0065,0.0065,0.0063,0.0062,0.0061,0.0061,0.006,0.0059,0.0058,0.0058,0.0057,0.0056,0.0055,0.0051,0.0052,0.0054,0.0054,0.0052,0.0052,0.0052,0.0051,0.005,0.005,0.005,0.0051,0.0049,0.0049,0.0048,0.0047,0.0049,0.0048,0.0046,0.0046,0.0047,0.0046,0.0045,0.0046,0.0046,0.0045,0.0044,0.0044,0.0044,0.0044,0.0044,0.0043,0.0042,0.0042,0.0043,0.0042,0.0042,0.0042,0.0041,0.0041,0.004,0.0041,0.004,0.0039];
+const mf = [0.5536,0.567,0.578,0.585,0.59,0.596,0.6,0.602,0.603,0.5997,0.598,0.596,0.598,0.6,0.601,0.6,0.598,0.599,0.642,0.6446,0.648,0.651,0.652,0.648,0.647,0.645,0.643,0.63,0.633,0.648,0.4328,0.4413,0.447,0.4294,0.4419,0.433,0.4393,0.4304,0.4341,0.4154,0.4393,0.4368,0.405,0.4331,0.407,0.4299,0.4335,0.4319,0.4628,0.4394,0.4302,0.4494,0.4268,0.4402,0.4218,0.444,0.4438,0.4358,0.4358,0.4315,0.466,0.4379,0.476,0.4383,0.4446,0.431,0.4296,0.4191,0.4517,0.4181,0.4016,0.4254,0.4535,0.4536,0.4336,0.4192,0.4498,0.4329,0.4358,0.4389,0.4417,0.4475,0.4416,0.4485,0.4496,0.4537,0.4588,0.4929,0.5302,0.6006,0.7949,null,null,null,null,null,null,null,null,null,null];
+
+new Chart(document.getElementById('lossChart'), {
+  type: 'line',
+  data: {
+    labels: epochs,
+    datasets: [
+      {label:'FM', data:fm, borderColor:'#2a78d6', borderWidth:1.5, pointRadius:0, tension:0.2, backgroundColor:'transparent'},
+      {label:'FM-LN', data:fmln, borderColor:'#eb6834', borderWidth:1.5, pointRadius:0, tension:0.2, backgroundColor:'transparent'},
+      {label:'MF-Distill', data:mfdistill, borderColor:'1baf7a', borderWidth:1.5, pointRadius:0, tension:0.2, backgroundColor:'transparent', borderColor:'#1baf7a'},
+      {label:'Reflow', data:reflow, borderColor:'#6250d6', borderWidth:1.5, pointRadius:0, tension:0.2, backgroundColor:'transparent'},
+      {label:'MF (diverged)', data:mf, borderColor:'#898781', borderWidth:1.5, borderDash:[5,4], pointRadius:0, tension:0.2, backgroundColor:'transparent', spanGaps:false}
+    ]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}, tooltip:{mode:'index', intersect:false, callbacks:{label:ctx=>` ${ctx.dataset.label}: ${ctx.parsed.y!==null?ctx.parsed.y.toFixed(4):'—'}`}}},
+    scales:{
+      x:{title:{display:true,text:'Epoch',color:'#898781',font:{size:12}}, grid:{color:'#e1e0d9'}, ticks:{color:'#898781',maxTicksLimit:10}},
+      y:{title:{display:true,text:'Training loss',color:'#898781',font:{size:12}}, grid:{color:'#e1e0d9'}, ticks:{color:'#898781'}, min:0, max:0.8}
+    }
+  }
+});
+</script>

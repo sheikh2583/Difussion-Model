@@ -48,7 +48,7 @@ import torch.nn.functional as F
 from torch.func import jvp as torch_jvp
 
 from algorithms.base import BaseAlgorithm
-from algorithms.r_embed import REmbed
+from algorithms.r_embed import RCond
 
 
 class MeanFlowAlgorithm(BaseAlgorithm):
@@ -56,8 +56,7 @@ class MeanFlowAlgorithm(BaseAlgorithm):
     def __init__(self, model: nn.Module, algorithm_kwargs: Dict[str, Any] = None):
         super().__init__(model, algorithm_kwargs)
 
-        C = model.cfg.in_channels
-        self.r_embed = REmbed(C)
+        self.r_cond = RCond(model.cfg.time_embed_dim)
 
         # --- diagonal-sampling probability (paper §4) ---
         self.p_same: float = float(self.algorithm_kwargs.get("p_same", 0.25))
@@ -100,14 +99,41 @@ class MeanFlowAlgorithm(BaseAlgorithm):
     # ------------------------------------------------------------------
 
     def trainable_modules(self) -> List[nn.Module]:
-        return [self.model, self.r_embed]
+        return [self.model, self.r_cond]
 
     # ------------------------------------------------------------------
     # Internal forward
     # ------------------------------------------------------------------
 
-    def _forward(self, z: torch.Tensor, r: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        return self.model(self.r_embed(z, r), t)
+    def _backbone_forward(
+        self, z: torch.Tensor, t_emb: torch.Tensor
+    ) -> torch.Tensor:
+        """Run SimpleUNet with an externally supplied time embedding."""
+        m = self.model
+        h = m.in_conv(z)
+        skips = [h]
+        for stage, down in zip(m.down_blocks, m.downsamples):
+            for block in stage:
+                h = block(h, t_emb)
+                skips.append(h)
+            h = down(h)
+            if not isinstance(down, torch.nn.Identity):
+                skips.append(h)
+        h = m.mid1(h, t_emb)
+        h = m.mid2(h, t_emb)
+        for stage, up in zip(m.up_blocks, m.upsamples):
+            for block in stage:
+                skip = skips.pop()
+                h = block(torch.cat([h, skip], dim=1), t_emb)
+            h = up(h)
+        return m.out_conv(torch.nn.functional.silu(m.out_norm(h)))
+
+    def _forward(
+        self, z: torch.Tensor, r: torch.Tensor, t: torch.Tensor
+    ) -> torch.Tensor:
+        t_emb = self.model.time_embed(t)
+        r_emb = self.r_cond(r)
+        return self._backbone_forward(z, t_emb + r_emb)
 
     def _jvp_exact(
         self,

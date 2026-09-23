@@ -1,0 +1,88 @@
+# Unattended dependency-aware CIFAR-10 and CelebA pixel training.
+[CmdletBinding()]
+param(
+    [ValidateSet("all", "cifar10", "celeba")][string]$Dataset = "all",
+    [ValidateSet("continue", "fresh")][string]$Mode = "continue",
+    [ValidateRange(1, 1000000)][int]$CheckpointEvery = 10,
+    [switch]$TrainOnly,
+    [ValidateSet("current", "legacy")][string]$CifarBackbone = "current",
+    [switch]$DryRun
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+$ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+Set-Location $ProjectRoot
+$Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $Python)) { throw "Run scripts\windows\init.cmd first." }
+. "$PSScriptRoot\workflow_guard.ps1"
+
+$identityArgs = @("--launcher", "scripts/windows/train_all_datasets.ps1",
+    "--launcher", "scripts/windows/train_all.ps1")
+Get-ChildItem config -Filter "*_full.json" -File | ForEach-Object {
+    $identityArgs += @("--config", $_.FullName)
+}
+Get-ChildItem config -Filter "*_celeba64.json" -File | ForEach-Object {
+    $identityArgs += @("--config", $_.FullName)
+}
+Start-WorkflowGuard -Python $Python -CommandName "train_all_datasets.ps1" `
+    -DryRun:$DryRun -IdentityArguments $identityArgs
+try {
+    $datasets = if ($Dataset -eq "all") { @("cifar10", "celeba") } else { @($Dataset) }
+    $algorithms = @("fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow")
+    $timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+    $hostToken = ($env:COMPUTERNAME.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')
+    $logRoot = Get-WorkflowDeviceLogDirectory -Category "pixel"
+    $failures = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($datasetName in $datasets) {
+        foreach ($algorithm in $algorithms) {
+            $parameters = @{
+                Dataset = $datasetName
+                Only = $algorithm
+                Mode = $Mode
+                CheckpointEvery = $CheckpointEvery
+                TrainOnly = [bool]$TrainOnly
+                DryRun = [bool]$DryRun
+            }
+            if ($datasetName -eq "cifar10") { $parameters.CifarBackbone = $CifarBackbone }
+            if ($datasetName -eq "cifar10" -and $algorithm -eq "mf" -and $CifarBackbone -eq "current") {
+                $parameters.MfConfig = "config/mf_v3_exact_jvp_b128.json"
+            }
+            $display = $parameters.GetEnumerator() | Sort-Object Key | ForEach-Object {
+                if ($_.Value -is [bool]) { if ($_.Value) { "-$($_.Key)" } }
+                else { "-$($_.Key) $($_.Value)" }
+            }
+            Write-Host "[PLAN] $PSScriptRoot\train_all.ps1 $($display -join ' ')"
+            if ($DryRun) {
+                & "$PSScriptRoot\train_all.ps1" @parameters
+                continue
+            }
+
+            Test-WorkflowSource -Python $Python
+            $logDirectory = Join-Path $logRoot $algorithm
+            New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
+            $logPath = Join-Path $logDirectory "${datasetName}_pixel_${algorithm}_${hostToken}_${timestamp}.log"
+            try {
+                @(
+                    "[run] training_type=pixel_diffusion"
+                    "[run] representation_space=pixel"
+                    "[run] dataset=$datasetName"
+                    "[run] algorithm=$algorithm"
+                    "[run] lifecycle_mode=$Mode"
+                    "[run] started_utc=$((Get-Date).ToUniversalTime().ToString('o'))"
+                ) | Set-Content -LiteralPath $logPath
+                & "$PSScriptRoot\train_all.ps1" @parameters 2>&1 | Tee-Object -FilePath $logPath -Append
+                "[run] exit_status=0" | Add-Content -LiteralPath $logPath
+            } catch {
+                "[run] exit_status=1" | Add-Content -LiteralPath $logPath
+                $failures.Add("${datasetName}:${algorithm}")
+                Write-Warning "$datasetName/$algorithm failed; continuing. $($_.Exception.Message)"
+            }
+        }
+    }
+    if ($failures.Count) { throw "Completed with failed jobs: $($failures -join ', ')" }
+    if ($DryRun) { Write-Host "Dry-run complete; no model commands were executed." -ForegroundColor Green }
+    else { Write-Host "All requested pixel jobs completed successfully." -ForegroundColor Green }
+} finally {
+    Stop-WorkflowGuard -Python $Python
+}

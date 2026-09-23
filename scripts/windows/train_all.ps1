@@ -1,6 +1,7 @@
 # Train the supported algorithm suite in dependency order.
 # Usage: .\scripts\windows\train_all.ps1 [-Dataset cifar10|celeba] [-Only ALGORITHM]
-#                                  [-SkipReflow] [-Mode continue|fresh] [-DryRun]
+#   [-Mode continue|fresh] [-BatchSize N] [-CheckpointEvery N] [-TrainOnly]
+#   [-MachineLabel NAME] [-MfConfig FILE] [-CifarBackbone current|legacy] [-DryRun]
 [CmdletBinding()]
 param(
     [switch]$SkipFm,
@@ -17,10 +18,18 @@ param(
     [string]$Mode = "continue",
     [ValidateSet("current", "legacy")]
     [string]$CifarBackbone = "current",
+    [ValidateRange(0, 1048576)]
+    [int]$BatchSize = 0,
+    [ValidateRange(1, 1000000)]
+    [int]$CheckpointEvery = 10,
+    [switch]$TrainOnly,
+    [string]$MachineLabel = "",
+    [string]$MfConfig = "",
     [switch]$DryRun
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$MfConfigOverride = $MfConfig
 
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 Set-Location $ProjectRoot
@@ -30,6 +39,9 @@ if (-not (Test-Path -LiteralPath $Python)) {
 }
 if ($Dataset -eq "celeba" -and $CifarBackbone -ne "current") {
     throw "-CifarBackbone only applies when -Dataset cifar10."
+}
+if ($MfConfigOverride -and $CifarBackbone -eq "legacy") {
+    throw "-MfConfig cannot be combined with -CifarBackbone legacy."
 }
 
 if ($Dataset -eq "celeba") {
@@ -62,6 +74,17 @@ if ($Dataset -eq "celeba") {
         $ReflowPairs = "data/reflow_pairs_cifar10.pt"
     }
 }
+if ($MfConfigOverride) { $MfConfig = $MfConfigOverride }
+
+. "$PSScriptRoot\workflow_guard.ps1"
+$identityArgs = @("--launcher", "scripts/windows/train_all.ps1")
+foreach ($configPath in @($FmConfig, $FmLognormConfig, $MfConfig, $MfDistillConfig, $ConsistencyConfig, $ReflowConfig)) {
+    $identityArgs += @("--config", $configPath)
+}
+Start-WorkflowGuard -Python $Python -CommandName "train_all.ps1" -DryRun:$DryRun `
+    -IdentityArguments $identityArgs
+$env:DIFFUSION_LIFECYCLE_MODE = $Mode
+try {
 
 $script:Failed = $false
 
@@ -73,9 +96,17 @@ function Invoke-Training {
         $script:Failed = $true
         return
     }
-    Write-Host "[PLAN] $Python train.py --algorithm $Algorithm --config $Config --mode $Mode"
+    $arguments = @("train.py", "--algorithm", $Algorithm, "--config", $Config,
+        "--mode", $Mode, "--checkpoint-every", "$CheckpointEvery")
+    if ($BatchSize -gt 0) { $arguments += @("--batch-size", "$BatchSize") }
+    if ($TrainOnly) { $arguments += "--train-only" }
+    if ($MachineLabel) { $arguments += @("--machine-label", $MachineLabel) }
+    Write-Host "[PLAN] $Python $($arguments -join ' ')"
     if (-not $DryRun) {
-        & $Python train.py --algorithm $Algorithm --config $Config --mode $Mode
+        Test-WorkflowSource -Python $Python
+        $env:DIFFUSION_SELECTED_CONFIG_SHA256 = (Get-FileHash -LiteralPath $Config -Algorithm SHA256).Hash.ToLowerInvariant()
+        $env:DIFFUSION_CHECKPOINT_SERIES = "resolved-by-train.py"
+        & $Python @arguments
         if ($LASTEXITCODE -ne 0) { throw "Training failed: $Algorithm" }
     }
 }
@@ -98,8 +129,13 @@ function Test-Prerequisite {
 Invoke-Training "fm" $FmConfig $SkipFm
 Invoke-Training "fm_lognorm" $FmLognormConfig $SkipFmLognorm
 Invoke-Training "mf" $MfConfig $SkipMf
-$FmCheckpoint = & $Python scripts/checkpoint_path.py --run-dir $FmRunDir `
-    --class-name FlowMatchingAlgorithm --epoch 100 --planned-mode $Mode
+if ($DryRun) {
+    $FmCheckpoint = & $Python scripts/checkpoint_path.py --run-dir $FmRunDir `
+        --class-name FlowMatchingAlgorithm --epoch 100 --planned-mode $Mode
+} else {
+    $FmCheckpoint = & $Python scripts/checkpoint_path.py --run-dir $FmRunDir `
+        --class-name FlowMatchingAlgorithm --epoch 100
+}
 if ($LASTEXITCODE -ne 0 -or -not $FmCheckpoint) {
     throw "Could not resolve the FM teacher checkpoint path."
 }
@@ -135,6 +171,7 @@ if (-not $SkipReflow -and (-not $Only -or $Only -eq "reflow")) {
         if ($TeacherReady -or $DryRun) {
             Write-Host "[PLAN] Generate Reflow pairs: $ReflowPairs"
             if (-not $DryRun) {
+                Test-WorkflowSource -Python $Python
                 & $Python scripts/generate_reflow_pairs.py `
                     --checkpoint $FmCheckpoint --config $FmConfig `
                     --n-pairs 50000 --nfe 50 --output $ReflowPairs
@@ -146,11 +183,12 @@ if (-not $SkipReflow -and (-not $Only -or $Only -eq "reflow")) {
     if ($Ready) { Invoke-Training "reflow" $ReflowConfig $false }
 }
 
-if ($script:Failed) {
-    throw "Workflow validation found missing prerequisites."
-}
+if ($script:Failed) { throw "Workflow validation found missing prerequisites." }
 if ($DryRun) {
     Write-Host "Dry-run validation complete." -ForegroundColor Green
 } else {
     Write-Host "Training workflow complete." -ForegroundColor Green
+}
+} finally {
+    Stop-WorkflowGuard -Python $Python
 }

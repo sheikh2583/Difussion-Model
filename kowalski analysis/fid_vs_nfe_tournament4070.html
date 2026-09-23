@@ -1,0 +1,119 @@
+
+<div style="padding: 1rem 0">
+<div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:1.5rem;">
+  <div style="background:var(--surface-1);border-radius:var(--radius);padding:0.75rem 1rem;flex:1;min-width:120px;">
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:2px;">Best NFE=1</div>
+    <div style="font-size:20px;font-weight:500;color:var(--text-primary);">Reflow</div>
+    <div style="font-size:13px;color:var(--text-muted);">FID 48.7</div>
+  </div>
+  <div style="background:var(--surface-1);border-radius:var(--radius);padding:0.75rem 1rem;flex:1;min-width:120px;">
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:2px;">Best NFE=5</div>
+    <div style="font-size:20px;font-weight:500;color:var(--text-primary);">Reflow</div>
+    <div style="font-size:13px;color:var(--text-muted);">FID 45.0</div>
+  </div>
+  <div style="background:var(--surface-1);border-radius:var(--radius);padding:0.75rem 1rem;flex:1;min-width:120px;">
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:2px;">Best NFE=20</div>
+    <div style="font-size:20px;font-weight:500;color:var(--text-primary);">FM-LN</div>
+    <div style="font-size:13px;color:var(--text-muted);">FID 34.4</div>
+  </div>
+  <div style="background:var(--surface-1);border-radius:var(--radius);padding:0.75rem 1rem;flex:1;min-width:120px;">
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:2px;">Failed run</div>
+    <div style="font-size:20px;font-weight:500;color:var(--text-primary);">MF</div>
+    <div style="font-size:13px;color:var(--text-muted);">diverged ep.97</div>
+  </div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem;font-size:12px;">
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:28px;height:3px;background:#2a78d6;border-radius:2px;display:inline-block;"></span>FM</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:28px;height:3px;background:#eb6834;border-radius:2px;display:inline-block;"></span>FM-LN (matched)</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:28px;height:3px;background:#1baf7a;border-radius:2px;display:inline-block;"></span>MF-Distill</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:28px;height:3px;background:#6250d6;border-radius:2px;display:inline-block;"></span>Reflow</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:28px;height:3px;background:#e87ba4;border-radius:2px;display:inline-block;"></span>Consistency</span>
+  <span style="display:flex;align-items:center;gap:4px;"><span style="width:28px;height:3px;background:#898781;border-radius:2px;border-top:2px dashed #898781;display:inline-block;"></span>MF (diverged)</span>
+</div>
+
+<div style="position:relative;width:100%;height:320px;">
+  <canvas id="fidChart" role="img" aria-label="FID vs NFE for all algorithms. Reflow is flattest curve near FID 45-48. FM and FM-LN converge around FID 38-42 at high NFE. MF-Distill sits around 45-128. Consistency valid only at NFE=1.">FID vs NFE: Reflow 48.7→44.6, FM 374→37.7, FM-LN 372→34.4, MF-Distill 128→45.3, Consistency 137 at NFE=1 only.</canvas>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const ctx = document.getElementById('fidChart').getContext('2d');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: ['1','2','5','10','20','50','100'],
+    datasets: [
+      {
+        label: 'FM',
+        data: [374.04, 200.07, 63.64, 47.09, 41.79, 38.82, 37.74],
+        borderColor: '#2a78d6', backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#2a78d6',
+        tension: 0.3
+      },
+      {
+        label: 'FM-LN (matched)',
+        data: [372.23, null, 62.32, 48.56, 41.92, 35.96, 34.40],
+        borderColor: '#eb6834', backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#eb6834',
+        tension: 0.3, spanGaps: false
+      },
+      {
+        label: 'MF-Distill',
+        data: [128.37, 61.25, 48.67, 46.65, 45.30, null, null],
+        borderColor: '#1baf7a', backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#1baf7a',
+        tension: 0.3
+      },
+      {
+        label: 'Reflow',
+        data: [48.71, 45.51, 44.97, 44.75, 44.58, null, null],
+        borderColor: '#6250d6', backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 4, pointBackgroundColor: '#6250d6',
+        tension: 0.3
+      },
+      {
+        label: 'Consistency (NFE=1 only)',
+        data: [137.08, null, null, null, null, null, null],
+        borderColor: '#e87ba4', backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 6, pointBackgroundColor: '#e87ba4',
+        tension: 0.3, spanGaps: false
+      },
+      {
+        label: 'MF (diverged)',
+        data: [93.35, 83.73, 77.77, 76.20, 75.16, null, null],
+        borderColor: '#898781', backgroundColor: 'transparent',
+        borderWidth: 1.5, borderDash: [5,4],
+        pointRadius: 3, pointBackgroundColor: '#898781',
+        tension: 0.3
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.dataset.label}: FID ${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) : 'n/a'}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'NFE (sampling steps)', color: '#898781', font: { size: 12 } },
+        grid: { color: '#e1e0d9' },
+        ticks: { color: '#898781' }
+      },
+      y: {
+        title: { display: true, text: 'FID ↓ lower is better', color: '#898781', font: { size: 12 } },
+        grid: { color: '#e1e0d9' },
+        ticks: { color: '#898781' },
+        min: 30, max: 420
+      }
+    }
+  }
+});
+</script>

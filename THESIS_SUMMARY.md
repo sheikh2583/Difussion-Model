@@ -6,32 +6,25 @@ Generated from the canonical experiment metric files by `scripts/aggregate_resul
 
 | Dataset | Space | Experiment | Run identity | Algorithm | Train epoch | Eval epoch | Samples | FID@1 | FID@5 | FID@10 | FID@20 | FID@50 | IS@20 |
 |---|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| cifar10 | pixel | consistency_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@2ea2a5e2039b | ConsistencyAlgorithm | 100 | 100 | 5000 | 130.968 | 100.845 | 95.879 | 99.635 | — | 4.333 |
-| celeba | pixel | fm_celeba | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@2ea2a5e2039b | FlowMatchingAlgorithm | 100 | 100 | 5000 | 223.126 | 44.357 | 25.975 | 19.808 | 16.779 | 2.410 |
-| celeba | pixel | fm_celeba | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@c1f065aee704 | FlowMatchingAlgorithm | 100 | 100 | 5000 | 223.126 | 44.357 | 25.975 | 19.808 | 16.779 | 2.410 |
-| celeba_latent | latent | fm_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@1575e2beaf3f | FlowMatchingAlgorithm | 10 | — | unknown | — | — | — | — | — | — |
-| cifar10 | pixel | fm_cifar10 | unknown@unknown | FlowMatchingAlgorithm | 100 | — | unknown | — | — | — | — | — | — |
-| cifar10 | pixel | fm_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@2ea2a5e2039b | FlowMatchingAlgorithm | — | 100 | 5000 | 380.620 | 58.568 | 47.243 | 45.467 | 43.427 | 6.008 |
-| celeba | pixel | fm_lognorm_celeba | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@cef2edc1be6d | FlowMatchingLognormAlgorithm | 98 | 80 | 5000 | 215.889 | 35.888 | 23.292 | 19.557 | 17.349 | 2.598 |
-| celeba | pixel | fm_lognorm_celeba | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@e04529a3f533 | FlowMatchingLognormAlgorithm | 100 | 100 | 5000 | 193.165 | 30.538 | 19.580 | 16.555 | 15.304 | 2.674 |
-| celeba_latent | latent | fm_lognorm_celeba_latent | NDAG-M-Lab-RTX3090@08ec0f70d065 | FlowMatchingLognormAlgorithm | 100 | 100 | 5000 | 330.151 | 305.049 | 301.579 | 299.396 | 297.742 | 2.597 |
-| cifar10 | pixel | fm_lognorm_cifar10 | unknown@unknown | FlowMatchingLognormAlgorithm | 100 | — | unknown | — | — | — | — | — | — |
-| cifar10 | pixel | fm_lognorm_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@2ea2a5e2039b | FlowMatchingLognormAlgorithm | — | 100 | 5000 | 384.190 | 57.260 | 44.183 | 38.601 | 35.400 | 6.522 |
-| celeba_latent | latent | mf_celeba_latent | NDAG-M-Lab-RTX3090@ff4c607c84dc | MeanFlowAlgorithm | 45 | 25 | 5000 | 302.184 | 301.707 | 301.500 | 301.002 | — | 2.682 |
-| cifar10 | pixel | mf_cifar10 | unknown@unknown | MeanFlowAlgorithm | 100 | 100 | 5000 | 94.418 | 85.936 | 87.868 | 89.565 | — | 4.151 |
-| cifar10 | pixel | mf_distill_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@2ea2a5e2039b | MeanFlowDistillAlgorithm | 100 | 100 | 5000 | 106.062 | 56.285 | 55.801 | 54.664 | — | 5.722 |
-| cifar10 | pixel | mf_distill_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@3ee8b280c0db | MeanFlowDistillAlgorithm | 13 | — | unknown | — | — | — | — | — | — |
-| cifar10 | pixel | mf_distill_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@c1f065aee704 | MeanFlowDistillAlgorithm | — | 100 | 5000 | 106.062 | 56.285 | 55.801 | 54.664 | — | 5.728 |
-| cifar10 | pixel | mf_v3_exact_jvp_b128_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@86185312c104 | MeanFlowAlgorithm | 100 | 100 | 5000 | 86.588 | 69.054 | 69.014 | 67.890 | — | 4.788 |
-| cifar10 | pixel | mf_v3_exact_jvp_b128_probe_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@86185312c104 | MeanFlowAlgorithm | 10 | — | unknown | — | — | — | — | — | — |
-| cifar10 | pixel | reflow_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@2ea2a5e2039b | ReflowAlgorithm | 100 | 100 | 5000 | 53.573 | 50.510 | 50.220 | 50.020 | — | 5.511 |
+| cifar10 | pixel | consistency_cifar10 | unknown@unknown | ConsistencyAlgorithm | 100 | 100 | 5000 | 137.084 | 111.758 | 107.464 | 107.285 | — | 4.160 |
+| cifar10 | pixel | final_smoke_cifar10 | unknown@unknown | MockAlgorithm | 1 | 1 | unknown | — | 389.533 | — | — | — | — |
+| cifar10 | pixel | fm_cifar10 | unknown@unknown | FlowMatchingAlgorithm | 100 | 100 | 5000 | 374.039 | 63.638 | 47.091 | 41.790 | 38.821 | 6.430 |
+| unknown | pixel | fm_cifar10_5k | unknown@unknown | FlowMatchingAlgorithm | — | 100 | 5000 | 374.039 | 63.638 | 47.091 | 41.790 | 38.821 | 6.437 |
+| cifar10 | pixel | fm_lognorm_cifar10 | unknown@unknown | FlowMatchingLognormAlgorithm | 100 | 100 | 5000 | 372.232 | 62.323 | 48.559 | 41.919 | 35.960 | 6.542 |
+| cifar10 | pixel | fm_lognorm_rtx3060 | unknown@unknown | FlowMatchingLognormAlgorithm | 100 | 100 | unknown | 362.604 | 96.452 | 78.947 | 72.662 | — | 6.180 |
+| cifar10 | pixel | mf_cifar10 | unknown@unknown | MeanFlowAlgorithm | 100 | 100 | 5000 | 93.351 | 77.766 | 76.200 | 75.163 | — | 4.335 |
+| cifar10 | pixel | mf_distill_cifar10 | unknown@unknown | MeanFlowDistillAlgorithm | 100 | 100 | 5000 | 128.366 | 48.669 | 46.646 | 45.300 | — | 6.070 |
+| cifar10 | pixel | mf_v2_exactjvp_probe_cifar10 | unknown@unknown | MeanFlowAlgorithm | 5 | — | unknown | — | — | — | — | — | — |
+| cifar10 | pixel | mf_v2_probe_cifar10 | unknown@unknown | MeanFlowAlgorithm | 10 | — | unknown | — | — | — | — | — | — |
+| cifar10 | pixel | reflow_cifar10 | unknown@unknown | ReflowAlgorithm | 100 | 100 | 5000 | 48.709 | 44.968 | 44.754 | 44.577 | — | 5.969 |
+| cifar10 | pixel | smoke_cifar10 | unknown@unknown | MockAlgorithm | — | — | unknown | — | 383.377 | — | — | — | — |
 
 ## Controlled comparison artifacts
 
 The aggregate directory contains protocol-matched FM-relative gains, cross-dataset transfer checks, pixel-versus-latent pairs, Pareto flags, and an experiment-coverage matrix. Positive `fid_improvement_percent` means lower FID than FM. Missing peers remain explicit instead of being silently compared.
 
 - Transfer groups available: 22
-- Pixel/latent pairs available: 10
+- Pixel/latent pairs available: 0
 - Latent FID includes codec reconstruction error; decoder time and codec quality must be reported separately.
 
 ## Interactive checkpoint demo and external handoff
@@ -44,16 +37,13 @@ Build the verified Claude Web handoff with `./scripts/linux/make_thesis_context.
 
 | Experiment | Algorithm | Epochs | Training hours | Peak GPU memory (MiB) |
 |---|---|---:|---:|---:|
-| consistency_cifar10 | ConsistencyAlgorithm | 100 | 1.88 | 4569.8 |
-| fm_celeba | FlowMatchingAlgorithm | 100 | 16.15 | 5230.9 |
-| fm_celeba_latent | FlowMatchingAlgorithm | 10 | 0.19 | 888.9 |
-| fm_cifar10 | FlowMatchingAlgorithm | 100 | 0.59 | 2250.9 |
-| fm_lognorm_celeba | FlowMatchingLognormAlgorithm | 100 | 16.10 | 5226.6 |
-| fm_lognorm_celeba_latent | FlowMatchingLognormAlgorithm | 100 | 1.28 | 1397.6 |
-| fm_lognorm_cifar10 | FlowMatchingLognormAlgorithm | 100 | 0.59 | 2250.9 |
-| mf_celeba_latent | MeanFlowAlgorithm | 45 | 1.17 | 1283.5 |
-| mf_cifar10 | MeanFlowAlgorithm | 100 | 0.80 | 2207.8 |
-| mf_distill_cifar10 | MeanFlowDistillAlgorithm | 100 | 3.09 | 3316.2 |
-| mf_v3_exact_jvp_b128_cifar10 | MeanFlowAlgorithm | 100 | 1.51 | 4737.0 |
-| mf_v3_exact_jvp_b128_probe_cifar10 | MeanFlowAlgorithm | 10 | 0.15 | 3517.6 |
-| reflow_cifar10 | ReflowAlgorithm | 100 | 0.75 | 3809.3 |
+| consistency_cifar10 | ConsistencyAlgorithm | 100 | 2.66 | 4122.8 |
+| final_smoke_cifar10 | MockAlgorithm | 1 | 0.01 | 845.7 |
+| fm_cifar10 | FlowMatchingAlgorithm | 100 | 1.75 | 3423.2 |
+| fm_lognorm_cifar10 | FlowMatchingLognormAlgorithm | 100 | 1.70 | 3916.5 |
+| fm_lognorm_rtx3060 | FlowMatchingLognormAlgorithm | 100 | 3.60 | 1908.6 |
+| mf_cifar10 | MeanFlowAlgorithm | 100 | 1.41 | 3656.3 |
+| mf_distill_cifar10 | MeanFlowDistillAlgorithm | 100 | 3.12 | 2762.4 |
+| mf_v2_exactjvp_probe_cifar10 | MeanFlowAlgorithm | 5 | 4.04 | 12521.2 |
+| mf_v2_probe_cifar10 | MeanFlowAlgorithm | 10 | 0.20 | 4310.6 |
+| reflow_cifar10 | ReflowAlgorithm | 100 | 1.72 | 4469.3 |

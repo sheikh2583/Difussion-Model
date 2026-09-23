@@ -12,6 +12,8 @@ Trainer / Evaluator / Sampler / plots.py need zero changes.
     consistency ConsistencyAlgorithm           — Consistency Models      [Song 2023]
     reflow      ReflowAlgorithm                — Rectified Flow Reflow   [Liu 2022 §3]
 
+    mf_hutchinson MeanFlowHutchinsonAlgorithm  - Mean Flow, randomized VJP [Geng 2025]
+
 Fairness note on mf_distill and consistency:
     Both require a pre-trained FM teacher checkpoint. Their results are NOT
     directly comparable to backbone-only runs. Report teacher cost separately.
@@ -22,6 +24,7 @@ from algorithms.base import BaseAlgorithm
 from algorithms.flow_matching import FlowMatchingAlgorithm
 from algorithms.flow_matching_lognorm import FlowMatchingLognormAlgorithm
 from algorithms.mean_flow import MeanFlowAlgorithm
+from algorithms.mean_flow_hutchinson import MeanFlowHutchinsonAlgorithm
 from algorithms.mean_flow_distill import MeanFlowDistillAlgorithm
 from algorithms.consistency import ConsistencyAlgorithm
 from algorithms.reflow import ReflowAlgorithm
@@ -33,6 +36,7 @@ ALGORITHM_REGISTRY = {
     "fm":          FlowMatchingAlgorithm,
     "fm_lognorm":  FlowMatchingLognormAlgorithm,
     "mf":          MeanFlowAlgorithm,
+    "mf_hutchinson": MeanFlowHutchinsonAlgorithm,
     "mf_distill":  MeanFlowDistillAlgorithm,
     "consistency": ConsistencyAlgorithm,
     "reflow":      ReflowAlgorithm,

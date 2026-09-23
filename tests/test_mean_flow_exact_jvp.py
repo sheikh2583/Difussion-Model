@@ -4,28 +4,32 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from types import MethodType, SimpleNamespace
+from types import MethodType
 from unittest.mock import patch
 
 import pytest
 import torch
-import torch.nn as nn
 
 from algorithms.mean_flow import MeanFlowAlgorithm
+from config.config import BackboneConfig
+from models.backbone import SimpleUNet
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-class TinyModel(nn.Module):
+class TinyModel(SimpleUNet):
     def __init__(self, channels: int = 2, image_size: int = 4):
-        super().__init__()
-        self.cfg = SimpleNamespace(in_channels=channels)
+        super().__init__(
+            BackboneConfig(
+                in_channels=channels,
+                base_channels=8,
+                channel_mults=[1],
+                num_res_blocks=1,
+                time_embed_dim=8,
+            )
+        )
         self._expected_image_size = image_size
-        self.scale = nn.Parameter(torch.tensor(0.5))
-
-    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        return self.scale * x + t[:, None, None, None]
 
 
 def make_algorithm(**kwargs) -> MeanFlowAlgorithm:
@@ -65,8 +69,8 @@ def test_exact_derivative_route_disables_autocast_and_backpropagates():
     exact_spy.assert_called_once()
     autocast_spy.assert_called_once_with(device_type="cpu", enabled=False)
     assert torch.isfinite(loss)
-    assert algo.model.scale.grad is not None
-    assert all(parameter.grad is not None for parameter in algo.r_embed.parameters())
+    assert any(parameter.grad is not None for parameter in algo.model.parameters())
+    assert all(parameter.grad is not None for parameter in algo.r_cond.parameters())
 
 
 def test_exact_jvp_uses_separate_trainable_forward_and_detached_derivative():
@@ -84,8 +88,8 @@ def test_exact_jvp_uses_separate_trainable_forward_and_detached_derivative():
 
     assert grad_modes[0] is True
     assert False in grad_modes[1:]
-    assert algo.model.scale.grad is not None
-    assert all(parameter.grad is not None for parameter in algo.r_embed.parameters())
+    assert any(parameter.grad is not None for parameter in algo.model.parameters())
+    assert all(parameter.grad is not None for parameter in algo.r_cond.parameters())
 
 
 def test_default_derivative_route_remains_finite_difference():
