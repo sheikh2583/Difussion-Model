@@ -8,10 +8,9 @@
 
 ## Prerequisites
 
-- [ ] Python 3.9+ installed (`python3 --version`)
+- [ ] Python 3.10+ installed (`python3 --version`)
 - [ ] Git installed (`git --version`)
 - [ ] NVIDIA driver installed if using CUDA (`nvidia-smi`)
-- [ ] `zip` utility installed (`zip --version`) — needed for checkpoint archives
 - [ ] Enough disk space: ~2 GB for deps + 170 MB CIFAR-10 + 1.4 GB CelebA
 
 ---
@@ -28,14 +27,15 @@ python3 bootstrap.py --yes
 # Or with both datasets:
 python3 bootstrap.py --yes --datasets all
 
-# Activate environment (required for all commands below)
-source venv/bin/activate
 ```
+
+Activation is optional. The maintained commands below call the project
+interpreter directly, which prevents accidental use of Conda/base Python.
 
 **Verify:**
 - [ ] `venv/` directory created
-- [ ] `python -c "import torch; print(torch.__version__)"` prints a version
-- [ ] `python -c "import torch; print(torch.cuda.is_available())"` prints `True` on GPU machines
+- [ ] `venv/bin/python -c "import torch; print(torch.__version__)"` prints a version
+- [ ] `venv/bin/python -c "import torch; print(torch.cuda.is_available())"` prints `True` on GPU machines
 - [ ] `data/raw/cifar-10-batches-py/` exists (CIFAR-10 downloaded)
 
 ---
@@ -43,54 +43,75 @@ source venv/bin/activate
 ## Step 2 — Workflow verification
 
 ```bash
-python scripts/verify_workflow.py --dataset cifar10
+venv/bin/python scripts/verify_project_layout.py
+venv/bin/python scripts/verify_workflow.py --dataset none
 ```
 
-**Expected output (all lines should say `[OK]`):**
+The workflow verifier discovers every JSON preset recursively, so new latent or
+legacy presets cannot silently escape validation. Expected summary lines include:
+
 ```
-[OK] algorithms: ['consistency', 'fm', 'fm_lognorm', 'mf', 'mf_distill', 'reflow']
+[OK] algorithms: ['consistency', 'fm', 'fm_lognorm', 'mf', 'mf_distill', 'mf_hutchinson', 'reflow']
 [OK] additional utility algorithms: ['mock']
-[OK] dataset registry: cifar10, celeba
+[OK] dataset registry: celeba, celeba_latent, cifar10
 [OK] config: config/fm_full.json
 ... (one line per config)
-[OK] cifar10 batch: shape=(32, 3, 32, 32), range=[-1.000, 1.000]
 Workflow code and configuration checks passed.
 ```
 
 - [ ] All lines print `[OK]`
 - [ ] No import errors
 
+Missing teachers, codecs, caches, or Reflow pairs are reported as blockers.
+They fail the command only with `--strict-prerequisites`.
+
 > **Known risk:** If `torch.func.jvp` is unavailable (PyTorch < 2.0), MeanFlow
 > will fail. The bootstrap installs `torch>=2.0` but double-check with
-> `python -c "from torch.func import jvp; print('jvp OK')"`.
+> `venv/bin/python -c "from torch.func import jvp; print('jvp OK')"`.
 
 ---
 
-## Step 3 — Smoke test (CPU, ~30 seconds)
+## Step 3 — CPU/static regression checks
 
 ```bash
-python train.py --algorithm mock --config config/smoke_fast.json
+venv/bin/python -m pytest -q
+venv/bin/python scripts/preflight_mf_v2.py --verify-v3
+venv/bin/python scripts/smoke_latent.py --mode static
 ```
 
-**Expected:** Training completes, output ends with something like:
-```
-epoch=1 loss=... time=...
-epoch=2 loss=... time=...
-training complete: total_time=...
+- [ ] Pytest reports all tests passing
+- [ ] MF-v3 preflight reports valid controlled configs and gradient flow
+- [ ] Static latent smoke ends with `ALL STATIC CHECKS PASSED`
+
+These checks do not start research training or require real codec weights.
+
+## Step 4 — Optional mock-training smoke
+
+Only run this when no other project GPU workflow owns `results/.lock`:
+
+```bash
+venv/bin/python train.py --algorithm mock \
+  --config config/smoke_fast.json --mode fresh --train-only
 ```
 
 **Verify:**
 - [ ] `results/smoke_cifar10/` directory created
-- [ ] `results/smoke_cifar10/checkpoints/MockAlgorithm_epoch2.pt` exists
-- [ ] `results/smoke_cifar10/metrics/smoke.jsonl` exists and is non-empty
+- [ ] A numbered `results/smoke_cifar10/checkpoints/run_*/MockAlgorithm_epoch2.pt` exists
+- [ ] `results/smoke_cifar10/metrics/smoke_cifar10.jsonl` exists and is non-empty
 
 ---
 
-## Step 4 — CelebA loader check (read-only, no training)
+## Step 5 — Dataset loader checks (read-only, no training)
+
+CIFAR-10:
+
+```bash
+venv/bin/python scripts/verify_workflow.py --dataset cifar10
+```
 
 ```bash
 # Only needed if CelebA was downloaded
-python -c "
+venv/bin/python -c "
 from config.config import ExperimentConfig
 from data.dataset_registry import get_dataloaders_for_config
 cfg = ExperimentConfig.load('config/fm_celeba64.json')
@@ -109,10 +130,17 @@ print('[PASS] CelebA OK')
 
 ---
 
-## Step 5 — Aggregation pipeline
+The latent loader can be checked only after the accepted codec and exact cache
+exist:
 
 ```bash
-python scripts/aggregate_results.py
+venv/bin/python scripts/verify_workflow.py --dataset celeba_latent
+```
+
+## Step 6 — Aggregation pipeline
+
+```bash
+venv/bin/python scripts/aggregate_results.py
 ```
 
 - [ ] Prints `Aggregated N records from M files.` (N>0 if any runs exist)
@@ -121,12 +149,12 @@ python scripts/aggregate_results.py
 
 ---
 
-## Step 6 — Results browser and inference server
+## Step 7 — Results browser and inference server
 
 ```bash
-python web/inference_server.py --self-test   # exits after smoke test
+venv/bin/python web/inference_server.py --self-test   # exits after smoke test
 # OR
-python web/inference_server.py               # stays running, open http://127.0.0.1:8000
+venv/bin/python web/inference_server.py               # stays running, open http://127.0.0.1:8000
 ```
 
 - [ ] Server starts without import errors
@@ -140,7 +168,6 @@ python web/inference_server.py               # stays running, open http://127.0.
 | Risk | File(s) affected | Mitigation |
 |---|---|---|
 | Path separator `\` vs `/` | `scripts/*.sh`, `bootstrap.py` | All scripts use `Path()` or POSIX strings — should be safe, but check if any `os.path.join` with hardcoded `\` leaks |
-| `zip` not installed | `training/trainer.py` `_zip_checkpoint()` | Run `sudo apt install zip` before training |
 | CelebA Google Drive quota blocks download | `bootstrap.py` | Pre-download zip from Drive manually → place at `data/raw/celeba/img_align_celeba.zip` → rerun bootstrap |
 | `nvidia-smi` not in PATH | `bootstrap.py` | Install NVIDIA driver properly; bootstrap falls back to CPU wheels if missing |
 | `nvcc` not installed | `bootstrap.py` | Not required — bootstrap uses driver version to select wheels |
@@ -154,4 +181,5 @@ python web/inference_server.py               # stays running, open http://127.0.
 | Date | Machine | OS | CUDA | Result | Notes |
 |---|---|---|---|---|---|
 | 2026-09-17 | Dev PC (Windows) | Windows 11 | 12.x | PASS | All steps verified |
+| 2026-09-23 | NDAG-M-Lab | Linux 7.0 | CUDA 13 driver | STATIC PASS | Full CPU/static suite passed; no training started by verification |
 | _(add row when run on Linux lab PC)_ | | | | | |

@@ -36,6 +36,7 @@ from utils.checkpoint_runs import (
 from utils.run_environment import add_config_hash, collect_run_environment
 from utils.checkpoint_provenance import build_provenance, validate_checkpoint_file
 from utils.gpu_lock import acquire_gpu_lock
+from utils.algorithm_compatibility import validate_algorithm_dataset
 
 
 def verified_completed_checkpoint(
@@ -186,6 +187,10 @@ def _main():
         if args.checkpoint_every < 1:
             raise ValueError("--checkpoint-every must be at least 1")
         cfg.checkpoint_frequency_epochs = args.checkpoint_every
+
+    # Enforce representation-specific algorithms before lifecycle handling can
+    # archive or otherwise touch an existing result directory.
+    validate_algorithm_dataset(args.algorithm, cfg)
 
     project_root = Path(__file__).resolve().parent
     canonical_run_dir = run_directory(cfg, project_root)

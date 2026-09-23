@@ -27,3 +27,7 @@ safetensors>=0.4     # Safe pretrained VAE weight format
 # --- Visualisation / analysis -------------------------------------------------
 matplotlib          # Training and evaluation plots (utils/plots.py)
 numpy               # Array utilities used by metrics and plotting helpers
+pillow              # Report-figure image loading and torchvision image support
+
+# --- Verification ------------------------------------------------------------
+pytest>=8.0          # CPU/static regression suite documented in the runbooks

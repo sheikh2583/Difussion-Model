@@ -23,13 +23,13 @@ Validate configuration, teacher availability, and planned variants without
 training or creating outputs:
 
 ```bash
-python scripts/tune_consistency.py --dry-run
+venv/bin/python scripts/tune_consistency.py --dry-run
 ```
 
 Run the short CIFAR-10 sweep when training is authorized:
 
 ```bash
-python scripts/tune_consistency.py --epochs 3 --batch-size 64
+venv/bin/python scripts/tune_consistency.py --epochs 3 --batch-size 64
 ```
 
 The harness acquires `results/.lock`, creates an isolated timestamped directory

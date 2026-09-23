@@ -9,7 +9,7 @@ cd "$PROJECT_ROOT"
 VENV_PYTHON="$PROJECT_ROOT/venv/bin/python"
 
 python_is_supported() {
-  "$1" -c 'import sys; raise SystemExit(sys.version_info < (3, 9))' \
+  "$1" -c 'import sys; raise SystemExit(sys.version_info < (3, 10))' \
     >/dev/null 2>&1
 }
 
@@ -23,7 +23,7 @@ install_python_support() {
   elif command -v sudo >/dev/null 2>&1; then
     SUDO="sudo"
   else
-    echo "ERROR: Python 3.9+ with venv support is required, and sudo is unavailable." >&2
+    echo "ERROR: Python 3.10+ with venv support is required, and sudo is unavailable." >&2
     exit 1
   fi
 
@@ -42,7 +42,7 @@ install_python_support() {
   elif command -v apk >/dev/null 2>&1; then
     $SUDO apk add python3 py3-pip
   else
-    echo "ERROR: no supported package manager found. Install Python 3.9+ and rerun." >&2
+    echo "ERROR: no supported package manager found. Install Python 3.10+ and rerun." >&2
     exit 1
   fi
 }
@@ -70,7 +70,7 @@ if [ -z "$BOOTSTRAP_PYTHON" ]; then
 fi
 
 if [ -z "$BOOTSTRAP_PYTHON" ]; then
-  echo "ERROR: Python 3.9+ with venv/ensurepip support is still unavailable." >&2
+  echo "ERROR: Python 3.10+ with venv/ensurepip support is still unavailable." >&2
   echo "Install those packages for your distribution and rerun ./scripts/linux/init.sh." >&2
   exit 1
 fi

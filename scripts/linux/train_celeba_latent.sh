@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Train the complete CelebA latent suite with one timestamped log per GPU job.
 #
-# The six registered latent experiments are:
-#   fm, fm_lognorm, mf, mf_distill, consistency, and reflow.
+# The seven registered latent experiments are:
+#   fm, fm_lognorm, mf, mf_hutchinson, mf_distill, consistency, and reflow.
 #
 # FM is trained first because MF-Distill, Consistency, and Reflow depend on its
 # epoch-100 checkpoint. Reflow pairs are generated automatically when missing.
@@ -20,7 +20,7 @@ CHECKPOINT_EVERY=""
 TRAIN_ONLY=false
 DRY_RUN=false
 LOG_DIR=""
-TRACK_LOGS=true
+ALGORITHMS=(fm fm_lognorm mf mf_hutchinson mf_distill consistency reflow)
 
 usage() {
   sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -30,17 +30,15 @@ Usage:
   ./scripts/linux/train_celeba_latent.sh [options]
 
 Options:
-  --only NAME              all | fm | fm_lognorm | mf | mf_distill |
-                           consistency | reflow (default: all)
+  --only NAME              all | fm | fm_lognorm | mf | mf_hutchinson |
+                           mf_distill | consistency | reflow (default: all)
   --mode MODE              fresh | continue (default: continue)
   --machine-label NAME     Label stored in run metadata
   --checkpoint-every N     Override checkpoint cadence from each config
   --train-only             Skip evaluation and final sampling
   --log-dir PATH           Override the auto-detected device log directory
-  --track-logs             Stage each completed log and sidecar (default)
-  --no-track-logs          Leave completed logs unstaged
   --dry-run                Print commands without training or writing logs
-  --list                   List the six algorithms and exit
+  --list                   List all algorithms in full-suite order, then exit
   -h, --help               Show this help
 
 Examples:
@@ -69,11 +67,9 @@ while [[ $# -gt 0 ]]; do
     --log-dir)
       [[ $# -ge 2 ]] || { echo "ERROR: --log-dir requires a value" >&2; exit 2; }
       LOG_DIR="$2"; shift 2 ;;
-    --track-logs) TRACK_LOGS=true; shift ;;
-    --no-track-logs) TRACK_LOGS=false; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
     --list)
-      printf '%s\n' fm fm_lognorm mf mf_distill consistency reflow
+      printf '%s\n' "${ALGORITHMS[@]}"
       exit 0 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "ERROR: unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -85,7 +81,7 @@ case "$MODE" in
   *) echo "ERROR: --mode must be fresh or continue" >&2; exit 2 ;;
 esac
 case "$ONLY" in
-  all|fm|fm_lognorm|mf|mf_distill|consistency|reflow) ;;
+  all|fm|fm_lognorm|mf|mf_hutchinson|mf_distill|consistency|reflow) ;;
   *) echo "ERROR: unsupported --only value: $ONLY" >&2; exit 2 ;;
 esac
 if [[ -n "$CHECKPOINT_EVERY" && ! "$CHECKPOINT_EVERY" =~ ^[1-9][0-9]*$ ]]; then
@@ -103,27 +99,21 @@ declare -A CONFIGS=(
   [fm]="config/fm_celeba_latent.json"
   [fm_lognorm]="config/fm_lognorm_celeba_latent.json"
   [mf]="config/mf_celeba_latent.json"
+  [mf_hutchinson]="config/mf_hutchinson_celeba_latent.json"
   [mf_distill]="config/mf_distill_celeba_latent.json"
   [consistency]="config/consistency_celeba_latent.json"
   [reflow]="config/reflow_celeba_latent.json"
 )
-declare -A EFFECTIVE_CONFIGS=(
-  [fm]="config/fm_celeba_latent.json"
-  [fm_lognorm]="config/fm_lognorm_celeba_latent.json"
-  [mf]="config/mf_celeba_latent.json"
-  [mf_distill]="config/mf_distill_celeba_latent.json"
-  [consistency]="config/consistency_celeba_latent.json"
-  [reflow]="config/reflow_celeba_latent.json"
-)
+declare -A EFFECTIVE_CONFIGS=()
 declare -A ALGORITHM_CLASSES=(
   [fm]="FlowMatchingAlgorithm"
   [fm_lognorm]="FlowMatchingLognormAlgorithm"
   [mf]="MeanFlowAlgorithm"
+  [mf_hutchinson]="MeanFlowHutchinsonAlgorithm"
   [mf_distill]="MeanFlowDistillAlgorithm"
   [consistency]="ConsistencyAlgorithm"
   [reflow]="ReflowAlgorithm"
 )
-ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)
 REFLOW_PAIRS="data/reflow_pairs_celeba_latent.pt"
 ACCEPTED_CODEC="results/codecs/celeba_vq_f4/accepted_codec.pt"
 
@@ -132,6 +122,7 @@ for algorithm in "${ALGORITHMS[@]}"; do
     echo "ERROR: missing latent config: ${CONFIGS[$algorithm]}" >&2
     exit 1
   fi
+  EFFECTIVE_CONFIGS[$algorithm]="${CONFIGS[$algorithm]}"
 done
 
 # A parent suite may already own the lock and source manifest.  Direct runs
@@ -187,6 +178,7 @@ if [[ -z "$LOG_DIR" ]]; then
     LOG_DIR="training_logs/cpu-or-unknown/latent"
   fi
 fi
+LOG_DEVICE_TOKEN="${GPU_TOKEN:-cpu-or-unknown}"
 
 if [[ -z "$MACHINE_LABEL" ]]; then
   OS_TOKEN="$(uname -s | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-')"
@@ -201,7 +193,6 @@ export DIFFUSION_MACHINE_LABEL="$MACHINE_LABEL"
 echo "[PLAN] machine_label=$MACHINE_LABEL"
 echo "[PLAN] gpu_name=${GPU_NAME:-unavailable}"
 echo "[PLAN] gpu_memory_mb=${GPU_MEMORY_MB:-unavailable}"
-echo "[PLAN] track_logs=$TRACK_LOGS"
 
 print_command() {
   printf '%q ' "$@"
@@ -210,7 +201,8 @@ print_command() {
 
 run_logged() {
   local job_name=$1
-  shift
+  local config_path=$2
+  shift 2
   local -a command=("$@")
   local job_log_dir="$LOG_DIR/$job_name"
   local log_path="$job_log_dir/celeba_latent_${job_name}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
@@ -235,14 +227,11 @@ run_logged() {
     echo "[run] dataset=celeba_latent"
     echo "[run] algorithm=$job_name"
     echo "[run] job=$job_name"
-    echo "[run] source_identity_sha256=${DIFFUSION_SOURCE_IDENTITY:-standalone}"
-    echo "[run] lifecycle_mode=$MODE"
-    echo "[run] machine_label=$MACHINE_LABEL"
-    echo "[run] gpu_name=${GPU_NAME:-unavailable}"
-    echo "[run] gpu_memory_gb=${GPU_MEMORY_GB:-unavailable}"
-    echo "[run] parent_suite_timestamp=${DIFFUSION_PARENT_SUITE_TIMESTAMP:-none}"
-    echo "[run] selected_config_sha256=${DIFFUSION_SELECTED_CONFIG_SHA256:-not-applicable}"
-    echo "[run] checkpoint_series=${DIFFUSION_CHECKPOINT_SERIES:-resolved-by-train.py}"
+    "$PYTHON" scripts/print_run_provenance.py \
+      --config "$config_path" \
+      --machine-label "$MACHINE_LABEL" \
+      --log-device-token "$LOG_DEVICE_TOKEN" \
+      --log-path "$log_path"
     echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     printf '[run] command='
     print_command "${command[@]}"
@@ -257,14 +246,8 @@ run_logged() {
     echo "[run] exit_status=$status"
   } | tee -a "$log_path"
   "$PYTHON" scripts/write_training_log_metadata.py --log "$log_path" >/dev/null
-  if [[ "$TRACK_LOGS" == true ]]; then
-    git add -- "$log_path" "$sidecar_path"
-    echo "[TRACKED] $log_path"
-    echo "[TRACKED] $sidecar_path"
-  else
-    echo "[UNSTAGED] $log_path"
-    echo "[UNSTAGED] $sidecar_path"
-  fi
+  echo "[LOG] $log_path"
+  echo "[METADATA] $sidecar_path"
   return "$status"
 }
 
@@ -293,7 +276,7 @@ run_training() {
   [[ -z "$MACHINE_LABEL" ]] || command+=(--machine-label "$MACHINE_LABEL")
   [[ -z "$CHECKPOINT_EVERY" ]] || command+=(--checkpoint-every "$CHECKPOINT_EVERY")
   [[ "$TRAIN_ONLY" == false ]] || command+=(--train-only)
-  run_logged "$algorithm" "${command[@]}"
+  run_logged "$algorithm" "${EFFECTIVE_CONFIGS[$algorithm]}" "${command[@]}"
 }
 
 resolve_corrected_fm_checkpoint() {
@@ -359,6 +342,9 @@ fi
 if [[ "$ONLY" == "all" || "$ONLY" == "mf" ]]; then
   run_training mf
 fi
+if [[ "$ONLY" == "all" || "$ONLY" == "mf_hutchinson" ]]; then
+  run_training mf_hutchinson
+fi
 
 if [[ "$ONLY" == "all" || "$ONLY" == "mf_distill" ]]; then
   prepare_teacher_config mf_distill
@@ -379,7 +365,7 @@ if [[ "$ONLY" == "all" || "$ONLY" == "reflow" ]]; then
     workflow_guard_verify_source "$DRY_RUN"
     export DIFFUSION_SELECTED_CONFIG_SHA256="$(sha256sum "${CONFIGS[fm]}" | awk '{print $1}')"
     export DIFFUSION_CHECKPOINT_SERIES="$(basename "$(dirname "$FM_CHECKPOINT")")"
-    run_logged reflow_pairs \
+    run_logged reflow_pairs "${CONFIGS[fm]}" \
       "$PYTHON" scripts/generate_reflow_pairs_latent.py \
       --checkpoint "$FM_CHECKPOINT" \
       --config "${CONFIGS[fm]}" \

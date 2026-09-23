@@ -3,11 +3,12 @@
     Train a generative model on CIFAR-10.
 
 .DESCRIPTION
-    Activates the project virtual environment, sets PYTHONPATH to the
-    project root, and launches train.py with the supplied arguments.
+    Uses the project virtual-environment interpreter directly, sets PYTHONPATH
+    to the project root, and launches train.py with the supplied arguments.
 
 .PARAMETER Algorithm
-    Algorithm to train. One of: mock | fm | fm_lognorm | mf
+    Algorithm to train. One of: mock | fm | fm_lognorm | mf | mf_hutchinson |
+    mf_distill | consistency | reflow
     Default: fm
 
 .PARAMETER Config
@@ -23,6 +24,7 @@
         config/reflow_full.json         -- Rectified Flow Reflow
         config/fm_celeba64.json         -- FM on CelebA 64x64
         config/mf_celeba64.json         -- MF on CelebA 64x64
+        config/mf_hutchinson_celeba_latent.json -- latent-only Hutchinson MF
 
 .PARAMETER ExperimentName
     Override the experiment_name field in the config (used as the output
@@ -43,11 +45,16 @@
     # Mean Flow, custom name and epoch count:
     .\scripts\windows\run_train.ps1 -Algorithm mf -Config config/mf_full.json `
         -ExperimentName mf_run2 -Epochs 200
+
+.EXAMPLE
+    # Hutchinson MF is supported only on CelebA latent space:
+    .\scripts\windows\run_train.ps1 -Algorithm mf_hutchinson `
+        -Config config/mf_hutchinson_celeba_latent.json -Mode fresh
 #>
 
 [CmdletBinding()]
 param(
-    [ValidateSet("mock", "fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow")]
+    [ValidateSet("mock", "fm", "fm_lognorm", "mf", "mf_hutchinson", "mf_distill", "consistency", "reflow")]
     [string]$Algorithm = "fm",
 
     [string]$Config = "",
@@ -56,8 +63,18 @@ param(
 
     [int]$Epochs = 0,
 
+    [ValidateRange(0, 1048576)]
+    [int]$BatchSize = 0,
+
+    [ValidateRange(0, 1000000)]
+    [int]$CheckpointEvery = 0,
+
     [ValidateSet("continue", "fresh")]
-    [string]$Mode = "continue"
+    [string]$Mode = "continue",
+
+    [switch]$TrainOnly,
+
+    [string]$MachineLabel = ""
 )
 
 Set-StrictMode -Version Latest
@@ -69,14 +86,12 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 # ---------------------------------------------------------------------------
-# Activate the virtual environment
+# Resolve the project interpreter
 # ---------------------------------------------------------------------------
-$VenvActivate = Join-Path $ProjectRoot "venv\Scripts\Activate.ps1"
-if (-not (Test-Path $VenvActivate)) {
-    Write-Error "Virtual environment not found at '$VenvActivate'. " +
-                "Create it with: python -m venv venv && pip install -r requirements.txt"
+$Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $Python)) {
+    throw "Project interpreter not found at '$Python'. Run scripts\windows\init.cmd first."
 }
-. $VenvActivate
 
 # ---------------------------------------------------------------------------
 # Set PYTHONPATH so all sub-packages resolve correctly
@@ -97,6 +112,10 @@ if ($ExperimentName -ne "") {
 if ($Epochs -gt 0) {
     $Args += @("--epochs", $Epochs)
 }
+if ($BatchSize -gt 0) { $Args += @("--batch-size", $BatchSize) }
+if ($CheckpointEvery -gt 0) { $Args += @("--checkpoint-every", $CheckpointEvery) }
+if ($TrainOnly) { $Args += "--train-only" }
+if ($MachineLabel) { $Args += @("--machine-label", $MachineLabel) }
 
 # ---------------------------------------------------------------------------
 # Launch
@@ -105,8 +124,9 @@ Write-Host "=== DiffusionProject Training ===" -ForegroundColor Cyan
 Write-Host "Algorithm : $Algorithm"
 Write-Host "Config    : $(if ($Config) { $Config } else { '(defaults)' })"
 Write-Host "Mode      : $Mode"
-Write-Host "Command   : python $($Args -join ' ')"
+Write-Host "Command   : $Python $($Args -join ' ')"
 Write-Host ""
 
 Set-Location $ProjectRoot
-python @Args
+& $Python @Args
+exit $LASTEXITCODE

@@ -20,6 +20,7 @@ The implemented methods are:
 - Flow Matching (FM)
 - Flow Matching with logit-normal time sampling (FM-LN)
 - Mean Flow (MF), with exact-JVP and finite-difference variants
+- Mean Flow with randomized Hutchinson VJP estimation (latent-only diagnostic)
 - Mean Flow Distillation (MF-Distill)
 - Consistency Models
 - Rectified Flow Reflow
@@ -49,8 +50,8 @@ of unrelated model implementations:
 2. A measured comparison of quality against sampling NFE, not only final image
    quality at one solver budget.
 3. An engineering study of exact-JVP versus finite-difference Mean Flow,
-   teacher-dependent objectives, EMA correctness, mixed precision, and Reflow
-   pair generation.
+   a randomized Hutchinson-VJP latent diagnostic, teacher-dependent objectives,
+   EMA correctness, mixed precision, and Reflow pair generation.
 4. A three-candidate codec investigation in which two candidates were rejected
    and the selected candidate was accepted only under an auditable quality
    override.
@@ -74,7 +75,7 @@ the retained run evidence, not to publication milestones.
 | 21 Sep 2026 — generic pretrained latent attempt | Can a frozen Stable Diffusion VAE remove scratch-codec training cost? | Evaluated `stabilityai/sd-vae-ft-mse` at factor 8. | rFID `16.1529` and PSNR `22.3193 dB` failed; its `4×8×8` state also forced a `1×1` U-Net bottleneck. Rejected. |
 | 21 Sep 2026 — face-specific codec selection | Does domain-specific pretraining improve the latent boundary? | Downloaded, pinned, validated, and froze statistics for `CompVis/ldm-celebahq-256` VQ-f4. | rFID improved to `10.0613` and PSNR to `27.3798 dB`, still below the strict gates. Structural and spread checks passed, so the user accepted an explicit recorded override. |
 | 21–22 Sep 2026 — latent dataset construction | Can codec identity and normalization be made reproducible? | Cached deterministic quantized train/validation latents using frozen channel statistics and a content-addressed manifest. | Published 162,752 train and 19,867 validation tensors of shape `3×16×16`; ambiguity and hash mismatches are hard failures. |
-| 21–22 Sep 2026 — first latent generative runs | Does the smaller spatial state reduce resource use while preserving algorithm trends? | Completed latent FM and FM-LN through epoch 100 using the frozen VQ-f4 cache. Added bounded decoding, separate decoder timing, unbounded latent sampling, and isolated latent result directories. | Both populated latent checkpoint series are complete and provenance-compatible. MF, MF-Distill, Consistency, and Reflow remain pending; no partial latent metric is treated as a final cross-method result. |
+| 21–22 Sep 2026 — first latent generative runs | Does the smaller spatial state reduce resource use while preserving algorithm trends? | Completed latent FM and FM-LN through epoch 100 using the frozen VQ-f4 cache. Added bounded decoding, separate decoder timing, unbounded latent sampling, and isolated latent result directories. | Both populated latent checkpoint series are complete and provenance-compatible. MF, MF-Hutchinson, MF-Distill, Consistency, and Reflow remain outside the completed comparison until final compatible evaluations exist; no partial latent metric is treated as final. |
 | 22 Sep 2026 — post-training isolation hardening | Can the remaining unattended suite run without overlapping GPU work or losing source identity? | Added one ownership-checked, nestable GPU lock; froze training-relevant source/config inputs at suite startup; added source verification between jobs; made completed-run skipping provenance-aware; and separated explicit evaluation from continuation. | CPU/static validation passed. The remaining latent jobs can continue serially without rerunning completed FM/FM-LN or implicitly reevaluating them. |
 | 22 Sep 2026 — evidence normalization and audit | Can historical logs and checkpoints be identified consistently without modifying measured output? | Migrated central transcripts into `pixel/`, `latent/`, and `codec/`; normalized all 48 sidecars to schema 2; recorded RTX 3090 24 GB identity and transcript digests; rebuilt the catalog; and audited numbered checkpoint series and ZIP archives. | All migrated transcript digests remained unchanged. Fourteen populated diffusion checkpoint series passed filename/archive/payload/provenance checks; historical exceptions are documented rather than silently rewritten. |
 
@@ -91,7 +92,8 @@ the retained run evidence, not to publication milestones.
 These percentages describe the retained 5,000-sample evaluations. They should
 not be generalized beyond the recorded configurations, and the latent study is
 deliberately excluded from the completed-results table until all six methods
-have compatible final evaluations.
+have compatible final evaluations. MF-Hutchinson is an additional diagnostic
+and is not silently folded into that canonical six-method comparison.
 
 ## Research questions
 
@@ -231,10 +233,11 @@ denormalization + frozen VQ-f4 decoder
 generated RGB image [3×64×64]
 ```
 
-Every FM, FM-LN, MF, MF-Distill, Consistency, and Reflow run still trains its
-own generative U-Net from the configured initialization. The codec is frozen so
-the six methods see the same representation and cannot improve or degrade it
-during training.
+Every FM, FM-LN, MF, MF-Hutchinson, MF-Distill, Consistency, and Reflow run
+still trains its own generative U-Net from the configured initialization. The
+codec is frozen so all seven latent jobs see the same representation and cannot
+improve or degrade it during training. MF-Hutchinson remains a diagnostic
+outside the canonical six-method result table.
 
 The current latent U-Net and CelebA pixel U-Net both have 8,947,459 parameters
 because both use three input/output channels and channel multipliers
@@ -276,6 +279,7 @@ paths are not rewritten.
 | FM | Conditional velocity along a probability path | Strong multi-step baseline | None |
 | FM-LN | FM with logit-normal time sampling | Reweight difficult time regions | None |
 | MF | Average velocity over an interval | Few-step generation | None |
+| MF-Hutchinson | Mean Flow with randomized reverse-mode VJP probes | Latent diagnostic | None; latent space only |
 | MF-Distill | Student guided by completed FM teacher | Compress teacher behavior | FM epoch 100 |
 | Consistency | Self-consistent states with EMA target and FM teacher | One/few-step generation | FM epoch 100 |
 | Reflow | Rectification on teacher-generated endpoint pairs | Straighter trajectories | FM epoch 100 and Reflow pairs |
@@ -289,6 +293,7 @@ FM ───────────────┬──► MF-Distill
 
 FM-LN ───────────────► independent
 Mean Flow ───────────► independent
+MF-Hutchinson ───────► independent, latent only
 ```
 
 ## Reproducing and auditing the study
@@ -331,13 +336,14 @@ uncommitted runtime edits that were never recorded.
 
 ## Prerequisites
 
-- Python 3.9 or newer
+- Python 3.10 or newer
 - Git for obtaining the repository; Git is not part of the training lifecycle
 - NVIDIA CUDA, AMD ROCm, or CPU-only PyTorch
 - Enough disk space for CelebA, cached latents, checkpoints, samples, and logs
 - A CUDA GPU is strongly recommended for full CelebA and codec workflows
 
-The setup scripts install PyTorch first for the selected backend and then
+Python 3.10 is the minimum because the implementation uses modern union type
+syntax such as `Path | None`. The setup scripts install PyTorch first and then
 install `requirements.txt`. `accelerate` is a declared dependency because
 Diffusers uses it for low-CPU-memory pretrained-model loading; if that warning
 appears, the environment is incomplete or the wrong Python interpreter is
@@ -489,7 +495,8 @@ Windows PowerShell:
 .\scripts\windows\run_train.ps1 `
   -Algorithm fm `
   -Config config/fm_full.json `
-  -Mode fresh
+  -Mode fresh `
+  -CheckpointEvery 10
 ```
 
 Use `--mode continue`/`-Mode continue` after an interruption. Use `fresh` only
@@ -714,7 +721,8 @@ On a clean checkout with no latent checkpoint series, start a new suite with:
   --mode fresh
 ```
 
-The launcher serializes all six GPU jobs, resolves the FM teacher dependency,
+The launcher serializes all seven GPU jobs, including latent-only
+MF-Hutchinson, resolves the FM teacher dependency,
 generates missing Reflow pairs, and writes a separate timestamped terminal log
 for each job. It automatically records the detected GPU name, memory, and
 machine label; `--machine-label` remains an explicit override. It does not run
@@ -727,42 +735,27 @@ Train only one latent method when debugging or recovering:
   --mode continue
 ```
 
-### Windows: train latent methods explicitly
+### Windows: train the complete latent suite
 
-Windows currently uses the generic one-model launcher. Run FM first:
+The maintained Windows launcher mirrors the Linux dependency order, teacher
+binding, Reflow-pair generation, logging, and lifecycle options. Preview first:
 
 ```powershell
-.\scripts\windows\run_train.ps1 `
-  -Algorithm fm `
-  -Config config/fm_celeba_latent.json `
-  -Mode fresh
+.\scripts\windows\train_celeba_latent.ps1 -Only all -Mode continue -DryRun
 ```
 
-FM-LN and ordinary MF may follow independently, one job at a time:
+Run or resume the complete seven-method latent suite:
 
 ```powershell
-.\scripts\windows\run_train.ps1 -Algorithm fm_lognorm -Config config/fm_lognorm_celeba_latent.json -Mode fresh
-.\scripts\windows\run_train.ps1 -Algorithm mf -Config config/mf_celeba_latent.json -Mode fresh
+.\scripts\windows\train_celeba_latent.ps1 -Only all -Mode continue
 ```
 
-After the configured FM epoch-100 checkpoint exists, run the teacher-dependent
-methods:
+Run one method when debugging or recovering. Hutchinson MF remains latent-only
+but is also included in `-Only all`:
 
 ```powershell
-.\scripts\windows\run_train.ps1 -Algorithm mf_distill -Config config/mf_distill_celeba_latent.json -Mode fresh
-.\scripts\windows\run_train.ps1 -Algorithm consistency -Config config/consistency_celeba_latent.json -Mode fresh
-```
-
-Generate Reflow pairs, then train Reflow:
-
-```powershell
-.\venv\Scripts\python.exe scripts\generate_reflow_pairs_latent.py `
-  --checkpoint results\fm_celeba_latent\checkpoints\run_1\FlowMatchingAlgorithm_epoch100.pt `
-  --config config\fm_celeba_latent.json `
-  --output data\reflow_pairs_celeba_latent.pt `
-  --n-pairs 50000 --nfe 50 --batch-size 64 --chunk-size 1000 --seed 0
-
-.\scripts\windows\run_train.ps1 -Algorithm reflow -Config config/reflow_celeba_latent.json -Mode fresh
+.\scripts\windows\train_celeba_latent.ps1 -Only mf -Mode fresh
+.\scripts\windows\train_celeba_latent.ps1 -Only mf_hutchinson -Mode fresh
 ```
 
 ## Canonical experiment presets
@@ -784,13 +777,15 @@ Generate Reflow pairs, then train Reflow:
 | CelebA latent | FM | `config/fm_celeba_latent.json` |
 | CelebA latent | FM-LN | `config/fm_lognorm_celeba_latent.json` |
 | CelebA latent | MF | `config/mf_celeba_latent.json` |
+| CelebA latent | MF-Hutchinson diagnostic | `config/mf_hutchinson_celeba_latent.json` |
 | CelebA latent | MF-Distill | `config/mf_distill_celeba_latent.json` |
 | CelebA latent | Consistency | `config/consistency_celeba_latent.json` |
 | CelebA latent | Reflow | `config/reflow_celeba_latent.json` |
 
 Additional MF presets are diagnostic experiments, not interchangeable aliases
-for the canonical comparison. `config/smoke_fast.json` checks workflow plumbing
-and is not a research-quality training configuration.
+for the canonical comparison. MF-Hutchinson is deliberately restricted to the
+`celeba_latent` dataset and has no pixel-space preset. `config/smoke_fast.json`
+checks workflow plumbing and is not a research-quality training configuration.
 
 For exact CIFAR architecture reproduction, use the parallel presets in
 [`config/cifar_legacy/`](config/cifar_legacy/README.md) rather than editing the
@@ -839,15 +834,19 @@ training_logs/nvidia-geforce-rtx-3090-24gb/
     cifar10_pixel_fm_<host>_<UTC timestamp>.log
     celeba_pixel_fm_lognorm_<host>_<UTC timestamp>.log
   latent/
-    celeba_latent_fm_<host>_<UTC timestamp>.log
-    celeba_latent_fm_lognorm_<host>_<UTC timestamp>.log
+    fm/
+      celeba_latent_fm_<host>_<UTC timestamp>.log
+    mf_hutchinson/
+      celeba_latent_mf_hutchinson_<host>_<UTC timestamp>.log
   codec/
     <codec-validation-or-training transcript>.log
 ```
 
-Every new transcript records its representation, frozen source identity,
-selected config digest, lifecycle mode, resolved checkpoint series, parent-suite
-timestamp, detected GPU name/memory, and machine label. On the current lab
+Every new latent-suite transcript records its representation, frozen source identity,
+selected config digest, Git commit/dirty-diff identity, lifecycle mode, resolved
+checkpoint series, parent-suite timestamp, detected GPU index/UUID/name/memory,
+device log partition, and machine label. Sidecars use schema 2 and retain the
+same fields plus the final transcript digest. On the current lab
 system the automatic label is
 `linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb`.
 
@@ -862,15 +861,15 @@ field blank.
 Inspect or rebuild the catalog with:
 
 ```bash
-python scripts/catalog_training_logs.py --dry-run
-python scripts/catalog_training_logs.py
+venv/bin/python scripts/catalog_training_logs.py --dry-run
+venv/bin/python scripts/catalog_training_logs.py
 ```
 
 If another confirmed historical machine must be normalized, preview before
 writing sidecars:
 
 ```bash
-python scripts/annotate_training_log_spaces.py \
+venv/bin/python scripts/annotate_training_log_spaces.py \
   --machine-label <label> --gpu-name '<GPU name>' --gpu-memory-gb <GiB>
 ```
 
@@ -880,11 +879,15 @@ that machine. This operation changes sidecars, never transcript bytes.
 An open log stays at its original path until the writer exits. Do not rename,
 truncate, delete, stage, or reorganize it during training.
 
+Logs and sidecars are eligible for Git tracking but launchers never stage or
+commit them automatically. This keeps Git operations explicit while preserving
+the exact Git identity inside every run record.
+
 GPU entry points share the ownership-checked `results/.lock`. A live owner is
 never displaced; stale recovery is explicit:
 
 ```bash
-python scripts/workflow_guard.py lock-recover --lock-file results/.lock
+venv/bin/python scripts/workflow_guard.py lock-recover --lock-file results/.lock
 ```
 
 In `--mode continue`, a completed model is skipped only after checkpoint
@@ -1007,7 +1010,9 @@ codec provenance. Binary weights, latent tensors, Hugging Face cache internals,
 IDE state, and nested worktrees remain excluded.
 
 `refresh_thesis_context.sh` repeats the complete summary-and-ZIP operation in a
-single-instance loop. It defaults to five-minute intervals and refuses active
+single-instance loop and runs the CPU-only MF-v3 preflight before each write
+cycle. The Windows `refresh_thesis_context.ps1` follows the same contract. Both
+default to five-minute intervals and refuse active
 training snapshots; add `--allow-running` only when a potentially partial,
 read-only live snapshot is intentional. Use `--once` for automation that needs
 one rigorously checked refresh and a meaningful exit status.
@@ -1125,7 +1130,7 @@ Run CPU/static checks without starting a research training job:
 
 ```bash
 venv/bin/python -m pytest -q
-venv/bin/python scripts/verify_workflow.py --dataset cifar10
+venv/bin/python scripts/verify_workflow.py --dataset none
 ./scripts/linux/train_all.sh --dataset cifar10 --dry-run
 venv/bin/python scripts/verify_project_layout.py
 venv/bin/python scripts/smoke_latent.py --mode static
@@ -1135,7 +1140,7 @@ Windows:
 
 ```powershell
 .\venv\Scripts\python.exe -m pytest -q
-.\venv\Scripts\python.exe scripts\verify_workflow.py --dataset cifar10
+.\venv\Scripts\python.exe scripts\verify_workflow.py --dataset none
 .\venv\Scripts\python.exe scripts\verify_project_layout.py
 .\venv\Scripts\python.exe scripts\smoke_latent.py --mode static
 ```

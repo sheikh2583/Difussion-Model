@@ -98,12 +98,12 @@ def test_latent_suite_dry_run_is_serialized_in_dependency_order() -> None:
         if line.startswith("[PLAN] job=") and line != "[PLAN] job=reflow_pairs"
     ]
     assert jobs == [
-        "fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow"
+        "fm", "fm_lognorm", "mf", "mf_hutchinson", "mf_distill",
+        "consistency", "reflow",
     ]
-    assert result.stdout.count(" train.py --algorithm ") == 6
-    assert result.stdout.count(" --mode continue ") == 6
+    assert result.stdout.count(" train.py --algorithm ") == 7
+    assert result.stdout.count(" --mode continue ") == 7
     assert "[PLAN] machine_label=linux-" in result.stdout
-    assert "nvidia-geforce-rtx-3090-24gb" in result.stdout
-    assert "[PLAN] gpu_name=NVIDIA GeForce RTX 3090" in result.stdout
-    assert "[PLAN] gpu_memory_mb=24576" in result.stdout
+    assert "[PLAN] gpu_name=" in result.stdout
+    assert "[PLAN] gpu_memory_mb=" in result.stdout
     assert "Dry-run complete; no training, pair generation, or log writes occurred." in result.stdout

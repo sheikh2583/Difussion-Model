@@ -7,7 +7,8 @@
 #
 # Options:
 #   -a, --algorithm   Algorithm to train:
-#                     fm | fm_lognorm | mf | mf_distill | consistency | reflow | mock
+#                     fm | fm_lognorm | mf | mf_hutchinson | mf_distill |
+#                     consistency | reflow | mock
 #                     Default: fm
 #   -c, --config      Path to a JSON config file. Preset configs:
 #                         config/smoke_fast.json         (quick smoke test)
@@ -23,6 +24,7 @@
 #                         config/fm_celeba_latent.json   (FM on CelebA VQ-f4 latents)
 #                         config/fm_lognorm_celeba_latent.json
 #                         config/mf_celeba_latent.json
+#                         config/mf_hutchinson_celeba_latent.json (latent only)
 #                         config/mf_distill_celeba_latent.json
 #                         config/consistency_celeba_latent.json
 #                         config/reflow_celeba_latent.json
@@ -40,6 +42,7 @@
 #   bash scripts/linux/run_train.sh -a fm -c config/fm_full.json
 #   bash scripts/linux/run_train.sh -a mf -c config/mf_full.json -e 200 -n mf_run2
 #   bash scripts/linux/run_train.sh -a consistency -c config/consistency_celeba_latent.json
+#   bash scripts/linux/run_train.sh -a mf_hutchinson -c config/mf_hutchinson_celeba_latent.json
 # =============================================================================
 
 set -euo pipefail
@@ -89,16 +92,14 @@ case "$MODE" in
 esac
 
 # ---------------------------------------------------------------------------
-# Activate virtual environment
+# Resolve the project interpreter
 # ---------------------------------------------------------------------------
-VENV_ACTIVATE="$PROJECT_ROOT/venv/bin/activate"
-if [[ ! -f "$VENV_ACTIVATE" ]]; then
-    echo "ERROR: Virtual environment not found at '$VENV_ACTIVATE'."
-    echo "Create it with: python -m venv venv && pip install -r requirements.txt"
+PYTHON="$PROJECT_ROOT/venv/bin/python"
+if [[ ! -x "$PYTHON" ]]; then
+    echo "ERROR: Project interpreter not found at '$PYTHON'."
+    echo "Run ./scripts/linux/init.sh first."
     exit 1
 fi
-# shellcheck source=/dev/null
-source "$VENV_ACTIVATE"
 
 # ---------------------------------------------------------------------------
 # Set PYTHONPATH
@@ -124,8 +125,8 @@ echo "=== DiffusionProject Training ==="
 echo "Algorithm : $ALGORITHM"
 echo "Config    : ${CONFIG:-(defaults)}"
 echo "Mode      : $MODE"
-echo "Command   : $PROJECT_ROOT/venv/bin/python ${ARGS[*]}"
+echo "Command   : $PYTHON ${ARGS[*]}"
 echo ""
 
 cd "$PROJECT_ROOT"
-exec "$PROJECT_ROOT/venv/bin/python" "${ARGS[@]}"
+exec "$PYTHON" "${ARGS[@]}"

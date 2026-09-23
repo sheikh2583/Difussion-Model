@@ -19,9 +19,11 @@ The instantaneous velocity along this path:
 v = dx_t/dt = x_1 - x_0    (constant along the path — key property of linear paths)
 ```
 
-All methods train a neural network f_θ(·) on this shared backbone (SimpleUNet,
-6.35M parameters) and differ only in: what f_θ predicts, what loss is used,
-and what is done at inference time.
+All methods train a neural network f_θ(·) on the configured shared
+SimpleUNet backbone and differ in what f_θ predicts, what loss is used, and
+what is done at inference time. Parameter count depends on the dataset preset;
+the controlled CIFAR backbone is about 6.35M parameters, while the wider
+CelebA pixel/latent backbone is about 8.95M.
 
 ---
 
@@ -105,22 +107,51 @@ L_MF = E[ ||u_θ(z_t, r, t) - u_tgt||² ]
      where r ~ U(0, t),  u_tgt computed via JVP (exact) or FD (approximate)
 ```
 
-**Our implementation uses FD-JVP** (finite-difference approximation):
+**The implementation supports exact and finite-difference JVP routes.** The
+finite-difference approximation is:
 ```
 d/dt[u] ≈ (u(z_t + δv, r, t+δ) - u(z_t, r, t)) / δ
          δ annealed 1e-2 → 1e-4 over training
 ```
-Bias: O(δ). Advantage: runs under AMP, ~2× faster than exact JVP.
+Bias is O(δ). The controlled MF-v3 and current CelebA presets select the
+detached fp32 exact-JVP target route. Historical/diagnostic presets may retain
+finite differences, optionally forcing the complete FD branch to fp32.
 
 **Stochastic routing:** with probability (1 - p_fd_step), forces r=t and uses
 exact target u_tgt=v (zero bias, single forward pass).
 
-**r-conditioning:** backbone only accepts (x, t). r is encoded via a small
-extra module REmbed: Linear(1→64) → SiLU → Linear(64→C), added as per-channel
-spatial bias to x before the backbone. This module is reported separately
-(not counted in the 6.35M shared backbone).
+**r-conditioning:** the backbone normally accepts `(x,t)`. `RCond` maps `r`
+through a sinusoidal embedding and two-layer MLP into the same embedding space
+as `t`; the two embeddings are added before every residual block. At embedding
+dimension 256 this adds 131,584 algorithm-specific parameters and is reported
+separately from the shared backbone.
 
 **In codebase:** `algorithms/mean_flow.py`, `algorithms/r_embed.py`
+
+---
+
+## §3A — Mean Flow with Hutchinson VJP estimation
+
+This latent-only diagnostic replaces the full output-shaped JVP with an
+unbiased randomized reverse-mode estimate. For a Rademacher output probe `ξ`,
+reverse-mode AD computes
+
+```
+g_z = (du/dz)ᵀ ξ,    g_t = (du/dt)ᵀ ξ
+q   = <g_z, v> + g_t
+d_hat = ξ q
+```
+
+Because `E[ξξᵀ]=I`, `E[d_hat]=(du/dz)v+du/dt`. Multiple probes can reduce
+variance, while `p_hutchinson_step` mixes randomized derivative steps with the
+exact diagonal target `r=t`. The estimator and target are fp32/detached; the
+prediction retains its trainable reverse-mode graph.
+
+This method is intentionally restricted to normalized CelebA VQ-f4 latents
+`(B,3,16,16)`. Startup validation and the algorithm constructor both reject
+pixel-space configurations.
+
+**In codebase:** `algorithms/mean_flow_hutchinson.py`
 
 ---
 
@@ -249,8 +280,9 @@ the complete command interface)
 |---|---|---|---|---|---|
 | FM | v(x_t, t) | MSE velocity | No (approx) | None | Lipman 2022 |
 | FM-LN | v(x_t, t) | MSE velocity | No (approx) | None | Esser 2024 |
-| MF (FD-JVP) | u(z_t,r,t) | Mean Flow Identity (FD) | Yes (exact) | REmbed ~600p | Geng 2025 |
-| MF-Distill | u(z_t,r,t) | Displacement target from teacher | Yes (exact) | REmbed + teacher | Geng+Salimans |
+| MF (exact/FD JVP) | u(z_t,r,t) | Mean Flow identity | Yes | RCond (131,584 at dim 256) | Geng 2025 |
+| MF-Hutchinson | u(z_t,r,t) | Randomized VJP estimate | Yes | RCond; latent-only diagnostic | Geng 2025 identity |
+| MF-Distill | u(z_t,r,t) | Displacement target from teacher | Yes | RCond + teacher | Geng+Salimans |
 | CM | f(x_t, t) → x_0 | Self-consistency + EMA | Yes | c_skip/c_out | Song 2023 |
 | Reflow | v(x_t, t) | MSE velocity on straight pairs | Closer to yes | None (FM retrain) | Liu 2022 §3 |
 
@@ -265,8 +297,9 @@ All methods evaluated identically:
 - IS: Inception Score on same 5000 generated samples
 - Training cost: wall-clock time and peak GPU memory, logged per epoch via
   `utils/timing.py` and `utils/results.py`
-- Backbone: SimpleUNet, 6.35M parameters, identical across FM/FM-LN/MF/CM/Reflow.
-  MF-Distill: student is 6.35M, teacher is additional 6.35M (reported separately).
+- Backbone: the configured SimpleUNet is identical within each controlled
+  dataset/representation comparison. MF/MF-Hutchinson/MF-Distill add RCond;
+  MF-Distill also uses a frozen teacher whose cost is reported separately.
 
 ---
 

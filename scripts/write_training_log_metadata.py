@@ -38,7 +38,7 @@ def main() -> None:
                 metadata[match.group(1)] = match.group(2)
 
     metadata.update({
-        "metadata_schema_version": 1,
+        "metadata_schema_version": 2,
         "transcript_bytes": log_path.stat().st_size,
         "transcript_sha256": sha256(log_path),
     })

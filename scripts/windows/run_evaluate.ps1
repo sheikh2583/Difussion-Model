@@ -3,8 +3,8 @@
     Evaluate a trained checkpoint without retraining.
 
 .DESCRIPTION
-    Activates the project virtual environment, sets PYTHONPATH, and
-    launches evaluate.py to run sampling + FID/IS evaluation on an
+    Uses the project virtual-environment interpreter directly, sets PYTHONPATH,
+    and launches evaluate.py to run sampling + FID/IS evaluation on an
     existing checkpoint.  Useful for re-evaluating at different NFE
     values or regenerating plots without retraining.
 
@@ -41,7 +41,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [ValidateSet("mock", "fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow")]
+    [ValidateSet("mock", "fm", "fm_lognorm", "mf", "mf_hutchinson", "mf_distill", "consistency", "reflow")]
     [string]$Algorithm,
 
     [Parameter(Mandatory)]
@@ -58,11 +58,10 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
-$VenvActivate = Join-Path $ProjectRoot "venv\Scripts\Activate.ps1"
-if (-not (Test-Path $VenvActivate)) {
-    Write-Error "Virtual environment not found at '$VenvActivate'."
+$Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $Python)) {
+    throw "Project interpreter not found at '$Python'. Run scripts\windows\init.cmd first."
 }
-. $VenvActivate
 $env:PYTHONPATH = $ProjectRoot
 
 $Args = @("evaluate.py",
@@ -75,8 +74,9 @@ Write-Host "=== DiffusionProject Evaluation ===" -ForegroundColor Cyan
 Write-Host "Algorithm  : $Algorithm"
 Write-Host "Checkpoint : $Checkpoint"
 Write-Host "Config     : $Config"
-Write-Host "Command    : python $($Args -join ' ')"
+Write-Host "Command    : $Python $($Args -join ' ')"
 Write-Host ""
 
 Set-Location $ProjectRoot
-python @Args
+& $Python @Args
+exit $LASTEXITCODE

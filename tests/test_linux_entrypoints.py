@@ -64,6 +64,7 @@ def test_training_menu_lists_choices_without_importing_model_stack():
     assert "celeba_latent:fm" in result.stdout
     assert "celeba_latent:fm_lognorm" in result.stdout
     assert "celeba_latent:mf" in result.stdout
+    assert "celeba_latent:mf_hutchinson" in result.stdout
     assert "celeba_latent:mf_distill" in result.stdout
     assert "celeba_latent:consistency" in result.stdout
     assert "celeba_latent:reflow" in result.stdout
@@ -86,6 +87,29 @@ def test_latent_prerequisites_use_latent_fm_and_pair_generator(monkeypatch):
     assert commands[0] == [
         "bash", "scripts/linux/train_celeba_latent.sh",
         "--only", "reflow", "--mode", "continue",
+    ]
+
+
+def test_latent_menu_uses_windows_launcher_on_windows(monkeypatch):
+    commands = []
+    monkeypatch.setattr(interactive_train.sys, "platform", "win32")
+    monkeypatch.setattr(
+        interactive_train,
+        "run",
+        lambda command, dry_run: commands.append(command),
+    )
+
+    interactive_train.train(
+        "mf_hutchinson",
+        "config/mf_hutchinson_celeba_latent.json",
+        dry_run=True,
+        mode="fresh",
+    )
+
+    assert commands[0] == [
+        "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-File", "scripts/windows/train_celeba_latent.ps1",
+        "-Only", "mf_hutchinson", "-Mode", "fresh",
     ]
 
 

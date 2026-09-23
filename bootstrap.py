@@ -7,7 +7,7 @@ Run once after cloning on any machine (Windows / Linux / macOS):
     python bootstrap.py --yes     # non-interactive (CI / lab PC)
 
 What this does:
-  1. Checks Python version (≥ 3.9 required)
+  1. Checks Python version (≥ 3.10 required)
   2. Creates a virtual environment in ./venv  (skips if already exists)
   3. Detects GPU: CUDA (nvidia-smi) → ROCm (Linux) → CPU fallback
   4. Installs the correct PyTorch build for the detected hardware
@@ -70,8 +70,8 @@ def run(cmd: list, check=True, capture=False) -> subprocess.CompletedProcess:
 def check_python() -> None:
     head("Step 1 - Python version")
     v = sys.version_info
-    if v < (3, 9):
-        error(f"Python {v.major}.{v.minor} detected. Python 3.9+ is required.")
+    if v < (3, 10):
+        error(f"Python {v.major}.{v.minor} detected. Python 3.10+ is required.")
         sys.exit(1)
     info(f"Python {v.major}.{v.minor}.{v.micro} OK")
 
@@ -333,12 +333,9 @@ def print_summary(gpu_type: str, datasets: str) -> None:
     head("Setup complete!")
     print()
 
-    activate = (
-        r"  venv\Scripts\activate"
-        if IS_WINDOWS else
-        "  source venv/bin/activate"
+    python_cmd = (
+        r"venv\Scripts\python.exe" if IS_WINDOWS else "venv/bin/python"
     )
-    python_cmd = "  python" if IS_WINDOWS else "  python"
 
     gpu_label = {
         "cuda118": "CUDA 11.8 (NVIDIA)",
@@ -352,8 +349,6 @@ def print_summary(gpu_type: str, datasets: str) -> None:
     print(_c("  Dataset(s):", "1") + f" {datasets}")
     print()
     print(_c("  Next steps:", "1"))
-    print(f"{activate}          <- activate the environment")
-    print()
     print("  # Beginner training menu:")
     if IS_WINDOWS:
         print(r"  scripts\windows\train.cmd                         # double-click or run")
@@ -361,18 +356,21 @@ def print_summary(gpu_type: str, datasets: str) -> None:
         print("  ./scripts/linux/train.sh")
     print()
     print("  # Quick smoke test (2 epochs, no GPU required):")
-    print(f"{python_cmd} train.py --algorithm mock --config config/smoke_fast.json")
+    print(f"  {python_cmd} train.py --algorithm mock --config config/smoke_fast.json --mode fresh")
     print()
     print("  # Train all 6 algorithms (CIFAR-10):")
-    print("  bash scripts/linux/train_all.sh          # Linux/macOS")
-    print(r"  .\scripts\windows\train_all.ps1            # Windows PowerShell")
+    print("  ./scripts/linux/train_cifar.sh             # Linux")
+    print(r"  scripts\windows\train_cifar.cmd             # Windows")
     print()
     print("  # Preview the complete two-dataset tournament (no training):")
     print("  ./scripts/linux/run_full_tournament.sh --dry-run")
     print(r"  .\scripts\windows\run_full_tournament.ps1 -DryRun")
     print()
     print("  # Start the inference UI:")
-    print(f"{python_cmd} web/inference_server.py")
+    if IS_WINDOWS:
+        print(r"  .\scripts\windows\run_inference.ps1")
+    else:
+        print("  ./scripts/linux/run_inference.sh")
     print("  -> Open http://127.0.0.1:8000 in a browser")
     print()
     print(_c("  Docs:", "1") + " README.md                    (setup + commands)")

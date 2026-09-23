@@ -54,13 +54,11 @@ if [[ -z "$ALGORITHM" || -z "$CHECKPOINT" || -z "$CONFIG" ]]; then
     exit 1
 fi
 
-VENV_ACTIVATE="$PROJECT_ROOT/venv/bin/activate"
-if [[ ! -f "$VENV_ACTIVATE" ]]; then
-    echo "ERROR: Virtual environment not found at '$VENV_ACTIVATE'."
+PYTHON="$PROJECT_ROOT/venv/bin/python"
+if [[ ! -x "$PYTHON" ]]; then
+    echo "ERROR: Project interpreter not found at '$PYTHON'. Run ./scripts/linux/init.sh first."
     exit 1
 fi
-# shellcheck source=/dev/null
-source "$VENV_ACTIVATE"
 export PYTHONPATH="$PROJECT_ROOT"
 
 ARGS=("evaluate.py"
@@ -73,8 +71,8 @@ echo "=== DiffusionProject Evaluation ==="
 echo "Algorithm  : $ALGORITHM"
 echo "Checkpoint : $CHECKPOINT"
 echo "Config     : $CONFIG"
-echo "Command    : python ${ARGS[*]}"
+echo "Command    : $PYTHON ${ARGS[*]}"
 echo ""
 
 cd "$PROJECT_ROOT"
-python "${ARGS[@]}"
+exec "$PYTHON" "${ARGS[@]}"

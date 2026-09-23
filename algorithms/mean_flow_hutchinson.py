@@ -17,10 +17,15 @@ from algorithms.r_embed import RCond
 
 
 class MeanFlowHutchinsonAlgorithm(BaseAlgorithm):
-    """CelebA diagnostic Mean Flow variant using randomized VJP probes."""
+    """Latent-only CelebA Mean Flow diagnostic using randomized VJP probes."""
 
     def __init__(self, model: nn.Module, algorithm_kwargs: Dict[str, Any] = None):
         super().__init__(model, algorithm_kwargs)
+        if getattr(model.cfg, "sample_clamp", True):
+            raise ValueError(
+                "MeanFlowHutchinsonAlgorithm requires an unclamped latent "
+                "backbone; pixel-space models are not supported."
+            )
         self.r_cond = RCond(model.cfg.time_embed_dim)
         self.p_same = float(self.algorithm_kwargs.get("p_same", 0.1))
         self.p_hutchinson_step = float(

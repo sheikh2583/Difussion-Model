@@ -7,6 +7,10 @@ disposable synthetic AMP forward/backward/optimizer steps and NFE-1 sampling on
 the available RTX 4070 Laptop GPU. No dataset training or checkpoint generation
 was performed.
 
+These are historical **pixel-space** estimates. They do not estimate the newer
+CelebA VQ-f4 latent suite or its seventh MF-Hutchinson diagnostic; use observed
+per-epoch latent logs for those jobs rather than extrapolating this table.
+
 ## Estimated end-to-end hours per model
 
 These estimates include 100 training epochs, the configured periodic
@@ -75,7 +79,7 @@ with it must not be mixed into the controlled comparison.
 After initialization, run:
 
 ```bash
-python scripts/benchmark_training_flows.py
+venv/bin/python scripts/benchmark_training_flows.py
 ```
 
 The script writes `results/training_flow_benchmark.json`. It uses disposable

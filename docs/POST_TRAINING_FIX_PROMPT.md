@@ -1,5 +1,10 @@
 # Post-training implementation prompt
 
+> **Historical acceptance specification:** these safeguards and the verified
+> log migration were implemented on 22–23 September 2026. Do not rerun the
+> migration against active logs. The current operational instructions are in
+> `README.md` and `RUNBOOK.md`; this file remains as design/audit evidence.
+
 Use this prompt only after `scripts/linux/train_celeba_latent.sh` and every
 child `train.py`/Reflow-generation process have exited. Do not interrupt or
 modify the active experiment to apply these changes.
@@ -38,7 +43,8 @@ metric, dataset, cache, or training-log content.
 5. Add CPU-only tests for active-lock rejection, stale-lock handling, nested
    suite behavior, source-change rejection between jobs, documentation-only
    change tolerance, and completed-run skipping. Add shell dry-runs proving the
-   six latent jobs remain serialized in dependency order.
+   seven latent jobs, including latent-only MF-Hutchinson, remain serialized in
+   dependency order.
 
 6. After confirming that every trainer, data-loader child, evaluator, and suite
    process has exited, migrate historical central transcripts to an explicit

@@ -41,14 +41,11 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-VENV_ACTIVATE="$PROJECT_ROOT/venv/bin/activate"
-if [[ ! -f "$VENV_ACTIVATE" ]]; then
-    echo "ERROR: Virtual environment not found at '$VENV_ACTIVATE'."
-    echo "Create it with: python -m venv venv && pip install -r requirements.txt"
+PYTHON="$PROJECT_ROOT/venv/bin/python"
+if [[ ! -x "$PYTHON" ]]; then
+    echo "ERROR: Project interpreter not found at '$PYTHON'. Run ./scripts/linux/init.sh first."
     exit 1
 fi
-# shellcheck source=/dev/null
-source "$VENV_ACTIVATE"
 export PYTHONPATH="$PROJECT_ROOT"
 
 ARGS=("web/inference_server.py" "--host" "$HOST" "--port" "$PORT")
@@ -57,8 +54,8 @@ ARGS=("web/inference_server.py" "--host" "$HOST" "--port" "$PORT")
 
 echo "=== DiffusionProject Inference Server ==="
 [[ -z "$SELF_TEST" ]] && echo "UI available at: http://${HOST}:${PORT}"
-echo "Command: python ${ARGS[*]}"
+echo "Command: $PYTHON ${ARGS[*]}"
 echo ""
 
 cd "$PROJECT_ROOT"
-python "${ARGS[@]}"
+exec "$PYTHON" "${ARGS[@]}"

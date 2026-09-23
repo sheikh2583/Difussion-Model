@@ -2,8 +2,11 @@
 
 from pathlib import Path
 
+import pytest
+
 from config.config import ExperimentConfig
 from train import print_startup_summary
+from utils.algorithm_compatibility import validate_algorithm_dataset
 from utils.run_environment import add_config_hash
 
 
@@ -59,3 +62,19 @@ def test_config_hash_enrichment_does_not_mutate_environment():
     assert "config_sha256" not in original
     assert enriched["session_id"] == "same-session"
     assert len(enriched["config_sha256"]) == 64
+
+
+def test_mf_hutchinson_is_restricted_to_latent_space():
+    latent_cfg = ExperimentConfig.load(
+        str(PROJECT_ROOT / "config/mf_hutchinson_celeba_latent.json")
+    )
+    validate_algorithm_dataset("mf_hutchinson", latent_cfg)
+
+    pixel_cfg = ExperimentConfig()
+    pixel_cfg.dataset.name = "celeba"
+    with pytest.raises(ValueError, match="latent-only"):
+        validate_algorithm_dataset("mf_hutchinson", pixel_cfg)
+
+
+def test_mf_hutchinson_has_no_pixel_preset():
+    assert not (PROJECT_ROOT / "config/mf_hutchinson_celeba.json").exists()

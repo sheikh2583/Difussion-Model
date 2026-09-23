@@ -1,5 +1,5 @@
 {
-  "experiment_name": "mf_hutchinson_celeba_latent", "output_dir": "./results", "seed": 0,
+  "experiment_name": "mf_hutchinson", "output_dir": "./results", "seed": 0,
   "device": "cuda", "amp": true, "batch_size": 32, "epochs": 100,
   "checkpoint_frequency_epochs": 10,
   "dataset": {"name": "celeba_latent", "root": "./data/raw", "image_size": 16,
