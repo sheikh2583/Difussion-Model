@@ -77,3 +77,12 @@ Files already downloaded and verified
 2026-09-24 14:13:56,497 [INFO] trainer.MeanFlowAlgorithm: epoch=11 loss=0.399855 time=52.760s peak_mem=3514.9MB
 2026-09-24 14:14:46,167 [INFO] trainer.MeanFlowAlgorithm: epoch=12 loss=0.411995 time=49.669s peak_mem=3514.9MB
 2026-09-24 14:15:40,189 [INFO] trainer.MeanFlowAlgorithm: epoch=13 loss=0.434230 time=54.022s peak_mem=3514.9MB
+2026-09-24 14:16:31,303 [INFO] trainer.MeanFlowAlgorithm: epoch=14 loss=0.389021 time=51.113s peak_mem=3514.9MB
+2026-09-24 14:17:22,429 [INFO] trainer.MeanFlowAlgorithm: epoch=15 loss=0.393177 time=51.125s peak_mem=3514.9MB
+2026-09-24 14:18:14,693 [INFO] trainer.MeanFlowAlgorithm: epoch=16 loss=0.405272 time=52.264s peak_mem=3514.9MB
+2026-09-24 14:19:05,976 [INFO] trainer.MeanFlowAlgorithm: epoch=17 loss=0.395818 time=51.283s peak_mem=3514.9MB
+2026-09-24 14:19:56,009 [INFO] trainer.MeanFlowAlgorithm: epoch=18 loss=0.397225 time=50.033s peak_mem=3514.9MB
+2026-09-24 14:20:47,839 [INFO] trainer.MeanFlowAlgorithm: epoch=19 loss=0.417264 time=51.829s peak_mem=3514.9MB
+2026-09-24 14:21:39,340 [INFO] trainer.MeanFlowAlgorithm: epoch=20 loss=0.411452 time=51.501s peak_mem=3514.9MB
+2026-09-24 14:21:39,434 [INFO] trainer.MeanFlowAlgorithm: Checkpoint saved -> results/mf_v3_exact_jvp_b128_cifar10/checkpoints/run_2/MeanFlowAlgorithm_epoch20.pt
+2026-09-24 14:21:39,555 [INFO] trainer.MeanFlowAlgorithm: Checkpoint archive -> results/mf_v3_exact_jvp_b128_cifar10/checkpoints/run_2/archive/MeanFlowAlgorithm_epoch20.zip
