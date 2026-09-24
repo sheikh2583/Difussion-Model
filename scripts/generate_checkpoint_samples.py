@@ -16,13 +16,13 @@ Usage (run from project root, venv activated):
     python scripts/generate_checkpoint_samples.py --experiments fm_cifar10,mf_cifar10
 
     # Custom NFE values and sample count:
-    python scripts/generate_checkpoint_samples.py --nfe 1,5,20 --n-samples 64
+    python scripts/generate_checkpoint_samples.py --nfe 1,5,20 --seeds 0,1,2,3 --n-samples 64
 
     # Custom output root:
     python scripts/generate_checkpoint_samples.py --out-dir ./my_samples
 
 Output:
-    results/checkpoint_samples/<experiment>/epoch<NNN>_nfe<M>.png
+    results/checkpoint_samples/<experiment>/epoch<NNN>_nfe<M>_seed<S>.png
     (one 8×8 grid per checkpoint per NFE value)
 """
 
@@ -50,7 +50,6 @@ from utils.gpu_lock import DEFAULT_LOCK_PATH, acquire_gpu_lock
 RESULTS_ROOT = "./results"
 OUT_ROOT     = "./results/checkpoint_samples"
 DEVICE       = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-SEED         = 0
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +129,42 @@ def generate_grid(algorithm, nfe, n_samples, device, seed):
     return images
 
 
+def write_artifact_metadata(
+    image_path: str,
+    *,
+    experiment: str,
+    checkpoint: str,
+    dataset: str,
+    epoch: int,
+    nfe: int,
+    seed: int,
+    num_images: int,
+) -> None:
+    """Atomically publish the provenance sidecar consumed by the thesis UI."""
+    destination = Path(image_path).with_suffix(".json")
+    temporary = destination.with_suffix(".json.tmp")
+    temporary.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "artifact_type": "checkpoint_sample_grid",
+                "experiment": experiment,
+                "checkpoint": Path(checkpoint).name,
+                "dataset": dataset,
+                "epoch": epoch,
+                "nfe": nfe,
+                "seed": seed,
+                "num_images": num_images,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(destination)
+
+
 def load_latent_decoder(cfg, device):
     """Load the configured frozen codec only for latent-space experiments."""
     if cfg.dataset.name != "celeba_latent":
@@ -177,7 +212,15 @@ def infer_algorithm_cls(ckpt_dir: str):
     return None, None
 
 
-def process_run(experiment_name, results_root, out_root, nfe_values, n_samples, device):
+def process_run(
+    experiment_name,
+    results_root,
+    out_root,
+    nfe_values,
+    seeds,
+    n_samples,
+    device,
+):
     run_dir  = os.path.join(results_root, experiment_name)
     cfg_path = os.path.join(run_dir, "config.json")
     checkpoint_root = os.path.join(run_dir, "checkpoints")
@@ -238,17 +281,48 @@ def process_run(experiment_name, results_root, out_root, nfe_values, n_samples, 
             continue
 
         for nfe in nfe_values:
-            out_path = os.path.join(out_dir, f"epoch{epoch:03d}_nfe{nfe}.png")
-            if os.path.exists(out_path):
-                print(f"  [SKIP]  {ckpt_file} nfe={nfe:3d} (already exists)")
-                continue
-            try:
-                samples = generate_grid(algorithm, nfe, n_samples, device, SEED)
-                images = decode_for_display(samples, codec)
-                save_image(images, out_path, nrow=8, normalize=True, value_range=(-1, 1))
-                print(f"  [OK]    epoch={epoch:03d} nfe={nfe:3d} -> {out_path}")
-            except Exception as e:
-                print(f"  [ERROR] epoch={epoch} nfe={nfe}: {e}")
+            for seed in seeds:
+                out_path = os.path.join(
+                    out_dir, f"epoch{epoch:03d}_nfe{nfe}_seed{seed}.png"
+                )
+                if os.path.exists(out_path):
+                    write_artifact_metadata(
+                        out_path,
+                        experiment=experiment_name,
+                        checkpoint=ckpt_path,
+                        dataset=cfg.dataset.name,
+                        epoch=epoch,
+                        nfe=nfe,
+                        seed=seed,
+                        num_images=n_samples,
+                    )
+                    print(
+                        f"  [SKIP]  {ckpt_file} nfe={nfe:3d} seed={seed} "
+                        "(already exists)"
+                    )
+                    continue
+                try:
+                    samples = generate_grid(algorithm, nfe, n_samples, device, seed)
+                    images = decode_for_display(samples, codec)
+                    save_image(
+                        images, out_path, nrow=8, normalize=True, value_range=(-1, 1)
+                    )
+                    write_artifact_metadata(
+                        out_path,
+                        experiment=experiment_name,
+                        checkpoint=ckpt_path,
+                        dataset=cfg.dataset.name,
+                        epoch=epoch,
+                        nfe=nfe,
+                        seed=seed,
+                        num_images=n_samples,
+                    )
+                    print(
+                        f"  [OK]    epoch={epoch:03d} nfe={nfe:3d} seed={seed} "
+                        f"-> {out_path}"
+                    )
+                except Exception as e:
+                    print(f"  [ERROR] epoch={epoch} nfe={nfe} seed={seed}: {e}")
 
 
 def parse_args():
@@ -266,6 +340,10 @@ def parse_args():
     parser.add_argument(
         "--n-samples", type=int, default=64,
         help="Number of images per grid (default: 64, displayed as 8×8)."
+    )
+    parser.add_argument(
+        "--seeds", type=str, default="0,1,2,3",
+        help="Comma-separated non-negative generation seeds (default: 0,1,2,3)."
     )
     parser.add_argument(
         "--results-dir", type=str, default=RESULTS_ROOT,
@@ -292,6 +370,11 @@ def parse_args():
 def main(args=None):
     args = args or parse_args()
     nfe_values = [int(x) for x in args.nfe.split(",")]
+    seeds = [int(x) for x in args.seeds.split(",")]
+    if not nfe_values or any(value < 1 for value in nfe_values):
+        raise ValueError("--nfe must contain positive integers")
+    if not seeds or any(value < 0 or value > 2**32 - 1 for value in seeds):
+        raise ValueError("--seeds must contain integers between 0 and 4294967295")
 
     if args.experiments:
         experiments = [e.strip() for e in args.experiments.split(",")]
@@ -305,11 +388,20 @@ def main(args=None):
 
     print(f"Device     : {DEVICE}")
     print(f"NFE values : {nfe_values}")
+    print(f"Seeds      : {seeds}")
     print(f"Samples    : {args.n_samples} (8×8 grid)")
     print(f"Output     : {args.out_dir}/")
 
     for exp in experiments:
-        process_run(exp, args.results_dir, args.out_dir, nfe_values, args.n_samples, DEVICE)
+        process_run(
+            exp,
+            args.results_dir,
+            args.out_dir,
+            nfe_values,
+            seeds,
+            args.n_samples,
+            DEVICE,
+        )
 
     print(f"\nDone. Grids saved to {args.out_dir}/")
 

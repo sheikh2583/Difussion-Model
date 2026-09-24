@@ -9,7 +9,7 @@ $Python = Join-Path $ProjectRoot "venv\Scripts\python.exe"
 if (-not (Test-Path $Python)) { throw "Project environment not found. Run scripts\windows\init.cmd first." }
 $PixelArguments = @("scripts/generate_result_gifs.py", "--dataset", "celeba")
 $LatentArguments = @("scripts/generate_result_gifs.py", "--dataset", "celeba_latent")
-$SampleArguments = @("scripts/generate_checkpoint_samples.py", "--dataset-family", "celeba")
+$SampleArguments = @("scripts/generate_checkpoint_samples.py", "--dataset-family", "celeba", "--seeds", "0")
 Write-Host "Command: $Python $($PixelArguments -join ' ')"
 Write-Host "Command: $Python $($LatentArguments -join ' ')"
 Write-Host "Command: $Python $($SampleArguments -join ' ')"

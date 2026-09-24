@@ -15,7 +15,7 @@ for argument in "$@"; do
 done
 PIXEL_COMMAND=("$PYTHON" "$PROJECT_ROOT/scripts/generate_result_gifs.py" --dataset celeba "${ARGS[@]}")
 LATENT_COMMAND=("$PYTHON" "$PROJECT_ROOT/scripts/generate_result_gifs.py" --dataset celeba_latent "${ARGS[@]}")
-SAMPLE_COMMAND=("$PYTHON" "$PROJECT_ROOT/scripts/generate_checkpoint_samples.py" --dataset-family celeba)
+SAMPLE_COMMAND=("$PYTHON" "$PROJECT_ROOT/scripts/generate_checkpoint_samples.py" --dataset-family celeba --seeds 0)
 for command_name in PIXEL_COMMAND LATENT_COMMAND SAMPLE_COMMAND; do
     declare -n command_ref="$command_name"
     printf 'Command:'; printf ' %q' "${command_ref[@]}"; printf '\n'

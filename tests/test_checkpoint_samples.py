@@ -7,6 +7,7 @@ from scripts.generate_checkpoint_samples import (
     decode_for_display,
     discover_runs,
     load_latent_decoder,
+    write_artifact_metadata,
 )
 
 
@@ -66,3 +67,27 @@ def test_celeba_discovery_includes_pixel_and_latent_but_not_cifar(tmp_path) -> N
         "fm_celeba_latent",
     ]
     assert discover_runs(str(tmp_path), "cifar10") == ["fm_cifar10"]
+
+
+def test_artifact_metadata_records_checkpoint_and_dataset(tmp_path) -> None:
+    image = tmp_path / "epoch040_nfe20_seed7.png"
+    image.touch()
+
+    write_artifact_metadata(
+        str(image),
+        experiment="fm_celeba_latent",
+        checkpoint="/checkpoints/FlowMatchingAlgorithm_epoch40.pt",
+        dataset="celeba_latent",
+        epoch=40,
+        nfe=20,
+        seed=7,
+        num_images=64,
+    )
+
+    metadata = json.loads(image.with_suffix(".json").read_text(encoding="utf-8"))
+    assert metadata["experiment"] == "fm_celeba_latent"
+    assert metadata["checkpoint"] == "FlowMatchingAlgorithm_epoch40.pt"
+    assert metadata["dataset"] == "celeba_latent"
+    assert metadata["epoch"] == 40
+    assert metadata["nfe"] == 20
+    assert metadata["seed"] == 7

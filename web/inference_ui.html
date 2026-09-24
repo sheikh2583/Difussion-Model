@@ -1,440 +1,61 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Live inference interface for discovered CIFAR-10 and CelebA diffusion checkpoints.">
-  <title>Inference</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Interactive checkpoint explorer with training, FID, NFE, and noise-to-image playback.">
+  <title>Model Studio</title>
   <style>
-    :root {
-      --bg: #f7f9ff;
-      --surface: rgba(255,255,255,.94);
-      --ink: #17182d;
-      --muted: #6d7084;
-      --teal: #00bfc2;
-      --teal-deep: #008e94;
-      --indigo: #5c6bc0;
-      --line: #e3e6f1;
-      --shadow: 0 18px 50px rgba(50,61,116,.1);
-      --glow: 0 0 18px rgba(0,191,194,.28);
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; }
-    body { height: 100vh; overflow: hidden; color: var(--ink); background: var(--bg); font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-    body::before { content: ""; position: fixed; inset: 0 0 auto; z-index: 20; height: 3px; background: linear-gradient(90deg,var(--teal),var(--indigo)); }
-    button, select, input { font: inherit; }
-    button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid rgba(0,191,194,.25); outline-offset: 2px; }
-
-    .app { height: 100vh; display: grid; grid-template-rows: auto auto minmax(0,1fr); background-image: radial-gradient(rgba(92,107,192,.12) 1px, transparent 1px); background-size: 23px 23px; }
-    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px max(22px,calc((100vw - 1480px)/2)); border-bottom: 1px solid rgba(92,107,192,.11); background: rgba(248,249,255,.92); backdrop-filter: blur(12px); }
-    h1 { margin: 0; font-size: clamp(1.35rem,2.2vw,2.05rem); letter-spacing: -.045em; line-height: 1.08; }
-    .top-actions { display: flex; align-items: center; gap: 9px; }
-    .home-link { padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; color: var(--indigo); background: #fff; font-size: .66rem; font-weight: 800; text-decoration: none; transition: border-color 180ms ease, transform 180ms ease; }
-    .home-link:hover { border-color: var(--teal); transform: translateY(-1px); }
-
-    .algorithm-bar { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 9px 18px; background: rgba(248,249,255,.84); }
-    .algorithm-bar > span { margin-right: 5px; color: var(--muted); font-size: .63rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
-    .algorithm { position: relative; min-width: 90px; padding: 8px 16px; border: 1px solid #cfd3df; border-radius: 999px; color: var(--ink); background: #fff; font-size: .74rem; font-weight: 800; cursor: pointer; transition: all 200ms ease; }
-    .algorithm:hover { border-color: var(--teal); transform: translateY(-1px); }
-    .algorithm.active { color: #fff; border-color: var(--teal); background: var(--teal); box-shadow: var(--glow); }
-    .algorithm.unavailable { color: #9698a7; border-style: dashed; }
-    .algorithm.unavailable::after { content: "pending"; position: absolute; top: -7px; right: -4px; padding: 2px 5px; border-radius: 99px; color: #717486; background: #eceef5; font-size: .43rem; letter-spacing: .04em; }
-
-    .workspace { width: min(1480px,calc(100% - 30px)); min-height: 0; margin: 0 auto; padding-bottom: 12px; display: grid; grid-template-columns: minmax(0,1.12fr) minmax(390px,.88fr); gap: 15px; }
-    .card { position: relative; min-height: 0; overflow: hidden; border: 1px solid rgba(92,107,192,.13); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
-    .card::before { content: ""; position: absolute; inset: 0 0 auto; height: 2px; background: linear-gradient(90deg,var(--teal),transparent 65%); }
-    .card-title { margin: 0; font-size: .9rem; font-weight: 800; letter-spacing: -.02em; }
-
-    .output-panel { padding: 15px; display: grid; grid-template-rows: auto minmax(0,1fr) auto; gap: 10px; }
-    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .status { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: .61rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #adb0c0; }
-    .status.running { color: var(--teal-deep); }
-    .status.running .status-dot { background: var(--teal); box-shadow: 0 0 0 5px rgba(0,191,194,.12); animation: pulse 1s ease infinite; }
-
-    .image-stage { position: relative; min-height: 0; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: linear-gradient(145deg,#fbfcff,#eff2fa); }
-    .image-stage::before { content: ""; position: absolute; width: 56%; aspect-ratio: 1; border-radius: 50%; background: rgba(0,191,194,.09); filter: blur(60px); }
-    #noiseCanvas, #resultImage { position: relative; display: block; height: min(100%,680px); max-width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 10px; image-rendering: auto; transition: opacity 250ms ease, transform 250ms ease; }
-    #resultImage { display: none; box-shadow: 0 16px 38px rgba(30,37,78,.18); }
-    #resultImage.reveal { animation: reveal 420ms ease both; }
-    .stage-message { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 2; padding: 7px 12px; border: 1px solid rgba(255,255,255,.7); border-radius: 999px; color: #4e5268; background: rgba(255,255,255,.86); box-shadow: 0 6px 18px rgba(42,49,88,.08); font-size: .63rem; font-weight: 800; white-space: nowrap; backdrop-filter: blur(8px); }
-
-    .metadata { min-height: 31px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-    .metadata span { padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; color: #55586d; background: #fbfbfe; font-size: .59rem; font-weight: 700; }
-
-    .side { min-height: 0; display: grid; grid-template-rows: auto minmax(230px,1fr); gap: 15px; }
-    .controls { padding: 15px; }
-    .control-grid { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .field { display: grid; gap: 5px; }
-    .field.full { grid-column: 1/-1; }
-    label, .field-label { color: #5e6175; font-size: .6rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-    select, input[type="number"] { width: 100%; padding: 9px 10px; border: 1px solid #d7dae5; border-radius: 9px; color: var(--ink); background: #fff; font-size: .7rem; font-weight: 600; }
-    .seed-row { display: flex; gap: 7px; }
-    .seed-row input { flex: 1; min-width: 0; }
-    .random-button { padding: 8px 10px; border: 1px solid #d7dae5; border-radius: 9px; color: var(--indigo); background: #f7f8ff; font-size: .65rem; font-weight: 800; cursor: pointer; }
-    .nfe-options { display: flex; gap: 6px; }
-    .nfe { flex: 1; padding: 8px 7px; border: 1px solid #d5d8e3; border-radius: 9px; color: #4e5165; background: #fff; font-size: .66rem; font-weight: 800; cursor: pointer; }
-    .nfe.active { color: #fff; border-color: var(--teal); background: var(--teal); box-shadow: var(--glow); }
-    .generate { grid-column: 1/-1; padding: 11px 16px; border: 0; border-radius: 10px; color: #fff; background: linear-gradient(100deg,var(--teal),var(--indigo)); font-size: .74rem; font-weight: 800; cursor: pointer; box-shadow: 0 9px 22px rgba(0,191,194,.2); transition: transform 180ms ease, opacity 180ms ease; }
-    .generate:hover:not(:disabled) { transform: translateY(-1px); }
-    .generate:disabled { opacity: .45; cursor: not-allowed; }
-    .playback { grid-column: 1/-1; padding: 10px 16px; border: 1px solid var(--indigo); border-radius: 10px; color: var(--indigo); background: #f7f8ff; font-size: .71rem; font-weight: 800; cursor: pointer; transition: transform 180ms ease, opacity 180ms ease; }
-    .playback:hover:not(:disabled) { transform: translateY(-1px); }
-    .playback.stop { color: #b6384c; border-color: #d86a7b; background: #fff5f7; }
-    .playback:disabled { opacity: .45; cursor: not-allowed; }
-    .notice { display: none; grid-column: 1/-1; padding: 9px 10px; border: 1px dashed #c5c8d5; border-radius: 9px; color: #6f7180; background: #f2f3f7; font-size: .64rem; line-height: 1.45; }
-    .notice.visible { display: block; }
-
-    .chart-card { padding: 15px; display: grid; grid-template-rows: auto minmax(0,1fr) auto; gap: 8px; }
-    .chart-head { display: flex; align-items: end; justify-content: space-between; gap: 10px; }
-    .selected-loss { color: var(--teal-deep); text-align: right; }
-    .selected-loss strong { display: block; font-size: .95rem; }
-    .selected-loss small { font-size: .52rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-    .chart-wrap { min-height: 0; border: 1px solid var(--line); border-radius: 10px; background: #fcfcff; overflow: hidden; }
-    #lossChart { display: block; width: 100%; height: 100%; }
-    .chart-note { margin: 0; color: var(--muted); font-size: .58rem; line-height: 1.4; }
-
-    @keyframes pulse { 50% { transform: scale(.78); opacity: .72; } }
-    @keyframes reveal { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: scale(1); } }
-
-    @media (max-width: 900px) {
-      body { height: auto; min-height: 100vh; overflow: auto; }
-      .app { height: auto; min-height: 100vh; display: block; }
-      .topbar { padding: 16px; }
-      .workspace { grid-template-columns: 1fr; }
-      .output-panel { min-height: 690px; }
-      .chart-card { min-height: 390px; }
-    }
-    @media (max-width: 560px) {
-      .algorithm-bar > span { display: none; }
-      .algorithm { min-width: 72px; padding-inline: 11px; }
-      .workspace { width: calc(100% - 20px); }
-      .control-grid { grid-template-columns: 1fr; }
-      .field.full, .generate { grid-column: auto; }
-      .output-panel { min-height: 570px; }
-    }
-    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+    :root{--bg:#0b1020;--panel:#11182b;--line:#26324d;--text:#f5f7ff;--muted:#94a0bc;--cyan:#41d9d3;--violet:#8b7cff;--amber:#ffca68;--red:#ff7383}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}body{background-image:radial-gradient(circle at 10% 0,rgba(65,217,211,.09),transparent 28%),radial-gradient(circle at 95% 15%,rgba(139,124,255,.1),transparent 30%)}button,select,input{font:inherit}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+    header{height:66px;padding:0 max(20px,calc((100vw - 1500px)/2));display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);background:rgba(11,16,32,.88);backdrop-filter:blur(14px);position:sticky;top:0;z-index:5}.brand{display:flex;align-items:center;gap:12px}.mark{width:30px;height:30px;border-radius:9px;background:conic-gradient(from 40deg,var(--cyan),var(--violet),var(--cyan));box-shadow:0 0 24px rgba(65,217,211,.2)}h1{font-size:1rem;margin:0}.brand small{display:block;color:var(--muted);font-size:.67rem;margin-top:2px}.nav{display:flex;gap:14px}.nav a{color:var(--muted);font-size:.75rem;text-decoration:none}.nav a:hover{color:var(--text)}
+    main{width:min(1500px,calc(100% - 28px));margin:14px auto 28px;display:grid;grid-template-columns:minmax(500px,1.15fr) minmax(390px,.85fr);gap:14px}.panel{border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,rgba(21,30,52,.96),rgba(15,22,40,.96));box-shadow:0 18px 55px rgba(0,0,0,.22);overflow:hidden}.panel-head{padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.panel-head h2{margin:0;font-size:.8rem}.status{font-size:.67rem;color:var(--muted);display:flex;align-items:center;gap:7px}.dot{width:7px;height:7px;border-radius:50%;background:#64708b}.busy .dot{background:var(--cyan);box-shadow:0 0 0 5px rgba(65,217,211,.1);animation:pulse 1s infinite}
+    .viewer{padding:14px;display:grid;grid-template-rows:minmax(400px,calc(100vh - 255px)) auto;gap:10px}.stage{min-height:0;position:relative;display:grid;place-items:center;border-radius:13px;overflow:hidden;background:#070b16;border:1px solid #202a43}.stage img,.stage canvas{grid-area:1/1;display:block;max-width:100%;max-height:100%;object-fit:contain}.stage img{display:none}.stage-label,.frame-label{position:absolute;bottom:12px;padding:6px 9px;border:1px solid rgba(255,255,255,.12);border-radius:7px;background:rgba(7,11,22,.78);backdrop-filter:blur(8px);font-size:.65rem}.stage-label{left:12px;color:#dce2f5}.frame-label{right:12px;color:var(--cyan);font-family:ui-monospace,monospace}.timeline{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}.icon-button{border:1px solid var(--line);border-radius:8px;background:#18223a;color:var(--text);padding:7px 10px;cursor:pointer}.icon-button:disabled{opacity:.4;cursor:not-allowed}input[type=range]{accent-color:var(--cyan);width:100%}.timeline output{min-width:58px;text-align:right;color:var(--muted);font:11px ui-monospace,monospace}
+    .right{display:grid;gap:14px;align-content:start}.controls{padding:15px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:grid;gap:5px}.full{grid-column:1/-1}label{font-size:.59rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:800}select,input[type=number]{width:100%;min-width:0;border:1px solid var(--line);border-radius:9px;background:#0d1426;color:var(--text);padding:9px 10px;font-size:.72rem}select:disabled{opacity:.55}.inline{display:flex;gap:7px}.inline input{flex:1}.mini{border:1px solid var(--line);border-radius:9px;background:#18223a;color:var(--cyan);padding:0 10px;cursor:pointer}.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.primary,.secondary{border-radius:9px;padding:10px;border:1px solid var(--cyan);font-size:.7rem;font-weight:850;cursor:pointer}.primary{background:var(--cyan);color:#071317}.secondary{background:transparent;color:var(--cyan)}.primary:disabled,.secondary:disabled{opacity:.4;cursor:not-allowed}.stop{border-color:var(--red);color:var(--red)}.playback-note{margin:8px 0 0;color:var(--muted);font-size:.56rem;line-height:1.45}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}.chip{border:1px solid var(--line);border-radius:99px;padding:5px 8px;color:var(--muted);font-size:.59rem}.notice{min-height:17px;margin-top:9px;color:var(--amber);font-size:.65rem}
+    .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border-top:1px solid var(--line)}.metric{padding:11px;background:var(--panel)}.metric strong{display:block;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.metric span{font-size:.53rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.charts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}.chart{background:var(--panel);padding:13px;min-width:0}.chart-title{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}.chart h3{margin:0;font-size:.7rem}.chart-value{font-size:.62rem;color:var(--cyan)}.chart canvas{width:100%;height:150px;display:block}.hint{margin:8px 0 0;color:var(--muted);font-size:.58rem;line-height:1.4}
+    .evidence-intro{margin:0;color:var(--muted);font-size:.62rem}.evidence-action{border:1px solid var(--line);border-radius:7px;padding:6px 9px;color:var(--cyan);background:#0d1426;font-size:.58rem;cursor:pointer}.audit{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line)}.audit-item{min-width:0;padding:10px 12px;background:var(--panel)}.audit-item strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem}.audit-item span{display:block;margin-top:3px;color:var(--muted);font-size:.5rem;text-transform:uppercase;letter-spacing:.06em}.evidence-body{padding:13px}.verdict{display:flex;align-items:center;gap:8px;margin-bottom:10px}.verdict-badge{padding:5px 8px;border-radius:99px;color:#071317;background:var(--cyan);font-size:.59rem;font-weight:900;text-transform:uppercase}.verdict-badge.warn{color:#221500;background:var(--amber)}.verdict small{color:var(--muted);font-size:.6rem}.warnings{display:grid;gap:6px;margin:0;padding:0;list-style:none}.warnings li{padding:7px 9px;border-left:2px solid var(--amber);border-radius:0 7px 7px 0;background:rgba(255,202,104,.06);color:#cbd2e7;font-size:.59rem;line-height:1.4}.comparison-wrap{margin-top:12px;overflow:auto;border:1px solid var(--line);border-radius:9px}.comparison{width:100%;border-collapse:collapse;font-size:.58rem}.comparison caption{padding:8px 9px;text-align:left;color:var(--muted);background:#0d1426}.comparison th,.comparison td{padding:7px 8px;text-align:right;border-top:1px solid var(--line);white-space:nowrap}.comparison th{color:var(--muted);font-weight:700}.comparison th:first-child,.comparison td:first-child{text-align:left}.comparison tr.selected{background:rgba(65,217,211,.07)}.comparison tr.best td:nth-child(2){color:var(--cyan);font-weight:900}details{margin-top:10px;border-top:1px solid var(--line);padding-top:9px}summary{color:var(--cyan);font-size:.62rem;cursor:pointer}.method-note{color:var(--muted);font-size:.58rem;line-height:1.5}.command{display:block;max-height:70px;overflow:auto;padding:8px;border:1px solid var(--line);border-radius:7px;color:#cbd2e7;background:#090f1e;font:9px/1.45 ui-monospace,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+    @keyframes pulse{50%{opacity:.45}}@media(max-width:1000px){main{grid-template-columns:1fr}.viewer{grid-template-rows:minmax(360px,65vh) auto}}@media(max-width:560px){main{width:min(100% - 16px,1500px)}.grid,.actions,.charts{grid-template-columns:1fr}.full{grid-column:auto}.metrics{grid-template-columns:repeat(2,1fr)}.audit{grid-template-columns:repeat(2,1fr)}header{padding:0 12px}}
   </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div>
-        <h1>Inference</h1>
-      </div>
-      <div class="top-actions">
-        <a class="home-link" href="index.html">← Home</a>
-      </div>
-    </header>
-
-    <nav class="algorithm-bar" id="algorithmBar" aria-label="Choose inference algorithm">
-      <span>Select algorithm</span>
-    </nav>
-
-    <main class="workspace">
-      <section class="card output-panel">
-        <div class="panel-head">
-          <h2 class="card-title">Generated Samples</h2>
-          <div class="status" id="status"><span class="status-dot"></span><span id="statusText">Ready</span></div>
-        </div>
-        <div class="image-stage">
-          <canvas id="noiseCanvas" width="256" height="256" aria-label="Gaussian noise initialization"></canvas>
-          <img id="resultImage" alt="Generated sample grid">
-          <div class="stage-message" id="stageMessage">Input: Gaussian noise · choose Generate</div>
-        </div>
-        <div class="metadata" id="metadata"><span>No inference run yet</span></div>
-      </section>
-
-      <aside class="side">
-        <section class="card controls">
-          <h2 class="card-title">Inference Controls</h2>
-          <div class="control-grid">
-            <div class="field">
-              <label for="checkpoint">Checkpoint</label>
-              <select id="checkpoint"></select>
-            </div>
-            <div class="field">
-              <label for="imageCount">Images</label>
-              <select id="imageCount"><option value="1">1 image</option><option value="4">4 images</option><option value="16" selected>16 images</option><option value="64">64 images</option></select>
-            </div>
-            <div class="field full">
-              <span class="field-label">Function evaluations</span>
-              <div class="nfe-options" id="nfeOptions" role="group" aria-label="Number of function evaluations"></div>
-            </div>
-            <div class="field full">
-              <label for="seed">Random seed</label>
-              <div class="seed-row"><input id="seed" type="number" min="0" max="4294967295" value="0"><button class="random-button" id="randomSeed" type="button">Randomize</button></div>
-            </div>
-            <div class="notice" id="notice"></div>
-            <button class="generate" id="generateButton" type="button">Generate new samples</button>
-            <button class="playback" id="playbackButton" type="button">Play checkpoint evolution</button>
-          </div>
-        </section>
-
-        <section class="card chart-card">
-          <div class="chart-head">
-            <h2 class="card-title">Training History</h2>
-            <div class="selected-loss"><strong id="lossValue">—</strong><small id="chartEpoch">Epoch —</small></div>
-          </div>
-          <div class="chart-wrap"><canvas id="lossChart" aria-label="Training loss with selected checkpoint highlighted"></canvas></div>
-          <p class="chart-note">Historical training loss · checkpoint playback uses one fixed seed and selected NFE. Noise transitions are conceptual; displayed outputs are sampled from real checkpoints.</p>
-        </section>
-      </aside>
-    </main>
-
-  </div>
-
-  <script>
-    const state = { catalog: [], model: null, nfe: 20, busy: false, playing: false, playbackToken: 0, noiseFrame: null, chartFrame: null, chartEpoch: 0 };
-    const algorithmBar = document.getElementById("algorithmBar");
-    const checkpoint = document.getElementById("checkpoint");
-    const imageCount = document.getElementById("imageCount");
-    const seed = document.getElementById("seed");
-    const generateButton = document.getElementById("generateButton");
-    const playbackButton = document.getElementById("playbackButton");
-    const notice = document.getElementById("notice");
-    const status = document.getElementById("status");
-    const statusText = document.getElementById("statusText");
-    const noiseCanvas = document.getElementById("noiseCanvas");
-    const resultImage = document.getElementById("resultImage");
-    const stageMessage = document.getElementById("stageMessage");
-    const metadata = document.getElementById("metadata");
-    const lossChart = document.getElementById("lossChart");
-    const lossValue = document.getElementById("lossValue");
-    const chartEpoch = document.getElementById("chartEpoch");
-    const nfeOptions = document.getElementById("nfeOptions");
-    function nfeButtons() { return [...nfeOptions.querySelectorAll(".nfe")]; }
-
-    function drawNoise(animated = false) {
-      const ctx = noiseCanvas.getContext("2d");
-      const image = ctx.createImageData(noiseCanvas.width, noiseCanvas.height);
-      const phase = animated ? Date.now() * .002 : 0;
-      for (let i = 0; i < image.data.length; i += 4) {
-        const value = Math.max(0, Math.min(255, 128 + 48 * (Math.random() + Math.random() - 1) + Math.sin(i * .001 + phase) * 6));
-        image.data[i] = value * .88; image.data[i + 1] = value * 1.02; image.data[i + 2] = value * 1.08; image.data[i + 3] = 255;
-      }
-      ctx.putImageData(image, 0, 0);
-      if (animated && state.busy) state.noiseFrame = requestAnimationFrame(() => drawNoise(true));
-    }
-
-    function selectedModel() { return state.catalog.find(model => model.key === state.model); }
-
-    function setBusy(busy) {
-      state.busy = busy;
-      generateButton.disabled = busy || !selectedModel()?.available;
-      playbackButton.disabled = (!state.playing && busy) || !selectedModel()?.available;
-      checkpoint.disabled = busy || !selectedModel()?.available;
-      imageCount.disabled = busy;
-      seed.disabled = busy;
-      nfeButtons().forEach(button => button.disabled = busy);
-      status.classList.toggle("running", busy);
-      statusText.textContent = busy ? "Inferring" : "Ready";
-      generateButton.textContent = busy ? "Generating…" : "Generate new samples";
-    }
-
-    function stopPlayback() {
-      state.playing = false;
-      state.playbackToken += 1;
-      playbackButton.textContent = "Play checkpoint evolution";
-      playbackButton.classList.remove("stop");
-      if (!state.busy) statusText.textContent = "Ready";
-    }
-
-    function renderCheckpoints(model) {
-      checkpoint.replaceChildren();
-      if (!model.available) {
-        checkpoint.add(new Option("No checkpoint available", ""));
-        return;
-      }
-      [...model.epochs].reverse().forEach(epoch => checkpoint.add(new Option(`Epoch ${epoch}`, String(epoch), false, epoch === model.default_epoch)));
-    }
-
-    function renderNfeOptions(model) {
-      nfeOptions.replaceChildren();
-      const values = model.nfe_values?.length ? model.nfe_values : [1, 5, 20];
-      state.nfe = values.includes(20) ? 20 : values.at(-1);
-      values.forEach(value => {
-        const button = document.createElement("button");
-        button.className = `nfe${value === state.nfe ? " active" : ""}`;
-        button.type = "button";
-        button.dataset.nfe = String(value);
-        button.textContent = `NFE ${value}`;
-        button.setAttribute("aria-pressed", String(value === state.nfe));
-        button.addEventListener("click", () => {
-          stopPlayback();
-          state.nfe = value;
-          nfeButtons().forEach(item => {
-            const active = Number(item.dataset.nfe) === state.nfe;
-            item.classList.toggle("active", active);
-            item.setAttribute("aria-pressed", String(active));
-          });
-        });
-        nfeOptions.appendChild(button);
-      });
-    }
-
-    function selectAlgorithm(key) {
-      stopPlayback();
-      state.model = key;
-      const model = selectedModel();
-      document.querySelectorAll(".algorithm").forEach(button => {
-        const active = button.dataset.model === key;
-        button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active));
-      });
-      renderCheckpoints(model);
-      renderNfeOptions(model);
-      notice.classList.toggle("visible", !model.available);
-      notice.textContent = model.available ? "" : `${model.label} checkpoints are not available yet. The interface will enable this model when its run is added.`;
-      resultImage.style.display = "none";
-      noiseCanvas.style.display = "block";
-      drawNoise();
-      stageMessage.textContent = model.available ? "Input: Gaussian noise · ready to generate" : `${model.label} · results pending`;
-      metadata.replaceChildren(makeMeta(model.available ? `Selected · ${model.label}` : "Model unavailable"));
-      setBusy(false);
-      resetLossChart();
-    }
-
-    function makeMeta(text) { const span = document.createElement("span"); span.textContent = text; return span; }
-
-    function renderAlgorithms() {
-      state.catalog.forEach(model => {
-        const button = document.createElement("button");
-        button.type = "button"; button.className = `algorithm${model.available ? "" : " unavailable"}`;
-        button.dataset.model = model.key; button.textContent = `${model.short_label} · ${model.dataset_label}`;
-        button.setAttribute("aria-pressed", "false");
-        button.addEventListener("click", () => selectAlgorithm(model.key));
-        algorithmBar.appendChild(button);
-      });
-    }
-
-    function drawLossChart(revealEpoch = state.chartEpoch) {
-      const model = selectedModel();
-      const rows = model?.losses || [];
-      const rect = lossChart.getBoundingClientRect();
-      const ratio = Math.min(devicePixelRatio || 1, 2);
-      lossChart.width = Math.max(1, Math.round(rect.width * ratio)); lossChart.height = Math.max(1, Math.round(rect.height * ratio));
-      const ctx = lossChart.getContext("2d"); ctx.scale(ratio, ratio);
-      const width = rect.width, height = rect.height, pad = {l:42,r:15,t:15,b:27};
-      ctx.clearRect(0,0,width,height);
-      if (!rows.length) { ctx.fillStyle = "#858899"; ctx.font = "12px Inter, sans-serif"; ctx.textAlign = "center"; ctx.fillText("Training history unavailable",width/2,height/2); lossValue.textContent = "—"; chartEpoch.textContent="Epoch —"; return; }
-      const values = rows.map(row => row[1]); const minY = Math.min(...values)*.92, maxY = Math.max(...values)*1.06;
-      const maxEpoch = rows.at(-1)[0]; const epochSpan = Math.max(1, maxEpoch-1); const valueSpan = Math.max(1e-12, maxY-minY); const x = epoch => pad.l + (epoch-1)/epochSpan*(width-pad.l-pad.r); const y = value => pad.t + (1-(value-minY)/valueSpan)*(height-pad.t-pad.b);
-      ctx.font = "9px Inter, sans-serif"; ctx.fillStyle = "#7b7e91"; ctx.strokeStyle = "#e5e7f0"; ctx.lineWidth = 1; ctx.textAlign = "left";
-      [0,.5,1].forEach(f => { const py=pad.t+(height-pad.t-pad.b)*f; ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(width-pad.r,py);ctx.stroke();ctx.fillText((maxY-(maxY-minY)*f).toFixed(3),5,py+3); });
-      const selectedEpoch = Number(checkpoint.value || model.default_epoch);
-      const visibleEpoch = revealEpoch == null ? selectedEpoch : Math.min(revealEpoch, selectedEpoch);
-      const visible = rows.filter(row => row[0] <= visibleEpoch);
-      if (visible.length) {
-        const gradient = ctx.createLinearGradient(0,pad.t,0,height-pad.b);
-        gradient.addColorStop(0,"rgba(0,191,194,.22)"); gradient.addColorStop(1,"rgba(92,107,192,0)");
-        ctx.beginPath(); visible.forEach(([epoch,value],i)=>i?ctx.lineTo(x(epoch),y(value)):ctx.moveTo(x(epoch),y(value)));
-        ctx.lineTo(x(visible.at(-1)[0]),height-pad.b); ctx.lineTo(x(visible[0][0]),height-pad.b); ctx.closePath(); ctx.fillStyle=gradient; ctx.fill();
-        ctx.beginPath(); visible.forEach(([epoch,value],i)=>i?ctx.lineTo(x(epoch),y(value)):ctx.moveTo(x(epoch),y(value))); ctx.strokeStyle="#00aeb3";ctx.lineWidth=2.2;ctx.lineJoin="round";ctx.stroke();
-        const current = visible.at(-1); ctx.beginPath();ctx.arc(x(current[0]),y(current[1]),5,0,Math.PI*2);ctx.fillStyle="#5c6bc0";ctx.fill(); lossValue.textContent=current[1].toFixed(4); chartEpoch.textContent=`Epoch ${current[0]}`;
-      } else {
-        lossValue.textContent="—"; chartEpoch.textContent="Epoch —";
-      }
-      ctx.fillStyle="#777a8d";ctx.textAlign="center";[1,Math.round(maxEpoch/2),maxEpoch].forEach(epoch=>ctx.fillText(String(epoch),x(epoch),height-8));
-    }
-
-    function animateLossChart() {
-      cancelAnimationFrame(state.chartFrame);
-      const model = selectedModel();
-      const rows = model?.losses || [];
-      if (!rows.length) { state.chartEpoch=null; drawLossChart(); return; }
-      const targetEpoch = Number(checkpoint.value || model.default_epoch);
-      const firstEpoch = rows[0][0];
-      const duration = Math.min(2200, 650 + targetEpoch * 14);
-      const started = performance.now();
-      state.chartEpoch = firstEpoch;
-
-      function reveal(now) {
-        const progress = Math.min(1, (now - started) / duration);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        state.chartEpoch = Math.floor(firstEpoch + (targetEpoch - firstEpoch) * eased);
-        drawLossChart(state.chartEpoch);
-        if (progress < 1) state.chartFrame = requestAnimationFrame(reveal);
-        else { state.chartEpoch=targetEpoch; drawLossChart(targetEpoch); state.chartFrame=null; }
-      }
-      state.chartFrame = requestAnimationFrame(reveal);
-    }
-
-    function resetLossChart() {
-      cancelAnimationFrame(state.chartFrame);
-      state.chartFrame = null;
-      state.chartEpoch = 0;
-      drawLossChart(0);
-    }
-
-    async function generate(automated = false) {
-      const model = selectedModel();
-      if (!model?.available || state.busy) return false;
-      if (!automated) stopPlayback();
-      let outcome = "Ready";
-      setBusy(true);
-      animateLossChart();
-      resultImage.style.display = "none"; noiseCanvas.style.display = "block";
-      stageMessage.textContent = `Sampling from noise · ${model.label} · NFE ${state.nfe}`;
-      drawNoise(true);
-      try {
-        const response = await fetch("/api/generate", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ model:state.model, checkpoint_epoch:Number(checkpoint.value), nfe:state.nfe, num_images:Number(imageCount.value), seed:Number(seed.value) }) });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.error || "Generation failed");
-        resultImage.src = result.image; resultImage.style.display = "block"; noiseCanvas.style.display = "none";
-        resultImage.classList.remove("reveal"); void resultImage.offsetWidth; resultImage.classList.add("reveal");
-        stageMessage.textContent = `Output · ${result.num_images} generated image${result.num_images === 1 ? "" : "s"}`;
-        metadata.replaceChildren(makeMeta(result.model_label),makeMeta(`Epoch ${result.checkpoint_epoch}`),makeMeta(`NFE ${result.nfe}`),makeMeta(`Seed ${result.seed}`),makeMeta(`${result.generation_seconds}s total`),makeMeta(`${result.backbone_seconds}s backbone`),makeMeta(`${result.decoder_seconds}s decoder`),makeMeta(`${result.images_per_second} img/s`));
-        outcome = "Complete";
-      } catch (error) {
-        drawNoise(); stageMessage.textContent = error.message; metadata.replaceChildren(makeMeta("Inference failed")); outcome = "Error";
-      } finally {
-        cancelAnimationFrame(state.noiseFrame); setBusy(false); statusText.textContent = outcome;
-      }
-      return outcome === "Complete";
-    }
-
-    function wait(milliseconds) { return new Promise(resolve => setTimeout(resolve, milliseconds)); }
-
-    async function playCheckpointEvolution() {
-      if (state.playing) { stopPlayback(); return; }
-      const model = selectedModel();
-      if (!model?.available || state.busy || !model.epochs?.length) return;
-      state.playing = true;
-      const token = ++state.playbackToken;
-      playbackButton.textContent = "Stop checkpoint evolution";
-      playbackButton.classList.add("stop");
-      const epochs = [...model.epochs].sort((a,b) => a-b);
-      for (const epoch of epochs) {
-        if (!state.playing || token !== state.playbackToken || state.model !== model.key) break;
-        checkpoint.value = String(epoch);
-        resetLossChart();
-        statusText.textContent = `Playing epoch ${epoch}`;
-        const completed = await generate(true);
-        if (!completed || !state.playing || token !== state.playbackToken) break;
-        await wait(850);
-      }
-      if (token === state.playbackToken) stopPlayback();
-    }
-
-    checkpoint.addEventListener("change",()=>{ stopPlayback(); resetLossChart(); });
-    document.getElementById("randomSeed").addEventListener("click",()=>{ seed.value=crypto.getRandomValues(new Uint32Array(1))[0]; });
-    generateButton.addEventListener("click",()=>generate(false));
-    playbackButton.addEventListener("click",playCheckpointEvolution);
-    window.addEventListener("resize",()=>drawLossChart());
-
-    async function initialize() {
-      drawNoise();
-      try {
-        const response = await fetch("/api/models"); const data = await response.json();
-        state.catalog=data.models;
-        if (!state.catalog.length) throw new Error("No checkpoint runs were discovered");
-        renderAlgorithms(); const preferred=state.catalog.find(model=>model.algorithm==="fm_lognorm"&&model.dataset==="cifar10"&&model.available)||state.catalog.find(model=>model.available)||state.catalog[0];
-        selectAlgorithm(preferred.key);
-      } catch (error) {
-        stageMessage.textContent=error.message || "Start inference_server.py to connect"; generateButton.disabled=true;
-      }
-    }
-    initialize();
-  </script>
+  <header><div class="brand"><span class="mark"></span><div><h1>Model Studio</h1><small>noise-to-image generation + FID/IS explorer</small></div></div><nav class="nav"><a href="/results">Results</a><a href="/">Home</a></nav></header>
+  <main>
+    <section class="panel"><div class="panel-head"><h2>Noise → generated images</h2><div class="status" id="status"><span class="dot"></span><span id="statusText">Loading</span></div></div><div class="viewer"><div class="stage"><canvas id="noise" width="640" height="640"></canvas><img id="output" alt="Images generated from seeded noise by the selected model"><span class="stage-label" id="stageLabel">Choose a model, epoch, and NFE</span><span class="frame-label" id="frameLabel"></span></div><div class="timeline"><button class="icon-button" id="trajectoryPlay" disabled aria-label="Play noise-to-image animation">▶</button><input id="trajectoryRange" type="range" min="0" max="0" value="0" disabled aria-label="Noise-to-image animation frame"><output id="trajectoryOutput">0 / 0</output></div></div></section>
+    <aside class="right">
+      <section class="panel controls"><div class="grid">
+        <div class="field"><label for="dataset">Dataset / space</label><select id="dataset"></select></div><div class="field"><label for="backbone">Backbone</label><select id="backbone"></select></div><div class="field"><label for="algorithm">Model</label><select id="algorithm"></select></div><div class="field"><label for="run">Run</label><select id="run"></select></div><div class="field"><label for="epoch">Checkpoint epoch</label><select id="epoch"></select></div><div class="field"><label for="nfe">NFE</label><select id="nfe"></select></div><div class="field"><label for="count">Cached grid size</label><select id="count" disabled><option selected>64</option></select></div><div class="field"><label for="seed">Generation seed</label><select id="seed"><option value="0">Seed 0</option></select></div>
+      </div><div class="chips" id="chips"></div><div class="notice" id="notice"></div><div class="actions"><button class="primary" id="generate">Inference: noise → image</button><button class="secondary" id="playEpochs">Training: image → noise</button></div><p class="playback-note">Both directions use the same selected model output and seed. Training replay reverses the visual while loss, FID, and IS advance; inference plays noise to the generated result. Live replay works without using the GPU. Intermediate blending is a presentation view unless solver states were explicitly recorded.</p></section>
+      <section class="panel"><div class="metrics"><div class="metric"><strong id="mLoss">—</strong><span>Loss at epoch</span></div><div class="metric"><strong id="mFid">—</strong><span>FID ↓</span></div><div class="metric"><strong id="mIs">—</strong><span>IS ↑</span></div><div class="metric"><strong id="mTime">—</strong><span>Training time</span></div></div><div class="charts"><div class="chart"><div class="chart-title"><h3>Training loss</h3><span class="chart-value" id="lossLabel"></span></div><canvas id="lossChart"></canvas><p class="hint">Curve reveals up to the selected checkpoint.</p></div><div class="chart"><div class="chart-title"><h3>FID vs NFE</h3><span class="chart-value" id="fidLabel"></span></div><canvas id="fidChart"></canvas><p class="hint">Measured evaluations only; missing epoch/NFE cells remain empty.</p></div></div></section>
+      <section class="panel"><div class="panel-head"><div><h2>Thesis evidence</h2><p class="evidence-intro">Reconstructed from saved configuration and JSONL records</p></div><button class="evidence-action" id="copyEvidence" type="button">Copy evidence JSON</button></div><div class="audit"><div class="audit-item"><strong id="eParams">—</strong><span>Trainable parameters</span></div><div class="audit-item"><strong id="eMemory">—</strong><span>Peak training memory</span></div><div class="audit-item"><strong id="eSteps">—</strong><span>Optimization steps</span></div><div class="audit-item"><strong id="eSamples">—</strong><span>Training samples seen</span></div><div class="audit-item"><strong id="eEvalSamples">—</strong><span>FID sample count</span></div><div class="audit-item"><strong id="eSampling">—</strong><span id="eSamplingLabel">Sampling time</span></div><div class="audit-item"><strong id="eDecoder">—</strong><span>Decoder time</span></div><div class="audit-item"><strong id="eMachine">—</strong><span>Recorded machine</span></div><div class="audit-item"><strong id="eCode">—</strong><span>Code identity</span></div></div><div class="evidence-body"><div class="verdict"><span class="verdict-badge" id="verdictBadge">—</span><small id="verdictText"></small></div><ul class="warnings" id="warnings"></ul><div class="comparison-wrap"><table class="comparison"><caption id="comparisonCaption"></caption><thead><tr><th>Comparable model</th><th>FID ↓</th><th>IS ↑</th><th>Params</th><th>Train time</th></tr></thead><tbody id="comparisonBody"></tbody></table></div><details><summary>Protocol, provenance, and interpretation</summary><p class="method-note" id="protocolNote"></p><code class="command" id="recordedCommand"></code></details></div></section>
+    </aside>
+  </main>
+<script>
+const UI_SCHEMA_VERSION=8,$=id=>document.getElementById(id),ui={dataset:$("dataset"),algorithm:$("algorithm"),backbone:$("backbone"),run:$("run"),epoch:$("epoch"),nfe:$("nfe"),count:$("count"),seed:$("seed"),generate:$("generate"),playEpochs:$("playEpochs"),output:$("output"),noise:$("noise"),range:$("trajectoryRange"),play:$("trajectoryPlay")};
+const state={models:[],model:null,busy:false,epochPlaying:false,lossRevealEpoch:null,token:0,frames:[],frameTimer:null};const unique=(rows,key)=>[...new Map(rows.map(r=>[r[key],r])).values()],selected=()=>state.models.find(m=>m.key===state.model),option=(text,value)=>new Option(text,value);
+function pixelNoise(x,y,seed){let value=Math.imul(x+1,374761393)^Math.imul(y+1,668265263)^Math.imul(seed+1,69069);value=Math.imul(value^(value>>>13),1274126177);return(value^(value>>>16))&255}function drawNoise(){const c=ui.noise,ctx=c.getContext("2d"),im=ctx.createImageData(c.width,c.height),seed=(+ui.seed.value||0)>>>0;for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++){const index=(y*c.width+x)*4,value=pixelNoise(x,y,seed);im.data[index]=value;im.data[index+1]=value;im.data[index+2]=value;im.data[index+3]=255}ctx.putImageData(im,0,0);ui.noise.style.display="block";ui.noise.style.opacity="1";ui.output.style.display="none";ui.output.style.opacity="0";$("frameLabel").textContent="input · seeded noise"}
+function fill(select,items,value){select.replaceChildren(...items);if(value!=null&&[...select.options].some(o=>o.value===String(value)))select.value=String(value)}
+function cascade(level=0){let rows=state.models.filter(m=>m.available);if(level<=0){const a=unique(rows,"dataset");fill(ui.dataset,a.map(m=>option(m.dataset_label,m.dataset)),ui.dataset.value||a[0]?.dataset)}rows=rows.filter(m=>m.dataset===ui.dataset.value);if(level<=1){const a=unique(rows,"backbone_key");fill(ui.backbone,a.map(m=>option(m.backbone_label,m.backbone_key)),ui.backbone.value||a[0]?.backbone_key)}rows=rows.filter(m=>m.backbone_key===ui.backbone.value);if(level<=2){const a=unique(rows,"algorithm");fill(ui.algorithm,a.map(m=>option(m.short_label,m.algorithm)),ui.algorithm.value||a[0]?.algorithm)}rows=rows.filter(m=>m.algorithm===ui.algorithm.value);if(level<=3){fill(ui.run,rows.map(m=>option(m.key,m.key)),state.model);state.model=ui.run.value||rows[0]?.key}else state.model=ui.run.value;renderModel()}
+function renderModel(){const m=selected();if(!m)return;state.lossRevealEpoch=null;const cachedEpochs=new Set((m.cached_samples||[]).map(row=>row.epoch)),evaluatedEpochs=new Set((m.evaluations||[]).filter(row=>row.epoch!=null).map(row=>row.epoch)),defaultEpoch=[...m.epochs].reverse().find(epoch=>cachedEpochs.has(epoch))??[...m.epochs].reverse().find(epoch=>evaluatedEpochs.has(epoch))??m.default_epoch;fill(ui.epoch,[...m.epochs].reverse().map(e=>option(`Epoch ${e}`,e)),defaultEpoch);const epoch=+ui.epoch.value,cachedAtEpoch=(m.cached_samples||[]).filter(row=>row.epoch===epoch),evaluatedAtEpoch=(m.evaluations||[]).filter(row=>row.epoch===epoch),bestEvaluation=[...evaluatedAtEpoch].sort((a,b)=>a.fid-b.fid)[0],defaultNfe=cachedAtEpoch[0]?.nfe??bestEvaluation?.nfe??(m.nfe_values.includes(20)?20:m.nfe_values.at(-1));fill(ui.nfe,m.nfe_values.map(n=>option(`NFE ${n}`,n)),defaultNfe);$("chips").replaceChildren(...[m.dataset_label,m.representation,`${m.image_size}×${m.image_size}`,m.backbone_label].map(t=>{const x=document.createElement("span");x.className="chip";x.textContent=t;return x}));state.frames=[];renderFrame();drawCharts();drawNoise();updateCachedArtifactAvailability();setBusy(false)}
+function lossEpoch(){return state.lossRevealEpoch==null?Number(ui.epoch.value):state.lossRevealEpoch}function rowAtEpoch(m){const ep=lossEpoch();return [...(m.training_history||[])].filter(r=>r.epoch<=ep).at(-1)}function evalAtSelection(m){const selectedEpoch=Number(ui.epoch.value),n=Number(ui.nfe.value),rows=(m.evaluations||[]).filter(r=>r.nfe===n);if(state.lossRevealEpoch!=null){return rows.filter(r=>r.epoch==null||r.epoch<=state.lossRevealEpoch).sort((a,b)=>(a.epoch??-1)-(b.epoch??-1)).at(-1)}return rows.find(r=>r.epoch===selectedEpoch)||rows.find(r=>r.epoch==null)}function compactTime(s){if(s==null)return"—";if(s>=3600)return`${(s/3600).toFixed(1)} h`;if(s>=60)return`${(s/60).toFixed(1)} min`;return`${s.toFixed(1)} s`}
+function updateMetrics(){const m=selected();if(!m)return;const t=rowAtEpoch(m),e=evalAtSelection(m);$("mLoss").textContent=t?t.loss.toPrecision(4):"—";$("mFid").textContent=e?e.fid.toFixed(2):"—";$("mIs").textContent=e?.is_mean!=null?Number(e.is_mean).toFixed(2):"—";$("mTime").textContent=compactTime(t?.training_time);$("lossLabel").textContent=t?`epoch ${t.epoch} · ${t.loss.toPrecision(4)}`:"no data";$("fidLabel").textContent=e?`epoch ${e.epoch??"final"} · NFE ${e.nfe} · FID ${e.fid.toFixed(2)} · IS ${e.is_mean==null?"—":Number(e.is_mean).toFixed(2)}`:"not evaluated"}
+function atEpoch(m,epoch){return(m.training_history||[]).filter(r=>r.epoch<=epoch).at(-1)}function evaluationFor(m,epoch,nfe){return(m.evaluations||[]).find(r=>r.epoch===epoch&&r.nfe===nfe)||(m.evaluations||[]).find(r=>r.epoch==null&&r.nfe===nfe)}function formatCount(value){return value==null?"—":Number(value).toLocaleString()}function formatMemory(value){if(value==null)return"—";return value>=1024?`${(value/1024).toFixed(2)} GiB`:`${Number(value).toFixed(0)} MiB`}function shortIdentity(value){if(!value)return"—";return String(value).length>18?`${String(value).slice(0,14)}…`:String(value)}function setEvidence(id,text,title=text){const node=$(id);node.textContent=text;node.title=title||""}
+function renderEvidence(){const m=selected();if(!m)return;const epoch=+ui.epoch.value,nfe=+ui.nfe.value,shownEpoch=lossEpoch(),train=atEpoch(m,shownEpoch),evaluation=evaluationFor(m,epoch,nfe),sampling=(m.sampling_history||[]).find(r=>r.nfe===nfe),evidence=m.evidence||{},samplingSeconds=evaluation?.backbone_seconds??sampling?.sampling_seconds;setEvidence("eParams",formatCount(train?.trainable_parameter_count??train?.parameter_count));setEvidence("eMemory",formatMemory(train?.peak_gpu_memory_mb));setEvidence("eSteps",formatCount(train?.optimization_steps));setEvidence("eSamples",formatCount(train?.samples_seen));setEvidence("eEvalSamples",formatCount(evaluation?.num_generated_samples));setEvidence("eSampling",compactTime(samplingSeconds));$("eSamplingLabel").textContent=m.representation==="latent"?"Backbone sampling time":"Sampling time";setEvidence("eDecoder",m.representation==="latent"?compactTime(evaluation?.decoder_seconds):"n/a");const machine=(evidence.machine_labels||[]).at(-1);setEvidence("eMachine",machine?machine.replace(/^linux-|^windows-/,""):"—",machine);const code=(evidence.code_identities||[]).at(-1);setEvidence("eCode",shortIdentity(code),code);
+  const measuredAtEpoch=(m.evaluations||[]).filter(row=>row.epoch===epoch||row.epoch==null),configuredNfe=m.nfe_values||[],badge=$("verdictBadge"),verdict=$("verdictText");badge.classList.toggle("warn",!evaluation);badge.textContent=evaluation?"Measured cell":"Missing cell";verdict.textContent=evaluation?`Epoch ${epoch}, NFE ${nfe}: FID and IS come from ${formatCount(evaluation.num_generated_samples??evidence.evaluation_samples)} generated samples. ${measuredAtEpoch.length}/${configuredNfe.length} configured NFE values are recorded for this checkpoint.`:`No FID/IS record exists for epoch ${epoch} at NFE ${nfe}; the qualitative output is not a substitute.`;
+  const warnings=[];if(!evaluation)warnings.push("This selection is not quantitatively evaluated. Treat generated images as qualitative evidence only.");warnings.push("Raw training losses are objective-specific and must not be used to rank different algorithms.");warnings.push("NFE counts generative-backbone evaluations; it does not imply equal FLOPs or equal wall-clock cost across methods.");if(m.representation==="latent")warnings.push(`Latent FID includes the frozen codec boundary${evidence.codec_checkpoint?` (${evidence.codec_checkpoint})`:""}; decoder time is reported separately.`);if(evidence.mixed_code_identity)warnings.push(`This metrics history spans ${evidence.code_identities.length} code identities; provenance should be discussed before combining rows.`);if(evidence.mixed_config_identity)warnings.push(`This metrics history spans ${evidence.config_hashes.length} configuration hashes; inspect lifecycle history before claiming one uninterrupted run.`);const warningList=$("warnings");warningList.replaceChildren(...warnings.map(text=>{const li=document.createElement("li");li.textContent=text;return li}));
+  const compatible=state.models.filter(candidate=>candidate.available&&candidate.evidence?.protocol_key===evidence.protocol_key),rows=compatible.map(candidate=>({model:candidate,evaluation:evaluationFor(candidate,epoch,nfe),training:atEpoch(candidate,epoch)})).sort((a,b)=>a.evaluation?(b.evaluation?a.evaluation.fid-b.evaluation.fid:-1):(b.evaluation?1:a.model.short_label.localeCompare(b.model.short_label)));$("comparisonCaption").textContent=`Strictly compatible runs · epoch ${epoch} · NFE ${nfe} · ${compatible.length} candidate${compatible.length===1?"":"s"}`;const body=$("comparisonBody");body.replaceChildren(...rows.map((row,index)=>{const tr=document.createElement("tr");tr.classList.toggle("selected",row.model.key===m.key);tr.classList.toggle("best",index===0&&Boolean(row.evaluation));const values=[`${row.model.short_label} · ${row.model.key}`,row.evaluation?row.evaluation.fid.toFixed(2):"not measured",row.evaluation?.is_mean!=null?Number(row.evaluation.is_mean).toFixed(2):"—",formatCount(row.training?.trainable_parameter_count??row.training?.parameter_count),compactTime(row.training?.training_time)];values.forEach(value=>{const td=document.createElement("td");td.textContent=value;tr.appendChild(td)});return tr}));const configIdentity=(evidence.config_hashes||[]).at(-1);$("protocolNote").textContent=`Compatibility requires the same dataset/representation, image size, backbone signature, seed, FID sample count, and FID reference cache. Selected protocol: seed ${evidence.seed}; batch ${evidence.batch_size}; ${evidence.optimizer||"optimizer unknown"} at ${evidence.learning_rate??"unknown LR"}; AMP ${evidence.amp?"on":"off"}; FID reference ${evidence.fid_reference_cache||"unrecorded"}. Provenance: checkpoint series ${evidence.checkpoint_series||"unrecorded"}; ${evidence.session_count||0} session(s); config ${shortIdentity(configIdentity)}; source manifest ${evidence.source_manifest||"unrecorded"}. Playback reconstructs recorded history; it does not rerun training or metrics.`;const command=Array.isArray(evidence.latest_command)?evidence.latest_command.join(" "):(evidence.latest_command||"Recorded launch command unavailable for this legacy run.");$("recordedCommand").textContent=command}
+function canvasChart(canvas,rows,xKey,yKey,selectedX,color,domainRows=rows){const rect=canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2),w=rect.width,h=rect.height;canvas.width=Math.max(1,w*d);canvas.height=Math.max(1,h*d);const c=canvas.getContext("2d");c.scale(d,d);c.clearRect(0,0,w,h);if(!rows.length){c.fillStyle="#77839f";c.font="11px sans-serif";c.textAlign="center";c.fillText(domainRows===rows?"No measured data":"Waiting for epoch 1",w/2,h/2);return}const xs=domainRows.map(r=>+r[xKey]),ys=domainRows.map(r=>+r[yKey]),xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys),p={l:38,r:10,t:10,b:23},X=v=>p.l+(v-xmin)/Math.max(1,xmax-xmin)*(w-p.l-p.r),Y=v=>p.t+(1-(v-ymin)/Math.max(1e-9,ymax-ymin))*(h-p.t-p.b);c.strokeStyle="#27334d";c.fillStyle="#7f8aa5";c.font="9px sans-serif";c.textAlign="right";[0,.5,1].forEach(f=>{const y=p.t+f*(h-p.t-p.b);c.beginPath();c.moveTo(p.l,y);c.lineTo(w-p.r,y);c.stroke();c.fillText((ymax-f*(ymax-ymin)).toPrecision(3),p.l-5,y+3)});c.beginPath();rows.forEach((r,i)=>i?c.lineTo(X(r[xKey]),Y(r[yKey])):c.moveTo(X(r[xKey]),Y(r[yKey])));c.strokeStyle=color;c.lineWidth=2;c.stroke();rows.forEach(r=>{c.beginPath();c.arc(X(r[xKey]),Y(r[yKey]),+r[xKey]===selectedX?4:2.5,0,Math.PI*2);c.fillStyle=+r[xKey]===selectedX?"#ffca68":color;c.fill()});c.fillStyle="#7f8aa5";c.textAlign="center";[xmin,xmax].forEach(v=>c.fillText(String(v),X(v),h-6))}
+function drawCharts(){const m=selected();if(!m)return;const ep=+ui.epoch.value,reveal=lossEpoch(),n=+ui.nfe.value,history=m.training_history||[];canvasChart($("lossChart"),history.filter(r=>r.epoch<=reveal),"epoch","loss",reveal,"#41d9d3",history);let fidEpoch=ep;if(state.lossRevealEpoch!=null){fidEpoch=Math.max(...(m.evaluations||[]).filter(r=>r.epoch!=null&&r.epoch<=reveal).map(r=>r.epoch),-1)}let es=(m.evaluations||[]).filter(r=>r.epoch===fidEpoch);if(!es.length)es=(m.evaluations||[]).filter(r=>r.epoch==null);canvasChart($("fidChart"),es,"nfe","fid",n,"#8b7cff");updateMetrics();renderEvidence()}
+function selectedArtifact(){const m=selected(),epoch=+ui.epoch.value,nfe=+ui.nfe.value,seed=+ui.seed.value;return(m?.cached_samples||[]).find(item=>item.epoch===epoch&&item.nfe===nfe&&item.seed===seed)}function updateCachedArtifactAvailability(){const m=selected(),epoch=+ui.epoch.value,nfe=+ui.nfe.value,matching=(m?.cached_samples||[]).filter(item=>item.epoch===epoch&&item.nfe===nfe),previousSeed=+ui.seed.value,configuredSeed=+(m?.evidence?.seed??0),readySeeds=new Set(matching.map(item=>item.seed)),seeds=[...new Set([configuredSeed,0,1,2,3,...readySeeds])].sort((a,b)=>a-b);fill(ui.seed,seeds.map(seed=>option(`Seed ${seed} · ${readySeeds.has(seed)?"ready":"not generated"}`,seed)),seeds.includes(previousSeed)?previousSeed:configuredSeed);const artifact=selectedArtifact();if(artifact){if(artifact.num_images){fill(ui.count,[option(String(artifact.num_images),artifact.num_images)],artifact.num_images)}$("notice").textContent=`Generated samples ready · ${artifact.dataset} · epoch ${artifact.epoch} · NFE ${artifact.nfe} · seed ${artifact.seed}.`;$("stageLabel").textContent="Seeded noise → generated samples · ready to play"}else if(m){fill(ui.count,[option("not generated","unknown")],"unknown");$("notice").textContent=`No saved images for epoch ${epoch}, NFE ${nfe}, seed ${ui.seed.value}. Click inference for the preparation command; FID/IS playback still works.`;$("stageLabel").textContent="Generated sample grid unavailable for this exact selection"}ui.generate.disabled=state.busy}
+function setBusy(v,label){state.busy=v;$("status").classList.toggle("busy",v);$("statusText").textContent=label||(v?"Playing":"Ready · cached artifacts only");ui.generate.disabled=v;ui.playEpochs.disabled=v&&!state.epochPlaying;[ui.dataset,ui.algorithm,ui.backbone,ui.run,ui.epoch,ui.nfe,ui.seed].forEach(x=>x.disabled=v)}
+function renderBlend(progress,label){drawNoise();ui.output.style.display="block";ui.output.style.opacity=String(progress);ui.noise.style.opacity=String(1-progress);$("frameLabel").textContent=label}function renderFrame(index=+ui.range.value){clearTimeout(state.frameTimer);if(!state.frames.length){ui.range.max=0;ui.range.value=0;ui.range.disabled=true;ui.play.disabled=true;$("trajectoryOutput").textContent="0 / 0";return}index=Math.max(0,Math.min(index,state.frames.length-1));ui.range.value=index;ui.range.max=state.frames.length-1;ui.range.disabled=false;ui.play.disabled=false;const f=state.frames[index];renderBlend(f.progress,f.progress===1?"generated image":f.progress===0?"seeded noise":`inference view · ${Math.round(f.progress*100)}% image`);$('trajectoryOutput').textContent=`${index+1} / ${state.frames.length}`}
+function playTrajectory(){if(ui.play.textContent==="■"){clearTimeout(state.frameTimer);ui.play.textContent="▶";return}if(!state.frames.length)return;ui.play.textContent="■";let i=0;const next=()=>{renderFrame(i++);if(i<state.frames.length)state.frameTimer=setTimeout(next,260);else ui.play.textContent="▶"};next()}
+function loadArtifactImage(artifact){const source=`${artifact.url}&ui=${UI_SCHEMA_VERSION}`;return new Promise((resolve,reject)=>{if(ui.output.dataset.source===source&&ui.output.complete&&ui.output.naturalWidth){resolve();return}ui.output.onload=()=>{ui.output.dataset.source=source;resolve()};ui.output.onerror=reject;ui.output.src=source})}
+async function replayCachedArtifact(){const m=selected(),artifact=selectedArtifact();if(!m||state.busy)return;if(!artifact){$("notice").textContent=`Output missing. Run: ./scripts/linux/generate_inference_outputs.sh --experiments ${m.key} --nfe ${ui.nfe.value} --seeds ${ui.seed.value}`;$("stageLabel").textContent="Prepare this selection once, then replay uses no GPU";return}state.epochPlaying=false;const token=++state.token;clearTimeout(state.frameTimer);ui.play.textContent="▶";setBusy(true,"Loading generated samples");try{await loadArtifactImage(artifact);if(token!==state.token)return;state.frames=Array.from({length:12},(_,index)=>({progress:index/11}));$("notice").textContent=`Inference replay · ${m.short_label} · seed ${artifact.seed} · NFE ${artifact.nfe} · FID and IS shown alongside.`;$("stageLabel").textContent=`Inference: noise → generated image · epoch ${artifact.epoch} · NFE ${artifact.nfe} · seed ${artifact.seed}`;setBusy(false,"Inference replay");renderFrame(0);playTrajectory()}catch(error){setBusy(false,"Output unavailable");$("notice").textContent="The saved generated-image grid could not be loaded; no fallback image was fabricated.";state.frames=[];renderFrame()}}
+async function animateEpochs(){if(state.epochPlaying){state.epochPlaying=false;state.token++;state.lossRevealEpoch=null;ui.playEpochs.textContent="Training: image → noise";ui.playEpochs.classList.remove("stop");setBusy(false,"Playback stopped");drawCharts();updateCachedArtifactAvailability();return}const m=selected();if(!m)return;const history=m.training_history||[],checkpoints=new Set(m.epochs||[]),artifact=selectedArtifact();if(!history.length){$("notice").textContent="Recorded training history is unavailable for this run.";return}state.epochPlaying=true;state.lossRevealEpoch=0;const token=++state.token,delay=Math.max(18,Math.min(70,4000/history.length));ui.playEpochs.textContent="Stop training playback";ui.playEpochs.classList.add("stop");setBusy(true,"Training epoch 0");if(artifact){try{await loadArtifactImage(artifact)}catch(error){$("notice").textContent="Training metrics will play, but the saved image could not be loaded."}}if(token!==state.token)return;$("stageLabel").textContent=artifact?"Training view: image → noise · loss, FID, and IS advance":"Training metrics playback · generated image unavailable";drawCharts();await new Promise(r=>setTimeout(r,250));for(const [index,row] of history.entries()){if(!state.epochPlaying||token!==state.token)break;state.lossRevealEpoch=row.epoch;setBusy(true,`Training epoch ${row.epoch}`);if(checkpoints.has(row.epoch))ui.epoch.value=String(row.epoch);if(artifact){const progress=1-index/Math.max(1,history.length-1);renderBlend(progress,progress===0?"seeded noise":`training view · epoch ${row.epoch} · ${Math.round(progress*100)}% image`)}drawCharts();await new Promise(r=>setTimeout(r,delay))}if(token===state.token){state.epochPlaying=false;state.lossRevealEpoch=null;ui.playEpochs.textContent="Training: image → noise";ui.playEpochs.classList.remove("stop");setBusy(false,"Training replay complete");drawCharts();updateCachedArtifactAvailability()}}
+async function copyEvidence(){const m=selected();if(!m)return;const epoch=+ui.epoch.value,nfe=+ui.nfe.value,payload={exported_at:new Date().toISOString(),selection:{run:m.key,dataset:m.dataset,representation:m.representation,algorithm:m.algorithm,backbone:m.backbone_label,checkpoint_epoch:epoch,nfe,seed:+ui.seed.value},training:atEpoch(m,epoch)||null,evaluation:evaluationFor(m,epoch,nfe)||null,sampling:(m.sampling_history||[]).find(row=>row.nfe===nfe)||null,cached_output:selectedArtifact()||null,provenance:m.evidence,strictly_compatible_runs:state.models.filter(candidate=>candidate.evidence?.protocol_key===m.evidence?.protocol_key).map(candidate=>candidate.key)};const button=$("copyEvidence");try{await navigator.clipboard.writeText(JSON.stringify(payload,null,2));button.textContent="Copied";setTimeout(()=>button.textContent="Copy evidence JSON",1400)}catch(error){$("notice").textContent=`Could not copy evidence: ${error.message}`}}
+ui.dataset.onchange=()=>cascade(1);ui.backbone.onchange=()=>cascade(2);ui.algorithm.onchange=()=>cascade(3);ui.run.onchange=()=>cascade(4);ui.epoch.onchange=()=>{state.lossRevealEpoch=null;state.frames=[];drawCharts();drawNoise();updateCachedArtifactAvailability()};ui.nfe.onchange=()=>{state.frames=[];drawCharts();drawNoise();updateCachedArtifactAvailability()};ui.seed.onchange=()=>{state.frames=[];drawNoise();updateCachedArtifactAvailability()};ui.range.oninput=()=>renderFrame();ui.play.onclick=playTrajectory;ui.generate.onclick=replayCachedArtifact;ui.playEpochs.onclick=animateEpochs;window.onresize=drawCharts;
+$('copyEvidence').onclick=copyEvidence;
+async function init(){drawNoise();try{const r=await fetch("/api/models");if(!r.ok)throw new Error("Could not load result catalog");const data=await r.json();if(data.ui_schema_version!==UI_SCHEMA_VERSION)throw new Error("UI/server version mismatch. Hard-refresh this page (Ctrl+Shift+R).");state.models=data.models;if(!state.models.some(m=>m.available))throw new Error("No compatible recorded runs found");const score=m=>(m.cached_samples?.length?1e9:0)+(m.dataset==="celeba"?1e6:m.dataset==="celeba_latent"?5e5:0)+(m.evaluations?.filter(row=>row.is_mean!=null).length||0)*1000-(m.best_fid??1e4);state.models.sort((a,b)=>score(b)-score(a));state.model=state.models.find(m=>m.available)?.key;cascade(0);setBusy(false,"Ready · browser only")}catch(e){$("notice").textContent=e.message;setBusy(false,"Offline");ui.generate.disabled=true;ui.playEpochs.disabled=true}}init();
+</script>
 </body>
 </html>

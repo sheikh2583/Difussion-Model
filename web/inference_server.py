@@ -26,7 +26,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Type
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 import torch
 from torchvision.utils import save_image
@@ -37,7 +37,13 @@ from config.config import ExperimentConfig
 from models.backbone import build_backbone
 from utils.checkpoints import load_algorithm_state
 from utils.checkpoint_runs import latest_checkpoint_run_directory
-from utils.gpu_lock import GpuLockError, acquire_gpu_lock
+from utils.gpu_lock import (
+    DEFAULT_LOCK_PATH,
+    GpuLockError,
+    acquire_gpu_lock,
+    owner_is_active,
+    read_lock,
+)
 
 
 WEB_ROOT = Path(__file__).resolve().parent
@@ -52,6 +58,10 @@ PAGE_PATHS = {
 }
 MAX_REQUEST_BYTES = 64 * 1024
 MAX_IMAGES = 64
+MAX_TRAJECTORY_IMAGES = 16
+MAX_TRAJECTORY_FRAMES = 12
+UI_SCHEMA_VERSION = 8
+CACHED_SAMPLE_NAME = re.compile(r"^epoch(\d+)_nfe(\d+)(?:_seed(\d+))?\.png$")
 
 
 @dataclass(frozen=True)
@@ -66,6 +76,8 @@ class ModelSpec:
     dataset_label: str
     image_size: int
     nfe_values: tuple[int, ...]
+    backbone: dict
+    raw_config: dict
 
     @property
     def config_path(self) -> Path:
@@ -127,6 +139,20 @@ def decode_samples_for_display(samples, codec=None, batch_size: int = 32):
             f"got shape {tuple(images.shape)}"
         )
     return images
+
+
+def encode_image_grid(images: torch.Tensor, count: int) -> str:
+    buffer = io.BytesIO()
+    save_image(
+        images,
+        buffer,
+        format="png",
+        nrow=max(1, math.ceil(math.sqrt(count))),
+        normalize=True,
+        value_range=(-1, 1),
+        padding=2,
+    )
+    return f"data:image/png;base64,{base64.b64encode(buffer.getvalue()).decode('ascii')}"
 
 
 def _infer_algo_cls_from_ckpt_dir(ckpt_dir: Path):
@@ -202,6 +228,8 @@ def build_model_specs(results_root: Path) -> dict[str, "ModelSpec"]:
             dataset_label=dataset_label,
             image_size=int(dataset_config.get("image_size", 0) or 0),
             nfe_values=nfe_values,
+            backbone=dict(raw_config.get("backbone", {})),
+            raw_config=raw_config,
         )
 
     return specs
@@ -224,29 +252,62 @@ def checkpoint_map(spec: ModelSpec) -> dict[int, Path]:
     return dict(sorted(checkpoints.items()))
 
 
-def training_losses(spec: ModelSpec) -> list[list[float]]:
+def cached_sample_artifacts(spec: ModelSpec) -> list[dict]:
+    """Discover provenance-validated grids without opening model weights."""
+    artifact_root = spec.run_directory.parent / "checkpoint_samples" / spec.key
+    if not artifact_root.is_dir():
+        return []
+    checkpoints = checkpoint_map(spec)
+    artifacts: list[dict] = []
+    for path in sorted(artifact_root.glob("*.png")):
+        match = CACHED_SAMPLE_NAME.match(path.name)
+        if not match:
+            continue
+        epoch, nfe = int(match.group(1)), int(match.group(2))
+        filename_seed = int(match.group(3) or 0)
+        metadata_path = path.with_suffix(".json")
+        if not metadata_path.is_file():
+            continue
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        checkpoint = checkpoints.get(epoch)
+        if not (
+            isinstance(metadata, dict)
+            and metadata.get("artifact_type") == "checkpoint_sample_grid"
+            and metadata.get("experiment") == spec.key
+            and metadata.get("dataset") == spec.dataset
+            and metadata.get("epoch") == epoch
+            and metadata.get("nfe") == nfe
+            and metadata.get("seed", 0) == filename_seed
+            and checkpoint is not None
+            and metadata.get("checkpoint") == checkpoint.name
+        ):
+            continue
+        artifacts.append(
+            {
+                "epoch": epoch,
+                "nfe": nfe,
+                "seed": filename_seed,
+                "num_images": metadata.get("num_images"),
+                "checkpoint": checkpoint.name,
+                "dataset": spec.dataset,
+                "source": "checkpoint_cache",
+                "url": (
+                    f"/api/cached-sample?model={quote(spec.key)}"
+                    f"&epoch={epoch}&nfe={nfe}&seed={filename_seed}"
+                ),
+            }
+        )
+    return artifacts
+
+
+def metric_records(spec: ModelSpec) -> list[dict]:
+    """Read valid JSONL rows, tolerating a partially-written final line."""
     if not spec.metrics_path.is_file():
         return []
-    latest: dict[int, float] = {}
-    with spec.metrics_path.open("r", encoding="utf-8") as file:
-        for line in file:
-            if not line.strip():
-                continue
-            record = json.loads(line)
-            if (
-                record.get("record_type") == "train_epoch"
-                and record.get("epoch") is not None
-                and record.get("loss") is not None
-            ):
-                latest[int(record["epoch"])] = float(record["loss"])
-    return [[epoch, latest[epoch]] for epoch in sorted(latest)]
-
-
-def evaluation_summary(spec: ModelSpec) -> dict:
-    """Summarize completed evaluation rows without touching checkpoints."""
-    if not spec.metrics_path.is_file():
-        return {"evaluation_count": 0, "best_fid": None, "best_fid_nfe": None}
-    evaluations: list[dict] = []
+    records: list[dict] = []
     with spec.metrics_path.open("r", encoding="utf-8") as file:
         for line in file:
             if not line.strip():
@@ -255,8 +316,161 @@ def evaluation_summary(spec: ModelSpec) -> dict:
                 record = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if record.get("record_type") == "evaluation" and record.get("fid") is not None:
-                evaluations.append(record)
+            if isinstance(record, dict):
+                records.append(record)
+    return records
+
+
+def training_history(spec: ModelSpec, records: list[dict] | None = None) -> list[dict]:
+    rows: dict[int, dict] = {}
+    for record in metric_records(spec) if records is None else records:
+        if (
+            record.get("record_type") == "train_epoch"
+            and record.get("epoch") is not None
+            and record.get("loss") is not None
+        ):
+            epoch = int(record["epoch"])
+            rows[epoch] = {
+                "epoch": epoch,
+                "loss": float(record["loss"]),
+                "training_time": record.get("training_time"),
+                "time_per_epoch": record.get("time_per_epoch"),
+                "samples_seen": record.get("samples_seen"),
+                "optimization_steps": record.get("optimization_steps"),
+                "peak_gpu_memory_mb": record.get("peak_gpu_memory"),
+                "parameter_count": record.get("parameter_count"),
+                "trainable_parameter_count": record.get("trainable_parameter_count"),
+                "algorithm_extra_parameter_count": record.get(
+                    "algorithm_extra_parameter_count"
+                ),
+            }
+    return [rows[epoch] for epoch in sorted(rows)]
+
+
+def training_losses(spec: ModelSpec) -> list[list[float]]:
+    return [[row["epoch"], row["loss"]] for row in training_history(spec)]
+
+
+def _evaluation_epoch(record: dict) -> int | None:
+    if record.get("epoch") is not None:
+        return int(record["epoch"])
+    match = re.search(r"_epoch(\d+)\.pt$", str(record.get("checkpoint_path") or ""))
+    return int(match.group(1)) if match else None
+
+
+def evaluation_history(spec: ModelSpec, records: list[dict] | None = None) -> list[dict]:
+    """Return the latest evaluation for each checkpoint epoch and NFE."""
+    latest: dict[tuple[int | None, int], dict] = {}
+    for record in metric_records(spec) if records is None else records:
+        if record.get("record_type") != "evaluation" or record.get("fid") is None:
+            continue
+        nfe = int(record.get("nfe") or 0)
+        if nfe < 1:
+            continue
+        epoch = _evaluation_epoch(record)
+        latest[(epoch, nfe)] = {
+            "epoch": epoch,
+            "nfe": nfe,
+            "fid": float(record["fid"]),
+            "is_mean": record.get("is_mean"),
+            "is_std": record.get("is_std"),
+            "num_generated_samples": record.get("num_generated_samples"),
+            "backbone_seconds": record.get("backbone_sampling_time"),
+            "decoder_seconds": record.get("decoder_time"),
+        }
+    return sorted(
+        latest.values(),
+        key=lambda row: (row["epoch"] is None, row["epoch"] or 0, row["nfe"]),
+    )
+
+
+def sampling_history(spec: ModelSpec, records: list[dict] | None = None) -> list[dict]:
+    """Return latest measured sampler timing for each NFE."""
+    latest: dict[int, dict] = {}
+    for record in metric_records(spec) if records is None else records:
+        if record.get("record_type") != "sampling" or record.get("nfe") is None:
+            continue
+        nfe = int(record["nfe"])
+        latest[nfe] = {
+            "nfe": nfe,
+            "sampling_seconds": record.get("sampling_time"),
+            "time_per_image": record.get("time_per_image"),
+            "images_per_second": record.get("images_per_second"),
+            "peak_gpu_memory_mb": record.get("peak_gpu_memory"),
+        }
+    return [latest[nfe] for nfe in sorted(latest)]
+
+
+def evidence_metadata(spec: ModelSpec, records: list[dict] | None = None) -> dict:
+    """Reconstruct configuration and provenance facts used by the demo."""
+    records = metric_records(spec) if records is None else records
+    config = spec.raw_config
+    evaluation = config.get("evaluation", {})
+    dataset = config.get("dataset", {})
+    optimizer = config.get("optim", {})
+
+    def distinct(field: str) -> list:
+        return list(dict.fromkeys(row[field] for row in records if row.get(field) is not None))
+
+    code_identities = distinct("code_identity")
+    machine_labels = distinct("machine_label")
+    session_ids = distinct("session_id")
+    config_hashes = distinct("config_sha256")
+    source_identities = distinct("source_identity_sha256")
+    latest_command = next(
+        (row.get("command") for row in reversed(records) if row.get("command")), None
+    )
+    source_manifest = next(
+        (
+            row.get("source_manifest")
+            for row in reversed(records)
+            if row.get("source_manifest")
+        ),
+        None,
+    )
+    checkpoint_series = latest_checkpoint_run_directory(spec.run_directory)
+    fid_cache = str(evaluation.get("fid_reference_cache", ""))
+    codec_checkpoint = str(dataset.get("codec_checkpoint", ""))
+    backbone_key, _ = backbone_identity(spec)
+    protocol_parts = (
+        spec.dataset,
+        spec.image_size,
+        backbone_key,
+        config.get("seed", 0),
+        evaluation.get("num_generated_samples"),
+        fid_cache,
+    )
+    return {
+        "seed": config.get("seed", 0),
+        "amp": bool(config.get("amp", True)),
+        "batch_size": config.get("batch_size"),
+        "configured_epochs": config.get("epochs"),
+        "checkpoint_frequency_epochs": config.get("checkpoint_frequency_epochs"),
+        "optimizer": optimizer.get("optimizer"),
+        "learning_rate": optimizer.get("learning_rate"),
+        "weight_decay": optimizer.get("weight_decay"),
+        "gradient_clip_norm": optimizer.get("gradient_clip_norm"),
+        "evaluation_samples": evaluation.get("num_generated_samples"),
+        "evaluation_frequency_epochs": evaluation.get("eval_frequency_epochs"),
+        "fid_reference_cache": Path(fid_cache).name if fid_cache else None,
+        "codec_checkpoint": Path(codec_checkpoint).name if codec_checkpoint else None,
+        "checkpoint_series": checkpoint_series.name if checkpoint_series else None,
+        "code_identities": code_identities,
+        "machine_labels": machine_labels,
+        "session_count": len(session_ids),
+        "config_hashes": config_hashes,
+        "source_identities": source_identities,
+        "latest_command": latest_command,
+        "source_manifest": Path(source_manifest).name if source_manifest else None,
+        "mixed_code_identity": len(code_identities) > 1,
+        "mixed_config_identity": len(config_hashes) > 1,
+        "protocol_key": json.dumps(protocol_parts, separators=(",", ":")),
+    }
+
+
+def evaluation_summary(spec: ModelSpec, records: list[dict] | None = None) -> dict:
+    """Summarize completed evaluation rows without touching checkpoints."""
+    evaluations = evaluation_history(spec, records)
     if not evaluations:
         return {"evaluation_count": 0, "best_fid": None, "best_fid_nfe": None}
     best = min(evaluations, key=lambda row: float(row["fid"]))
@@ -268,11 +482,35 @@ def evaluation_summary(spec: ModelSpec) -> dict:
     }
 
 
+def backbone_identity(spec: ModelSpec) -> tuple[str, str]:
+    config = spec.backbone
+    name = str(config.get("name", "unknown"))
+    multipliers = "×".join(str(value) for value in config.get("channel_mults", []))
+    key = ":".join(
+        str(value)
+        for value in (
+            name,
+            config.get("in_channels", "?"),
+            config.get("base_channels", "?"),
+            multipliers,
+            config.get("num_res_blocks", "?"),
+        )
+    )
+    label = f"{name} · C{config.get('base_channels', '?')} · [{multipliers or '?'}]"
+    return key, label
+
+
 def model_catalog() -> list[dict]:
     catalog = []
     for spec in MODEL_SPECS.values():
         checkpoints = checkpoint_map(spec)
-        losses = training_losses(spec)
+        records = metric_records(spec)
+        history = training_history(spec, records)
+        losses = [[row["epoch"], row["loss"]] for row in history]
+        evaluations = evaluation_history(spec, records)
+        samplings = sampling_history(spec, records)
+        cached_samples = cached_sample_artifacts(spec)
+        backbone_key, backbone_label = backbone_identity(spec)
         catalog.append(
             {
                 "key": spec.key,
@@ -291,9 +529,17 @@ def model_catalog() -> list[dict]:
                 "epochs": list(checkpoints),
                 "default_epoch": max(checkpoints) if checkpoints else None,
                 "nfe_values": list(spec.nfe_values),
+                "backbone_key": backbone_key,
+                "backbone_label": backbone_label,
+                "backbone": spec.backbone,
                 "losses": losses,
+                "training_history": history,
+                "evaluations": evaluations,
+                "sampling_history": samplings,
+                "cached_samples": cached_samples,
+                "evidence": evidence_metadata(spec, records),
                 "latest_loss": losses[-1][1] if losses else None,
-                **evaluation_summary(spec),
+                **evaluation_summary(spec, records),
             }
         )
     return catalog
@@ -368,7 +614,13 @@ class InferenceRuntime:
         return algorithm, time.perf_counter() - started
 
     def generate(
-        self, model_key: str, epoch: int, nfe: int, count: int, seed: int
+        self,
+        model_key: str,
+        epoch: int,
+        nfe: int,
+        count: int,
+        seed: int,
+        include_trajectory: bool = False,
     ) -> dict:
         if model_key not in MODEL_SPECS:
             raise ValueError(f"Unknown model: {model_key}")
@@ -376,6 +628,10 @@ class InferenceRuntime:
             raise ValueError("NFE must be between 1 and 100")
         if count < 1 or count > MAX_IMAGES:
             raise ValueError(f"Image count must be between 1 and {MAX_IMAGES}")
+        if include_trajectory and count > MAX_TRAJECTORY_IMAGES:
+            raise ValueError(
+                f"Trajectory playback supports at most {MAX_TRAJECTORY_IMAGES} images"
+            )
         if seed < 0 or seed > 2**32 - 1:
             raise ValueError("Seed must be between 0 and 4294967295")
 
@@ -391,8 +647,26 @@ class InferenceRuntime:
                     torch.cuda.synchronize()
 
                 started = time.perf_counter()
+                captured_states: list[torch.Tensor] = []
+                capture_handle = None
+                if include_trajectory:
+                    sampling_model = getattr(algorithm, "ema_model", None) or algorithm.model
+                    capture_module = getattr(sampling_model, "in_conv", sampling_model)
+
+                    def capture_input(_module, inputs):
+                        if inputs and isinstance(inputs[0], torch.Tensor):
+                            # Keep the small, bounded trajectory on-device while
+                            # sampling so a GPU→CPU synchronization is not forced
+                            # after every function evaluation.
+                            captured_states.append(inputs[0].detach().clone())
+
+                    capture_handle = capture_module.register_forward_pre_hook(capture_input)
                 with torch.inference_mode():
-                    samples = algorithm.sample(count, nfe, self.device)
+                    try:
+                        samples = algorithm.sample(count, nfe, self.device)
+                    finally:
+                        if capture_handle is not None:
+                            capture_handle.remove()
                 if self.device.type == "cuda":
                     torch.cuda.synchronize()
                 backbone_seconds = time.perf_counter() - started
@@ -404,20 +678,40 @@ class InferenceRuntime:
                 decoder_seconds = time.perf_counter() - decode_started
                 generation_seconds = backbone_seconds + decoder_seconds
 
-            buffer = io.BytesIO()
-            save_image(
-                images,
-                buffer,
-                format="png",
-                nrow=max(1, math.ceil(math.sqrt(count))),
-                normalize=True,
-                value_range=(-1, 1),
-                padding=2,
-            )
-            encoded_image = base64.b64encode(buffer.getvalue()).decode("ascii")
+            encoded_image = encode_image_grid(images, count)
+            trajectory: list[dict] = []
+            if include_trajectory:
+                captured_states.append(samples.detach())
+                if captured_states:
+                    frame_count = min(MAX_TRAJECTORY_FRAMES, len(captured_states))
+                    indices = sorted(
+                        {
+                            round(index * (len(captured_states) - 1) / max(frame_count - 1, 1))
+                            for index in range(frame_count)
+                        }
+                    )
+                    for state_index in indices:
+                        if state_index == len(captured_states) - 1:
+                            frame_image = encoded_image
+                        else:
+                            display_state = captured_states[state_index]
+                            if self.codec is not None:
+                                display_state = display_state.to(self.device)
+                            decoded = decode_samples_for_display(
+                                display_state, self.codec
+                            )
+                            frame_image = encode_image_grid(decoded, count)
+                        trajectory.append(
+                            {
+                                "step": min(state_index, nfe),
+                                "progress": round(state_index / max(nfe, 1), 4),
+                                "image": frame_image,
+                            }
+                        )
 
         return {
-            "image": f"data:image/png;base64,{encoded_image}",
+            "image": encoded_image,
+            "trajectory": trajectory,
             "model": model_key,
             "model_label": spec.label,
             "checkpoint_epoch": epoch,
@@ -433,7 +727,42 @@ class InferenceRuntime:
         }
 
 
-RUNTIME = InferenceRuntime()
+# The thesis studio is intentionally read-only.  Keeping the runtime class
+# available preserves import compatibility for focused CPU tests, but no
+# runtime is instantiated and no model/checkpoint path is callable by HTTP.
+RUNTIME: InferenceRuntime | None = None
+
+
+def inference_availability(lock_path: Path | str = DEFAULT_LOCK_PATH) -> dict:
+    """Return sanitized, read-only inference availability for the browser."""
+    requested = Path(lock_path).expanduser()
+    resolved = (
+        requested if requested.is_absolute() else PROJECT_ROOT / requested
+    ).resolve()
+    if not resolved.exists():
+        return {"available": True, "status": "available"}
+    try:
+        payload = read_lock(resolved)
+        active = owner_is_active(payload)
+    except GpuLockError:
+        return {
+            "available": False,
+            "status": "unreadable_lock",
+            "message": "The project GPU lock requires operator inspection.",
+        }
+    return {
+        "available": False,
+        "status": "active" if active else "stale",
+        "pid": payload.get("pid"),
+        "hostname": payload.get("hostname"),
+        "command": payload.get("command"),
+        "acquired_utc": payload.get("acquired_utc"),
+        "message": (
+            "Another project workflow is using the GPU."
+            if active
+            else "A stale GPU lock requires explicit operator recovery."
+        ),
+    }
 
 
 class InferenceHandler(BaseHTTPRequestHandler):
@@ -445,6 +774,7 @@ class InferenceHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Thesis-UI-Version", str(UI_SCHEMA_VERSION))
         self.end_headers()
         self.wfile.write(body)
 
@@ -457,58 +787,96 @@ class InferenceHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Thesis-UI-Version", str(UI_SCHEMA_VERSION))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_cached_sample(self, query: str) -> None:
+        parameters = parse_qs(query)
+        model_key = parameters.get("model", [""])[0]
+        try:
+            epoch = int(parameters.get("epoch", [""])[0])
+            nfe = int(parameters.get("nfe", [""])[0])
+            seed = int(parameters.get("seed", ["0"])[0])
+        except ValueError:
+            self.send_error(HTTPStatus.BAD_REQUEST, "Invalid cached-sample selection")
+            return
+        spec = MODEL_SPECS.get(model_key)
+        if spec is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        artifact = next(
+            (
+                item
+                for item in cached_sample_artifacts(spec)
+                if item["epoch"] == epoch
+                and item["nfe"] == nfe
+                and item["seed"] == seed
+            ),
+            None,
+        )
+        if artifact is None:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        artifact_root = spec.run_directory.parent / "checkpoint_samples" / spec.key
+        path = artifact_root / f"epoch{epoch:03d}_nfe{nfe}_seed{seed}.png"
+        if not path.is_file() and seed == 0:
+            path = artifact_root / f"epoch{epoch:03d}_nfe{nfe}.png"
+        if not path.is_file() or path.resolve().parent != artifact_root.resolve():
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        body = path.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "image/png")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Thesis-UI-Version", str(UI_SCHEMA_VERSION))
         self.end_headers()
         self.wfile.write(body)
 
     def do_GET(self) -> None:
-        request_path = urlsplit(self.path).path
+        request = urlsplit(self.path)
+        request_path = request.path
         if request_path in PAGE_PATHS:
             self._send_html(PAGE_PATHS[request_path])
         elif request_path == "/api/models":
             self._send_json(
                 {
                     "models": model_catalog(),
-                    "device": str(RUNTIME.device),
                     "max_images": MAX_IMAGES,
+                    "mode": "read_only_reconstruction",
+                    "live_inference": False,
+                    "ui_schema_version": UI_SCHEMA_VERSION,
                 }
             )
+        elif request_path == "/api/cached-sample":
+            self._send_cached_sample(request.query)
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
-        if self.path != "/api/generate":
-            self.send_error(HTTPStatus.NOT_FOUND)
-            return
-        try:
-            length = int(self.headers.get("Content-Length", "0"))
-            if length < 1 or length > MAX_REQUEST_BYTES:
-                raise ValueError("Invalid request size")
-            request = json.loads(self.rfile.read(length))
-            result = RUNTIME.generate(
-                model_key=str(request.get("model", "")),
-                epoch=int(request.get("checkpoint_epoch", 0)),
-                nfe=int(request.get("nfe", 20)),
-                count=int(request.get("num_images", 16)),
-                seed=int(request.get("seed", 0)),
-            )
-            self._send_json(result)
-        except (ValueError, TypeError, json.JSONDecodeError) as error:
-            self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
-        except GpuLockError as error:
-            self._send_json({"error": str(error)}, HTTPStatus.CONFLICT)
-        except Exception as error:
-            print(f"Inference error: {error}", flush=True)
+        if self.path == "/api/generate":
             self._send_json(
-                {"error": "Inference failed. Check the server console for details."},
-                HTTPStatus.INTERNAL_SERVER_ERROR,
+                {
+                    "error": (
+                        "Obsolete UI tab detected. This studio no longer performs "
+                        "inference. Hard-refresh the page (Ctrl+Shift+R) to load "
+                        "the read-only reconstruction interface."
+                    ),
+                    "code": "obsolete_ui_reload_required",
+                    "ui_schema_version": UI_SCHEMA_VERSION,
+                },
+                HTTPStatus.GONE,
             )
+            return
+        self.send_error(HTTPStatus.NOT_FOUND)
 
     def log_message(self, message_format: str, *args) -> None:
         print(f"[{self.log_date_time_string()}] {message_format % args}")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Serve the local inference UI.")
+    parser = argparse.ArgumentParser(description="Serve the read-only thesis UI.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument(
@@ -524,7 +892,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--self-test",
         action="store_true",
-        help="Generate one image per available model at NFE 1 and exit.",
+        help="Validate the read-only catalog and exit; no model is executed.",
     )
     return parser.parse_args()
 
@@ -532,30 +900,18 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    # Populate MODEL_SPECS from the resolved results directory so the rest of
-    # the module (checkpoint_map, training_losses, model_catalog, RUNTIME)
-    # sees the correct paths without any further argument threading.
+    # Populate MODEL_SPECS from the resolved results directory so the catalog
+    # sees the requested evidence root without further argument threading.
     global MODEL_SPECS
     MODEL_SPECS = build_model_specs(Path(args.results_dir).resolve())
 
     if args.self_test:
-        for model in model_catalog():
-            if not model["available"]:
-                continue
-            result = RUNTIME.generate(
-                model["key"], model["default_epoch"], 1, 1, 0
-            )
-            print(
-                json.dumps(
-                    {key: value for key, value in result.items() if key != "image"},
-                    indent=2,
-                )
-            )
+        print(json.dumps({"models": len(model_catalog()), "mode": "read_only"}))
         return
 
     server = ThreadingHTTPServer((args.host, args.port), InferenceHandler)
-    print(f"Inference UI: http://{args.host}:{args.port}")
-    print(f"Device: {RUNTIME.device}")
+    print(f"Thesis UI: http://{args.host}:{args.port}")
+    print("Mode: read-only reconstruction (no model/GPU execution)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

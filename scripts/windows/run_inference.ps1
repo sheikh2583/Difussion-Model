@@ -1,11 +1,12 @@
 <#
 .SYNOPSIS
-    Start the local results browser and inference UI server.
+    Start the local read-only thesis UI server.
 
 .DESCRIPTION
     Uses the project virtual-environment interpreter directly, sets PYTHONPATH,
     and launches inference_server.py. Open http://127.0.0.1:8000 in a
-    browser to inspect results or use checkpoint inference after startup.
+    browser to inspect recorded results and UI reconstructions after startup.
+    The server does not load checkpoints or run model inference.
 
     The server auto-discovers trained checkpoints under the results
     directory (default: ./results).  If no checkpoints are found for
@@ -24,8 +25,13 @@
     Default: ./results
 
 .PARAMETER SelfTest
-    Run a single-image generation smoke test for each available model
-    then exit, instead of starting the persistent server.
+    Validate the recorded-result catalog and exit without running a model.
+
+.PARAMETER GenerateOutputs
+    Generate real checkpoint outputs before starting the read-only UI.
+
+.PARAMETER WaitForGpu
+    With GenerateOutputs, wait for an active project GPU workflow to finish.
 
 .EXAMPLE
     # Start with defaults (localhost:8000, results in ./results):
@@ -36,7 +42,7 @@
     .\scripts\windows\run_inference.ps1 -Port 9000 -ResultsDir D:\models\diffusion
 
 .EXAMPLE
-    # Quick smoke test — generate one image per available model and exit:
+    # Quick catalog validation with no model execution:
     .\scripts\windows\run_inference.ps1 -SelfTest
 #>
 
@@ -45,7 +51,9 @@ param(
     [string]$Host       = "127.0.0.1",
     [int]   $Port       = 8000,
     [string]$ResultsDir = "",
-    [switch]$SelfTest
+    [switch]$SelfTest,
+    [switch]$GenerateOutputs,
+    [switch]$WaitForGpu
 )
 
 Set-StrictMode -Version Latest
@@ -69,6 +77,12 @@ if (-not (Test-Path -LiteralPath $Python)) {
 # ---------------------------------------------------------------------------
 $env:PYTHONPATH = $ProjectRoot
 
+if ($GenerateOutputs) {
+    $PrepareScript = Join-Path $PSScriptRoot "generate_inference_outputs.ps1"
+    & $PrepareScript -Wait:$WaitForGpu
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
 # ---------------------------------------------------------------------------
 # Build arguments
 # ---------------------------------------------------------------------------
@@ -84,9 +98,10 @@ if ($SelfTest) {
 # ---------------------------------------------------------------------------
 # Launch
 # ---------------------------------------------------------------------------
-Write-Host "=== DiffusionProject Inference Server ===" -ForegroundColor Cyan
+Write-Host "=== DiffusionProject Read-Only Thesis UI ===" -ForegroundColor Cyan
 if (-not $SelfTest) {
     Write-Host "UI will be available at: http://${Host}:${Port}" -ForegroundColor Green
+    Write-Host "Mode: browser reconstruction only; no checkpoint/GPU execution" -ForegroundColor DarkGray
 }
 Write-Host "Command: $Python $($Args -join ' ')"
 Write-Host ""

@@ -42,6 +42,8 @@ REQUIRED_SOURCE_PATHS = (
     "docs/COMPARISON_PROTOCOL.md",
     "scripts/aggregate_results.py",
     "scripts/generate_checkpoint_samples.py",
+    "scripts/linux/generate_inference_outputs.sh",
+    "scripts/windows/generate_inference_outputs.ps1",
     "scripts/generate_result_gifs.py",
     "scripts/package_thesis_context.py",
     "scripts/preflight_mf_v2.py",
