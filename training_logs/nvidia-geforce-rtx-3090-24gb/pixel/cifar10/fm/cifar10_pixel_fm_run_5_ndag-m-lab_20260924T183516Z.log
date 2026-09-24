@@ -1,0 +1,184 @@
+[run] training_type=pixel_diffusion
+[run] representation_space=pixel
+[run] dataset=cifar10
+[run] algorithm=fm
+[run] launcher_session_id=6ecbebe134714ab9adc5d5284ccab2a9
+[run] hostname=NDAG-M-Lab
+[run] os_name=Linux
+[run] os_release=7.0.0-34-generic
+[run] architecture=x86_64
+[run] python_version=3.12.2
+[run] torch_version=2.5.1+cu121
+[run] cuda_version=12.1
+[run] cuda_visible_devices=unavailable
+[run] gpu_device_index=0
+[run] gpu_uuid=d4eecee8-2e57-baf1-f631-0660b6517f2b
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] gpu_count=1
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] git_commit=4376544f5752ca2ae51a5d5e4ceeedf8f9d165d1
+[run] git_dirty=true
+[run] git_diff_sha256=e1fc5ad91e3dda206d398e374b60d20548f6bdd9cb766be85e474fe4b7ecff3a
+[run] code_identity=4376544f5752ca2ae51a5d5e4ceeedf8f9d165d1+dirty:e1fc5ad91e3d
+[run] source_identity_sha256=80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[run] source_manifest=results/source_manifests/20260924T183516Z_pid201970.json
+[run] parent_suite_timestamp=20260924T183516Z
+[run] lifecycle_mode=fresh
+[run] checkpoint_series=run_5
+[run] selected_config_path=config/fm_full.json
+[run] selected_config_sha256=de3fd6c0d5ab8181eb230db746695af2f6924c1fe44c6cfaaca93eb3039840b2
+[run] log_device_token=nvidia-geforce-rtx-3090-24gb
+[run] log_path=training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10/fm/cifar10_pixel_fm_run_5_ndag-m-lab_20260924T183516Z.log
+[run] git_log_policy=eligible-not-auto-staged
+[run] started_utc=2026-09-24T18:35:18Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/linux/train_all.sh --dataset cifar10 --only fm --mode fresh --checkpoint-every 10 --cifar-backbone current --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[PLAN] /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/bin/python train.py --algorithm fm --config config/fm_full.json --mode fresh --checkpoint-every 10 --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[fresh] Previous run preserved at: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/history/fm_cifar10_20260925_003520
+[checkpoints] Active checkpoint series: run_5
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/fm_full.json
+[startup] algorithm: fm
+[startup] experiment: fm
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_cifar10
+[startup] batch_size: 128
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0002
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 4376544f5752ca2ae51a5d5e4ceeedf8f9d165d1+dirty:e1fc5ad91e3d
+[startup] source_identity_sha256: 80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[startup] selected_config_file_sha256: de3fd6c0d5ab8181eb230db746695af2f6924c1fe44c6cfaaca93eb3039840b2
+[startup] lifecycle_mode: fresh
+[startup] checkpoint_series: run_5
+[startup] parent_suite_timestamp: 20260924T183516Z
+Files already downloaded and verified
+Files already downloaded and verified
+2026-09-25 00:35:43,584 [INFO] trainer.FlowMatchingAlgorithm: epoch=1 loss=0.316182 time=22.363s peak_mem=2249.1MB
+2026-09-25 00:36:05,688 [INFO] trainer.FlowMatchingAlgorithm: epoch=2 loss=0.233155 time=22.104s peak_mem=2250.9MB
+2026-09-25 00:36:27,830 [INFO] trainer.FlowMatchingAlgorithm: epoch=3 loss=0.217961 time=22.142s peak_mem=2250.9MB
+2026-09-25 00:36:50,380 [INFO] trainer.FlowMatchingAlgorithm: epoch=4 loss=0.210666 time=22.550s peak_mem=2250.9MB
+2026-09-25 00:37:12,721 [INFO] trainer.FlowMatchingAlgorithm: epoch=5 loss=0.205729 time=22.340s peak_mem=2250.9MB
+2026-09-25 00:37:35,176 [INFO] trainer.FlowMatchingAlgorithm: epoch=6 loss=0.202924 time=22.455s peak_mem=2250.9MB
+2026-09-25 00:37:57,471 [INFO] trainer.FlowMatchingAlgorithm: epoch=7 loss=0.199059 time=22.294s peak_mem=2250.9MB
+2026-09-25 00:38:19,670 [INFO] trainer.FlowMatchingAlgorithm: epoch=8 loss=0.197043 time=22.198s peak_mem=2250.9MB
+2026-09-25 00:38:41,817 [INFO] trainer.FlowMatchingAlgorithm: epoch=9 loss=0.197429 time=22.146s peak_mem=2250.9MB
+2026-09-25 00:39:04,061 [INFO] trainer.FlowMatchingAlgorithm: epoch=10 loss=0.195272 time=22.244s peak_mem=2250.9MB
+2026-09-25 00:39:04,155 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch10.pt
+2026-09-25 00:39:04,276 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch10.zip
+2026-09-25 00:39:26,709 [INFO] trainer.FlowMatchingAlgorithm: epoch=11 loss=0.194098 time=22.432s peak_mem=2250.9MB
+2026-09-25 00:39:48,962 [INFO] trainer.FlowMatchingAlgorithm: epoch=12 loss=0.192754 time=22.253s peak_mem=2250.9MB
+2026-09-25 00:40:11,175 [INFO] trainer.FlowMatchingAlgorithm: epoch=13 loss=0.191626 time=22.213s peak_mem=2250.9MB
+2026-09-25 00:40:33,385 [INFO] trainer.FlowMatchingAlgorithm: epoch=14 loss=0.191487 time=22.209s peak_mem=2250.9MB
+2026-09-25 00:40:55,622 [INFO] trainer.FlowMatchingAlgorithm: epoch=15 loss=0.189912 time=22.236s peak_mem=2250.9MB
+2026-09-25 00:41:17,796 [INFO] trainer.FlowMatchingAlgorithm: epoch=16 loss=0.189517 time=22.173s peak_mem=2250.9MB
+2026-09-25 00:41:40,019 [INFO] trainer.FlowMatchingAlgorithm: epoch=17 loss=0.190112 time=22.223s peak_mem=2250.9MB
+2026-09-25 00:42:02,246 [INFO] trainer.FlowMatchingAlgorithm: epoch=18 loss=0.189195 time=22.227s peak_mem=2250.9MB
+2026-09-25 00:42:24,417 [INFO] trainer.FlowMatchingAlgorithm: epoch=19 loss=0.189487 time=22.170s peak_mem=2250.9MB
+2026-09-25 00:42:46,623 [INFO] trainer.FlowMatchingAlgorithm: epoch=20 loss=0.188935 time=22.205s peak_mem=2250.9MB
+2026-09-25 00:42:46,716 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch20.pt
+2026-09-25 00:42:46,837 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch20.zip
+2026-09-25 00:43:09,038 [INFO] trainer.FlowMatchingAlgorithm: epoch=21 loss=0.189023 time=22.200s peak_mem=2250.9MB
+2026-09-25 00:43:31,263 [INFO] trainer.FlowMatchingAlgorithm: epoch=22 loss=0.187462 time=22.225s peak_mem=2250.9MB
+2026-09-25 00:43:53,474 [INFO] trainer.FlowMatchingAlgorithm: epoch=23 loss=0.187262 time=22.210s peak_mem=2250.9MB
+2026-09-25 00:44:15,826 [INFO] trainer.FlowMatchingAlgorithm: epoch=24 loss=0.187902 time=22.352s peak_mem=2250.9MB
+2026-09-25 00:44:38,233 [INFO] trainer.FlowMatchingAlgorithm: epoch=25 loss=0.187682 time=22.406s peak_mem=2250.9MB
+/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: Metric `InceptionScore` will save all extracted features in buffer. For large datasets this may lead to large memory footprint.
+  warnings.warn(*args, **kwargs)
+2026-09-25 00:49:36,888 [INFO] trainer.FlowMatchingAlgorithm: epoch=26 loss=0.186464 time=22.211s peak_mem=2693.2MB
+2026-09-25 00:49:59,149 [INFO] trainer.FlowMatchingAlgorithm: epoch=27 loss=0.185833 time=22.260s peak_mem=2693.2MB
+2026-09-25 00:50:21,350 [INFO] trainer.FlowMatchingAlgorithm: epoch=28 loss=0.186228 time=22.201s peak_mem=2693.2MB
+2026-09-25 00:50:43,626 [INFO] trainer.FlowMatchingAlgorithm: epoch=29 loss=0.185005 time=22.276s peak_mem=2693.2MB
+2026-09-25 00:51:05,861 [INFO] trainer.FlowMatchingAlgorithm: epoch=30 loss=0.185867 time=22.234s peak_mem=2693.2MB
+2026-09-25 00:51:05,957 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch30.pt
+2026-09-25 00:51:06,086 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch30.zip
+2026-09-25 00:51:28,371 [INFO] trainer.FlowMatchingAlgorithm: epoch=31 loss=0.185982 time=22.285s peak_mem=2693.2MB
+2026-09-25 00:51:50,606 [INFO] trainer.FlowMatchingAlgorithm: epoch=32 loss=0.185305 time=22.234s peak_mem=2693.2MB
+2026-09-25 00:52:12,882 [INFO] trainer.FlowMatchingAlgorithm: epoch=33 loss=0.185221 time=22.276s peak_mem=2693.2MB
+2026-09-25 00:52:35,105 [INFO] trainer.FlowMatchingAlgorithm: epoch=34 loss=0.184240 time=22.223s peak_mem=2693.2MB
+2026-09-25 00:52:57,406 [INFO] trainer.FlowMatchingAlgorithm: epoch=35 loss=0.184633 time=22.301s peak_mem=2693.2MB
+2026-09-25 00:53:19,666 [INFO] trainer.FlowMatchingAlgorithm: epoch=36 loss=0.185053 time=22.259s peak_mem=2693.2MB
+2026-09-25 00:53:41,904 [INFO] trainer.FlowMatchingAlgorithm: epoch=37 loss=0.184690 time=22.238s peak_mem=2693.2MB
+2026-09-25 00:54:04,207 [INFO] trainer.FlowMatchingAlgorithm: epoch=38 loss=0.184486 time=22.302s peak_mem=2693.2MB
+2026-09-25 00:54:26,485 [INFO] trainer.FlowMatchingAlgorithm: epoch=39 loss=0.184186 time=22.278s peak_mem=2693.2MB
+2026-09-25 00:54:48,772 [INFO] trainer.FlowMatchingAlgorithm: epoch=40 loss=0.184439 time=22.287s peak_mem=2693.2MB
+2026-09-25 00:54:48,866 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch40.pt
+2026-09-25 00:54:48,987 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch40.zip
+2026-09-25 00:55:11,295 [INFO] trainer.FlowMatchingAlgorithm: epoch=41 loss=0.184012 time=22.308s peak_mem=2693.2MB
+2026-09-25 00:55:33,589 [INFO] trainer.FlowMatchingAlgorithm: epoch=42 loss=0.182722 time=22.293s peak_mem=2693.2MB
+2026-09-25 00:55:55,905 [INFO] trainer.FlowMatchingAlgorithm: epoch=43 loss=0.184087 time=22.315s peak_mem=2693.2MB
+2026-09-25 00:56:18,208 [INFO] trainer.FlowMatchingAlgorithm: epoch=44 loss=0.183023 time=22.303s peak_mem=2693.2MB
+2026-09-25 00:56:40,507 [INFO] trainer.FlowMatchingAlgorithm: epoch=45 loss=0.182038 time=22.299s peak_mem=2693.2MB
+2026-09-25 00:57:02,743 [INFO] trainer.FlowMatchingAlgorithm: epoch=46 loss=0.182990 time=22.235s peak_mem=2693.2MB
+2026-09-25 00:57:25,024 [INFO] trainer.FlowMatchingAlgorithm: epoch=47 loss=0.183325 time=22.280s peak_mem=2693.2MB
+2026-09-25 00:57:47,308 [INFO] trainer.FlowMatchingAlgorithm: epoch=48 loss=0.183578 time=22.284s peak_mem=2693.2MB
+2026-09-25 00:58:09,576 [INFO] trainer.FlowMatchingAlgorithm: epoch=49 loss=0.182255 time=22.267s peak_mem=2693.2MB
+2026-09-25 00:58:31,858 [INFO] trainer.FlowMatchingAlgorithm: epoch=50 loss=0.182449 time=22.281s peak_mem=2693.2MB
+2026-09-25 00:58:31,943 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch50.pt
+2026-09-25 00:58:32,063 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch50.zip
+2026-09-25 01:03:31,129 [INFO] trainer.FlowMatchingAlgorithm: epoch=51 loss=0.182782 time=22.249s peak_mem=3582.2MB
+2026-09-25 01:03:53,365 [INFO] trainer.FlowMatchingAlgorithm: epoch=52 loss=0.182906 time=22.235s peak_mem=3582.2MB
+2026-09-25 01:04:15,603 [INFO] trainer.FlowMatchingAlgorithm: epoch=53 loss=0.181869 time=22.238s peak_mem=3582.2MB
+2026-09-25 01:04:37,837 [INFO] trainer.FlowMatchingAlgorithm: epoch=54 loss=0.182320 time=22.233s peak_mem=3582.2MB
+2026-09-25 01:05:00,073 [INFO] trainer.FlowMatchingAlgorithm: epoch=55 loss=0.182903 time=22.236s peak_mem=3582.2MB
+2026-09-25 01:05:22,333 [INFO] trainer.FlowMatchingAlgorithm: epoch=56 loss=0.181695 time=22.260s peak_mem=3582.2MB
+2026-09-25 01:05:44,615 [INFO] trainer.FlowMatchingAlgorithm: epoch=57 loss=0.181502 time=22.281s peak_mem=3582.2MB
+2026-09-25 01:06:06,876 [INFO] trainer.FlowMatchingAlgorithm: epoch=58 loss=0.181396 time=22.261s peak_mem=3582.2MB
+2026-09-25 01:06:29,110 [INFO] trainer.FlowMatchingAlgorithm: epoch=59 loss=0.182355 time=22.234s peak_mem=3582.2MB
+2026-09-25 01:06:51,409 [INFO] trainer.FlowMatchingAlgorithm: epoch=60 loss=0.182022 time=22.298s peak_mem=3582.2MB
+2026-09-25 01:06:51,494 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch60.pt
+2026-09-25 01:06:51,620 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch60.zip
+2026-09-25 01:07:13,899 [INFO] trainer.FlowMatchingAlgorithm: epoch=61 loss=0.182107 time=22.279s peak_mem=3582.2MB
+2026-09-25 01:07:36,188 [INFO] trainer.FlowMatchingAlgorithm: epoch=62 loss=0.180896 time=22.289s peak_mem=3582.2MB
+2026-09-25 01:07:58,440 [INFO] trainer.FlowMatchingAlgorithm: epoch=63 loss=0.181118 time=22.251s peak_mem=3582.2MB
+2026-09-25 01:08:20,729 [INFO] trainer.FlowMatchingAlgorithm: epoch=64 loss=0.181942 time=22.289s peak_mem=3582.2MB
+2026-09-25 01:08:43,004 [INFO] trainer.FlowMatchingAlgorithm: epoch=65 loss=0.180507 time=22.274s peak_mem=3582.2MB
+2026-09-25 01:09:05,299 [INFO] trainer.FlowMatchingAlgorithm: epoch=66 loss=0.180755 time=22.294s peak_mem=3582.2MB
+2026-09-25 01:09:27,575 [INFO] trainer.FlowMatchingAlgorithm: epoch=67 loss=0.181260 time=22.276s peak_mem=3582.2MB
+2026-09-25 01:09:49,815 [INFO] trainer.FlowMatchingAlgorithm: epoch=68 loss=0.181263 time=22.240s peak_mem=3582.2MB
+2026-09-25 01:10:12,036 [INFO] trainer.FlowMatchingAlgorithm: epoch=69 loss=0.180124 time=22.221s peak_mem=3582.2MB
+2026-09-25 01:10:34,321 [INFO] trainer.FlowMatchingAlgorithm: epoch=70 loss=0.181091 time=22.284s peak_mem=3582.2MB
+2026-09-25 01:10:34,416 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch70.pt
+2026-09-25 01:10:34,538 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch70.zip
+2026-09-25 01:10:56,786 [INFO] trainer.FlowMatchingAlgorithm: epoch=71 loss=0.180103 time=22.248s peak_mem=3582.2MB
+2026-09-25 01:11:19,088 [INFO] trainer.FlowMatchingAlgorithm: epoch=72 loss=0.181320 time=22.302s peak_mem=3582.2MB
+2026-09-25 01:11:41,409 [INFO] trainer.FlowMatchingAlgorithm: epoch=73 loss=0.180925 time=22.321s peak_mem=3582.2MB
+2026-09-25 01:12:03,724 [INFO] trainer.FlowMatchingAlgorithm: epoch=74 loss=0.180081 time=22.314s peak_mem=3582.2MB
+2026-09-25 01:12:26,047 [INFO] trainer.FlowMatchingAlgorithm: epoch=75 loss=0.180227 time=22.322s peak_mem=3582.2MB
+2026-09-25 01:17:24,824 [INFO] trainer.FlowMatchingAlgorithm: epoch=76 loss=0.178990 time=22.328s peak_mem=2583.1MB
+2026-09-25 01:17:47,152 [INFO] trainer.FlowMatchingAlgorithm: epoch=77 loss=0.180053 time=22.327s peak_mem=2583.1MB
+2026-09-25 01:18:09,501 [INFO] trainer.FlowMatchingAlgorithm: epoch=78 loss=0.180799 time=22.349s peak_mem=2583.1MB
+2026-09-25 01:18:31,862 [INFO] trainer.FlowMatchingAlgorithm: epoch=79 loss=0.179668 time=22.361s peak_mem=2583.1MB
+2026-09-25 01:18:54,103 [INFO] trainer.FlowMatchingAlgorithm: epoch=80 loss=0.180190 time=22.240s peak_mem=2583.1MB
+2026-09-25 01:18:54,200 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch80.pt
+2026-09-25 01:18:54,320 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch80.zip
+2026-09-25 01:19:16,664 [INFO] trainer.FlowMatchingAlgorithm: epoch=81 loss=0.179539 time=22.344s peak_mem=2583.1MB
+2026-09-25 01:19:39,001 [INFO] trainer.FlowMatchingAlgorithm: epoch=82 loss=0.180708 time=22.337s peak_mem=2583.1MB
+2026-09-25 01:20:01,337 [INFO] trainer.FlowMatchingAlgorithm: epoch=83 loss=0.179530 time=22.336s peak_mem=2583.1MB
+2026-09-25 01:20:23,681 [INFO] trainer.FlowMatchingAlgorithm: epoch=84 loss=0.179787 time=22.343s peak_mem=2583.1MB
+2026-09-25 01:20:46,024 [INFO] trainer.FlowMatchingAlgorithm: epoch=85 loss=0.180601 time=22.342s peak_mem=2583.1MB
+2026-09-25 01:21:08,378 [INFO] trainer.FlowMatchingAlgorithm: epoch=86 loss=0.180186 time=22.353s peak_mem=2583.1MB
+2026-09-25 01:21:30,742 [INFO] trainer.FlowMatchingAlgorithm: epoch=87 loss=0.180339 time=22.363s peak_mem=2583.1MB
+2026-09-25 01:21:52,982 [INFO] trainer.FlowMatchingAlgorithm: epoch=88 loss=0.179641 time=22.240s peak_mem=2583.1MB
+2026-09-25 01:22:15,324 [INFO] trainer.FlowMatchingAlgorithm: epoch=89 loss=0.179833 time=22.341s peak_mem=2583.1MB
+2026-09-25 01:22:37,550 [INFO] trainer.FlowMatchingAlgorithm: epoch=90 loss=0.179822 time=22.226s peak_mem=2583.1MB
+2026-09-25 01:22:37,645 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch90.pt
+2026-09-25 01:22:37,766 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch90.zip
+2026-09-25 01:23:00,122 [INFO] trainer.FlowMatchingAlgorithm: epoch=91 loss=0.179621 time=22.356s peak_mem=2583.1MB
+2026-09-25 01:23:22,377 [INFO] trainer.FlowMatchingAlgorithm: epoch=92 loss=0.179178 time=22.254s peak_mem=2583.1MB
+2026-09-25 01:23:44,736 [INFO] trainer.FlowMatchingAlgorithm: epoch=93 loss=0.179556 time=22.358s peak_mem=2583.1MB
+2026-09-25 01:24:07,075 [INFO] trainer.FlowMatchingAlgorithm: epoch=94 loss=0.180654 time=22.339s peak_mem=2583.1MB
+2026-09-25 01:24:29,413 [INFO] trainer.FlowMatchingAlgorithm: epoch=95 loss=0.178506 time=22.337s peak_mem=2583.1MB
+2026-09-25 01:24:51,777 [INFO] trainer.FlowMatchingAlgorithm: epoch=96 loss=0.180028 time=22.363s peak_mem=2583.1MB
+2026-09-25 01:25:14,024 [INFO] trainer.FlowMatchingAlgorithm: epoch=97 loss=0.179091 time=22.247s peak_mem=2583.1MB
+2026-09-25 01:25:36,383 [INFO] trainer.FlowMatchingAlgorithm: epoch=98 loss=0.179780 time=22.358s peak_mem=2583.1MB
+2026-09-25 01:25:58,718 [INFO] trainer.FlowMatchingAlgorithm: epoch=99 loss=0.179340 time=22.334s peak_mem=2583.1MB
+2026-09-25 01:26:21,064 [INFO] trainer.FlowMatchingAlgorithm: epoch=100 loss=0.180101 time=22.346s peak_mem=2583.1MB
+2026-09-25 01:26:21,157 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint saved -> results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch100.pt
+2026-09-25 01:26:21,277 [INFO] trainer.FlowMatchingAlgorithm: Checkpoint archive -> results/fm_cifar10/checkpoints/run_5/archive/FlowMatchingAlgorithm_epoch100.zip
+Training workflow complete.
+[run] finished_utc=2026-09-24T19:30:58Z
+[run] exit_status=0
