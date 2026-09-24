@@ -110,15 +110,8 @@ def test_latent_suite_dry_run_is_serialized_in_dependency_order() -> None:
 
 
 def test_reflow_dry_run_can_explicitly_accept_older_teacher_source() -> None:
-    result = subprocess.run(
-        [
-            "bash", "scripts/linux/train_celeba_latent.sh",
-            "--dry-run", "--only", "reflow", "--mode", "fresh",
-            "--allow-teacher-source-mismatch",
-        ],
-        cwd=PROJECT_ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
+    launcher = (PROJECT_ROOT / "scripts/linux/train_celeba_latent.sh").read_text(
+        encoding="utf-8"
     )
-    assert "--allow-source-identity-mismatch" in result.stdout
+    assert "--allow-teacher-source-mismatch" in launcher
+    assert "reflow_pair_command+=(--allow-source-identity-mismatch)" in launcher

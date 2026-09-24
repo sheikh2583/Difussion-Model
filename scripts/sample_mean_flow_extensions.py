@@ -20,6 +20,7 @@ from torchvision.utils import save_image
 from algorithms.mean_flow import MeanFlowAlgorithm
 from algorithms.mean_flow_adaptive_nfe import AdaptiveMeanFlowSampler
 from algorithms.mean_flow_multiscale import MultiScaleMeanFlowPipeline
+from codec.codec_factory import load_codec
 from config.config import ExperimentConfig
 from models.backbone import build_backbone
 from utils.checkpoints import load_algorithm_state
@@ -49,15 +50,16 @@ def parse_args() -> argparse.Namespace:
     adaptive.add_argument("--min-nfe", type=int, default=2)
     adaptive.add_argument("--max-nfe", type=int, default=4)
     adaptive.add_argument("--threshold", type=float, default=0.05)
+    adaptive.add_argument("--codec", default=None)
     adaptive.add_argument("--output", default="results/adaptive_mean_flow.png")
 
     multiscale = subparsers.add_parser("multiscale")
-    add_checkpoint_arguments(multiscale, "coarse")
-    add_checkpoint_arguments(multiscale, "fine")
+    add_checkpoint_arguments(multiscale)
     multiscale.add_argument("--n-samples", type=int, default=64)
-    multiscale.add_argument("--coarse-nfe", type=int, default=2)
-    multiscale.add_argument("--fine-nfe", type=int, default=1)
-    multiscale.add_argument("--t-start", type=float, default=0.5)
+    multiscale.add_argument("--coarse-nfe", type=int, default=1)
+    multiscale.add_argument("--fine-nfe", type=int, default=4)
+    multiscale.add_argument("--t-renoise", type=float, default=0.3)
+    multiscale.add_argument("--codec", default=None)
     multiscale.add_argument("--output", default="results/multiscale_mean_flow.png")
     return parser.parse_args()
 
@@ -90,17 +92,26 @@ def save_outputs(images: torch.Tensor, output: str, metadata: dict) -> None:
     print(f"Metadata: {metadata_path}")
 
 
+def load_latent_codec(cfg, override: str | None, device: torch.device):
+    path = override or cfg.dataset.codec_checkpoint
+    if not path:
+        raise ValueError("A frozen latent codec checkpoint is required for image output")
+    return load_codec(path, device, require_frozen=True)
+
+
 def main() -> int:
     args = parse_args()
     if args.mode == "adaptive":
         cfg = ExperimentConfig.load(args.config)
         device = resolve_device(cfg)
         _, algorithm = load_mean_flow(args.config, args.checkpoint, device)
+        codec = load_latent_codec(cfg, args.codec, device)
         sampler = AdaptiveMeanFlowSampler(
             algorithm,
             min_nfe=args.min_nfe,
             max_nfe=args.max_nfe,
             confidence_threshold=args.threshold,
+            codec=codec,
         )
         images = sampler.sample(args.n_samples, device)
         save_outputs(images, args.output, {
@@ -114,30 +125,26 @@ def main() -> int:
         })
         return 0
 
-    coarse_cfg = ExperimentConfig.load(args.coarse_config)
-    fine_cfg = ExperimentConfig.load(args.fine_config)
-    device = resolve_device(fine_cfg)
-    _, coarse = load_mean_flow(args.coarse_config, args.coarse_checkpoint, device)
-    _, fine = load_mean_flow(args.fine_config, args.fine_checkpoint, device)
+    cfg = ExperimentConfig.load(args.config)
+    device = resolve_device(cfg)
+    _, algorithm = load_mean_flow(args.config, args.checkpoint, device)
+    codec = load_latent_codec(cfg, args.codec, device)
     pipeline = MultiScaleMeanFlowPipeline(
-        coarse,
-        fine,
-        coarse_size=coarse_cfg.dataset.image_size,
-        fine_size=fine_cfg.dataset.image_size,
-        t_start=args.t_start,
+        algorithm,
+        coarse_nfe=args.coarse_nfe,
+        fine_nfe=args.fine_nfe,
+        t_renoise=args.t_renoise,
+        codec=codec,
     )
-    images = pipeline.sample(
-        args.n_samples, args.coarse_nfe, args.fine_nfe, device
-    )
+    images = pipeline.sample(args.n_samples, device)
     save_outputs(images, args.output, {
         "mode": "multiscale",
         "n_samples": args.n_samples,
         "coarse_nfe": args.coarse_nfe,
         "fine_nfe": args.fine_nfe,
         "total_nfe": args.coarse_nfe + args.fine_nfe,
-        "t_start": args.t_start,
-        "coarse_size": coarse_cfg.dataset.image_size,
-        "fine_size": fine_cfg.dataset.image_size,
+        "t_renoise": args.t_renoise,
+        "latent_size": cfg.dataset.image_size,
     })
     return 0
 

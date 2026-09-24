@@ -115,6 +115,10 @@ NFE values.
 
 ## Detailed decision and failure record
 
+For the concise stage-by-stage reconstruction contract—completed evidence,
+partial experiments, implementation-only extensions, and exact audit
+commands—see [`docs/THESIS_PROGRESSION.md`](docs/THESIS_PROGRESSION.md).
+
 This codebase intentionally keeps unsuccessful paths visible. They explain why
 the current design exists and prevent a future user from repeating the same
 experiments without context.
@@ -239,19 +243,23 @@ codec is frozen so all seven latent jobs see the same representation and cannot
 improve or degrade it during training. MF-Hutchinson remains a diagnostic
 outside the canonical six-method result table.
 
-The current latent U-Net and CelebA pixel U-Net both have 8,947,459 parameters
-because both use three input/output channels and channel multipliers
-`[1,2,2,2]`. The difference is spatial compute: the latent path downsamples
-`16→8→4→2`, while the pixel path downsamples `64→32→16→8`. Latent samples are
-unbounded normalized states and must never be clamped to `[-1,1]` before codec
-decoding.
+The completed latent suite did not retain the initial parameter-matched
+proposal. Its frozen configs use `base_channels=128` and multipliers
+`[1,2,2]`, producing 24,026,627 backbone parameters and a
+`16→8→4` spatial path. CelebA pixel uses `base_channels=64`, multipliers
+`[1,2,2,2]`, 8,947,459 parameters, and a `64→32→16→8` path. The latent state
+has 16× fewer spatial values at the boundary, but the trainable backbone has
+about 2.69× more parameters. Pixel-versus-latent comparisons must disclose
+both changes rather than attributing every difference to representation size.
+Latent samples are unbounded normalized states and must never be clamped to
+`[-1,1]` before codec decoding.
 
 ### Stage 7 — Isolation and evidence normalization before continuation
 
 After latent FM and FM-LN reached epoch 100 and all training processes exited,
-the operational layer was hardened before launching the remaining methods. A
-single repository GPU lock now rejects competing workflows, supports nested
-suite calls through an inherited ownership token, and requires explicit stale
+the operational layer was hardened before launching the remaining methods. An
+ownership-checked GPU lock rejects competing workflows, supports nested suite
+calls through an inherited ownership token, and requires explicit stale
 recovery. Each suite freezes the live training-relevant source and selected
 configurations, then verifies them before every later GPU job.
 
@@ -1049,8 +1057,8 @@ algorithm, NFE, image count, and fixed seed, then select **Play checkpoint
 evolution** to cycle through every saved epoch. Each checkpoint shows the
 noise-to-sample transition alongside the loss curve truncated at that epoch.
 Latent runs are decoded through their recorded frozen codec before display.
-Inference requests acquire the shared project GPU lock and therefore refuse to
-run while a training or generation workflow owns the GPU.
+Inference requests acquire the selected device's project GPU lock and therefore
+refuse to run while a training or generation workflow owns that GPU.
 
 ## Reproducibility rules
 
@@ -1071,7 +1079,7 @@ For a defensible experiment:
 
 The project records checkpoint and environment provenance, restores RNG and
 dataloader state where supported, and archives prior numbered checkpoints. The
-single repository-wide GPU lock, frozen run-wide source identity, completed-run
+the repository-wide GPU lock, frozen run-wide source identity, completed-run
 skip policy, and representation-aware log migration are implemented. Their
 requirements and acceptance criteria remain documented in
 [docs/POST_TRAINING_FIX_PROMPT.md](docs/POST_TRAINING_FIX_PROMPT.md).

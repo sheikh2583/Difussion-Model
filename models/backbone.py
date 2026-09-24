@@ -169,9 +169,15 @@ def build_backbone(cfg: BackboneConfig, image_size: int = 32) -> nn.Module:
     if cfg.name == "simple_unet":
         model = SimpleUNet(cfg)
     elif cfg.name == "legacy_cifar_unet":
-        if image_size != 32 or cfg.in_channels != 3:
+        # The historical name is retained for checkpoint/config identity, but
+        # the frozen architecture is fully convolutional and was the shared
+        # pixel-space U-Net.  It is valid for both 32x32 CIFAR-10 and 64x64
+        # CelebA RGB tensors.  Keep it out of the 16x16 latent path so a legacy
+        # pixel rerun cannot be mistaken for the later representation change.
+        if image_size not in {32, 64} or cfg.in_channels != 3:
             raise ValueError(
-                "legacy_cifar_unet is frozen for CIFAR-10-shaped 3x32x32 input; "
+                "legacy_cifar_unet is frozen for RGB pixel-space input at "
+                "32x32 or 64x64; "
                 f"received in_channels={cfg.in_channels}, image_size={image_size}"
             )
         from models.legacy_cifar_backbone import LegacyCifarUNet

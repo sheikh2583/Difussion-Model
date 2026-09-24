@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from utils.gpu_lock import acquire_gpu_lock, recover_stale_lock
+from utils.gpu_lock import DEFAULT_LOCK_PATH, acquire_gpu_lock, recover_stale_lock
 from utils.source_identity import (
     build_source_manifest,
     verify_source_manifest,
@@ -24,14 +24,14 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
     acquire = sub.add_parser("lock-acquire")
-    acquire.add_argument("--lock-file", type=Path, default=Path("results/.lock"))
+    acquire.add_argument("--lock-file", type=Path, default=DEFAULT_LOCK_PATH)
     acquire.add_argument("--command", required=True)
     acquire.add_argument("--token")
     acquire.add_argument("--owner-pid", type=int)
     recover = sub.add_parser("lock-recover")
-    recover.add_argument("--lock-file", type=Path, default=Path("results/.lock"))
+    recover.add_argument("--lock-file", type=Path, default=DEFAULT_LOCK_PATH)
     release = sub.add_parser("lock-release")
-    release.add_argument("--lock-file", type=Path, default=Path("results/.lock"))
+    release.add_argument("--lock-file", type=Path, default=DEFAULT_LOCK_PATH)
     release.add_argument("--token", required=True)
     freeze = sub.add_parser("source-freeze")
     freeze.add_argument("--manifest", type=Path, required=True)

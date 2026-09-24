@@ -44,6 +44,9 @@ def extract_model_state(checkpoint: Mapping[str, Any]) -> Mapping[str, Any]:
 
 def load_algorithm_state(algorithm: Any, checkpoint: Mapping[str, Any]) -> None:
     """Load backbone and extra trainable modules from current or legacy payloads."""
+    prepare = getattr(algorithm, "prepare_checkpoint_load", None)
+    if prepare is not None:
+        prepare(checkpoint)
     modules = list(algorithm.trainable_modules())
     if not modules:
         raise ValueError("Algorithm exposes no trainable modules.")

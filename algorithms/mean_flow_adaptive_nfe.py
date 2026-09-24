@@ -7,7 +7,7 @@ batch, and records the realized per-sample and average NFE.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import torch
 
@@ -42,11 +42,13 @@ class AdaptiveMeanFlowSampler:
         min_nfe: int = 1,
         max_nfe: int = 4,
         confidence_threshold: float = 0.05,
+        codec: Optional[Any] = None,
     ):
         self.algorithm            = algorithm
         self.min_nfe              = min_nfe
         self.max_nfe              = max_nfe
         self.confidence_threshold = confidence_threshold
+        self.codec                 = codec
         self.last_nfe_per_sample: Optional[torch.Tensor] = None
         self.last_average_nfe: Optional[float] = None
 
@@ -73,7 +75,8 @@ class AdaptiveMeanFlowSampler:
         Returns
         -------
         torch.Tensor
-            Shape (n_samples, C, H, W), values clamped to [-1, 1].
+            Decoded RGB in [-1, 1] when a codec is supplied. Otherwise,
+            unbounded normalized latent tensors.
         """
         if n_samples < 1:
             raise ValueError(f"n_samples must be >= 1, got {n_samples}")
@@ -81,6 +84,11 @@ class AdaptiveMeanFlowSampler:
         model = self.algorithm.model
         channels = model.cfg.in_channels
         image_size = model._expected_image_size
+        if image_size != 16:
+            raise ValueError(
+                "AdaptiveMeanFlowSampler is for latent-space models only "
+                f"(expected spatial size 16, got {image_size})."
+            )
         z = torch.randn(
             n_samples, channels, image_size, image_size, device=device
         )
@@ -92,6 +100,7 @@ class AdaptiveMeanFlowSampler:
         times = torch.linspace(1.0, 0.0, self.max_nfe + 1, device=device)
 
         for module in self.algorithm.trainable_modules():
+            module.to(device)
             module.eval()
 
         with torch.no_grad():
@@ -148,4 +157,14 @@ class AdaptiveMeanFlowSampler:
 
         self.last_nfe_per_sample = nfe_used.detach().cpu()
         self.last_average_nfe = float(nfe_used.float().mean().item())
-        return output.clamp(-1.0, 1.0)
+        if self.codec is not None:
+            decoder = getattr(self.codec, "decode_normalised", None)
+            if decoder is None:
+                decoder = getattr(self.codec, "decode_normalized", None)
+            if decoder is None:
+                raise AttributeError(
+                    "codec must expose decode_normalised(normalised_latents)"
+                )
+            decoded = decoder(output.to(device))
+            return decoded.clamp(-1.0, 1.0)
+        return output

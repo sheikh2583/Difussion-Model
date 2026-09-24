@@ -11,8 +11,10 @@ import pytest
 import torch
 
 from algorithms.mean_flow import MeanFlowAlgorithm
+from algorithms.r_embed import LegacyREmbed
 from config.config import BackboneConfig
 from models.backbone import SimpleUNet
+from utils.checkpoints import load_algorithm_state
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +36,28 @@ class TinyModel(SimpleUNet):
 
 def make_algorithm(**kwargs) -> MeanFlowAlgorithm:
     return MeanFlowAlgorithm(TinyModel(), algorithm_kwargs=kwargs)
+
+
+@pytest.mark.parametrize("bare_keys", [False, True])
+def test_legacy_rembed_checkpoint_restores_historical_forward(bare_keys):
+    algorithm = make_algorithm()
+    legacy = LegacyREmbed(algorithm.model.cfg.in_channels)
+    state = legacy.state_dict()
+    if bare_keys:
+        state = {key.removeprefix("net."): value for key, value in state.items()}
+    checkpoint = {
+        "model_state": algorithm.model.state_dict(),
+        "extra_module_0_state": state,
+    }
+    z = torch.randn(3, 2, 4, 4)
+    r = torch.rand(3)
+    t = torch.rand(3)
+    expected = algorithm.model(legacy(z, r), t)
+
+    load_algorithm_state(algorithm, checkpoint)
+
+    assert isinstance(algorithm.trainable_modules()[1], LegacyREmbed)
+    assert torch.allclose(algorithm._forward(z, r, t), expected)
 
 
 def test_exact_jvp_matches_analytic_total_derivative():

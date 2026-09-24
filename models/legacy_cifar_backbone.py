@@ -1,8 +1,10 @@
-"""Frozen CIFAR-10 backbone used by the original checkpoint-backed runs.
+"""Frozen pixel backbone used by the original checkpoint-backed runs.
 
 This module intentionally preserves the historical ``models/backbone.py``
 architecture whose Git blob is ``d1b02c84feba4f1f4360a7adf54c3a98729824c8``.
-Keep its layer construction and state-dict keys stable.
+The historical public name remains ``legacy_cifar_unet``, but the network is
+fully convolutional and supports the project's 32x32 CIFAR-10 and 64x64 CelebA
+pixel spaces. Keep its layer construction and state-dict keys stable.
 """
 
 import math
@@ -71,7 +73,7 @@ class Upsample(nn.Module):
 
 
 class LegacyCifarUNet(nn.Module):
-    """Exact trainable architecture used by the completed CIFAR-10 runs."""
+    """Exact trainable pixel architecture used by the early project runs."""
 
     def __init__(self, cfg: BackboneConfig):
         super().__init__()

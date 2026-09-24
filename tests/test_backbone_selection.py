@@ -35,11 +35,16 @@ def _tiny_config(name: str) -> BackboneConfig:
     )
 
 
-def test_legacy_backbone_matches_current_state_schema_and_forward() -> None:
+@pytest.mark.parametrize("image_size", [32, 64])
+def test_legacy_backbone_matches_current_state_schema_and_forward(
+    image_size: int,
+) -> None:
     torch.manual_seed(7)
-    current = build_backbone(_tiny_config("simple_unet"), image_size=32)
+    current = build_backbone(_tiny_config("simple_unet"), image_size=image_size)
     torch.manual_seed(7)
-    legacy = build_backbone(_tiny_config("legacy_cifar_unet"), image_size=32)
+    legacy = build_backbone(
+        _tiny_config("legacy_cifar_unet"), image_size=image_size
+    )
 
     assert isinstance(legacy, LegacyCifarUNet)
     assert LEGACY_BACKBONE_GIT_BLOB == "d1b02c84feba4f1f4360a7adf54c3a98729824c8"
@@ -47,7 +52,7 @@ def test_legacy_backbone_matches_current_state_schema_and_forward() -> None:
     assert count_parameters(current) == count_parameters(legacy)
 
     legacy.load_state_dict(current.state_dict(), strict=True)
-    x = torch.randn(2, 3, 32, 32)
+    x = torch.randn(2, 3, image_size, image_size)
     t = torch.tensor([0.25, 0.75])
     current.eval()
     legacy.eval()
@@ -55,9 +60,9 @@ def test_legacy_backbone_matches_current_state_schema_and_forward() -> None:
         assert torch.equal(current(x, t), legacy(x, t))
 
 
-def test_legacy_backbone_rejects_non_cifar_shape() -> None:
-    with pytest.raises(ValueError, match="3x32x32"):
-        build_backbone(_tiny_config("legacy_cifar_unet"), image_size=64)
+def test_legacy_backbone_rejects_latent_shape() -> None:
+    with pytest.raises(ValueError, match="32x32 or 64x64"):
+        build_backbone(_tiny_config("legacy_cifar_unet"), image_size=16)
 
 
 def test_all_legacy_cifar_presets_are_isolated_and_parse() -> None:
@@ -84,3 +89,19 @@ def test_all_legacy_cifar_presets_are_isolated_and_parse() -> None:
     assert reflow.algorithm_kwargs["pairs_path"].endswith(
         "reflow_pairs_cifar10_legacy_backbone.pt"
     )
+
+
+@pytest.mark.parametrize(
+    ("config_path", "expected_parameters"),
+    [
+        ("config/fm_full.json", 6_352_899),
+        ("config/fm_celeba64.json", 8_947_459),
+        ("config/fm_celeba_latent.json", 24_026_627),
+    ],
+)
+def test_recorded_stage_backbone_parameter_counts(
+    config_path: str, expected_parameters: int
+) -> None:
+    cfg = ExperimentConfig.load(str(PROJECT_ROOT / config_path))
+    model = build_backbone(cfg.backbone, image_size=cfg.dataset.image_size)
+    assert count_parameters(model) == (expected_parameters, expected_parameters)

@@ -31,6 +31,7 @@ SOURCE_FILES = (
     "scripts/generate_reflow_pairs_latent.py",
     "scripts/workflow_guard.py",
     "scripts/print_run_provenance.py",
+    "scripts/linux/thesis_stage_queue.bash",
     "scripts/linux/workflow_guard.sh",
     "scripts/windows/workflow_guard.ps1",
 )

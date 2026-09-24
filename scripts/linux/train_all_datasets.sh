@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Unattended, dependency-aware CIFAR-10 + CelebA training with per-model logs.
+# Jobs inside a suite remain serialized in dependency order.
 set -euo pipefail
 
 PLATFORM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -12,6 +13,8 @@ CHECKPOINT_EVERY=10
 TRAIN_ONLY=false
 DRY_RUN=false
 CIFAR_BACKBONE="current"
+MACHINE_LABEL="${DIFFUSION_MACHINE_LABEL:-}"
+LOG_DIR=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -28,6 +31,12 @@ while [[ $# -gt 0 ]]; do
     --cifar-backbone)
       [[ $# -ge 2 ]] || { echo "ERROR: --cifar-backbone requires a value" >&2; exit 2; }
       CIFAR_BACKBONE="$2"; shift 2 ;;
+    --machine-label)
+      [[ $# -ge 2 ]] || { echo "ERROR: --machine-label requires a value" >&2; exit 2; }
+      MACHINE_LABEL="$2"; shift 2 ;;
+    --log-dir)
+      [[ $# -ge 2 ]] || { echo "ERROR: --log-dir requires a value" >&2; exit 2; }
+      LOG_DIR="$2"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed '$d'
@@ -59,6 +68,14 @@ else
   DATASETS=("$DATASET")
 fi
 ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)
+declare -A ALGORITHM_CLASSES=(
+  [fm]="FlowMatchingAlgorithm"
+  [fm_lognorm]="FlowMatchingLognormAlgorithm"
+  [mf]="MeanFlowAlgorithm"
+  [mf_distill]="MeanFlowDistillAlgorithm"
+  [consistency]="ConsistencyAlgorithm"
+  [reflow]="ReflowAlgorithm"
+)
 
 PYTHON="$PROJECT_ROOT/venv/bin/python"
 [[ -x "$PYTHON" ]] || {
@@ -70,6 +87,9 @@ IDENTITY_ARGS=(
   --launcher scripts/linux/train_all_datasets.sh
   --launcher scripts/linux/train_all.sh
 )
+if [[ -n "${DIFFUSION_ENTRY_LAUNCHER:-}" ]]; then
+  IDENTITY_ARGS+=(--launcher "$DIFFUSION_ENTRY_LAUNCHER")
+fi
 for config in config/*_full.json config/*_celeba64.json \
   config/mf_v3_exact_jvp_b128.json config/cifar_legacy/*.json; do
   [[ -f "$config" ]] && IDENTITY_ARGS+=(--config "$config")
@@ -102,14 +122,55 @@ if [[ -n "$GPU_NAME" ]]; then
 else
   DEVICE_LOG_DIR="training_logs/cpu-or-unknown"
 fi
-PIXEL_LOG_DIR="$DEVICE_LOG_DIR/pixel"
+PIXEL_LOG_DIR="${LOG_DIR:-$DEVICE_LOG_DIR/pixel}"
+LOG_DEVICE_TOKEN="${GPU_TOKEN:-cpu-or-unknown}"
+if [[ -z "$MACHINE_LABEL" ]]; then
+  OS_TOKEN="$(uname -s | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-')"
+  OS_TOKEN="${OS_TOKEN%-}"
+  if [[ -n "$GPU_NAME" ]]; then
+    MACHINE_LABEL="${OS_TOKEN}-${HOST_TOKEN}-${GPU_TOKEN}"
+  else
+    MACHINE_LABEL="${OS_TOKEN}-${HOST_TOKEN}-gpu-unavailable"
+  fi
+fi
+export DIFFUSION_MACHINE_LABEL="$MACHINE_LABEL"
+echo "[PLAN] machine_label=$MACHINE_LABEL"
 if [[ "$DRY_RUN" == false ]]; then
   mkdir -p "$PIXEL_LOG_DIR"
 fi
 FAILURES=()
 
+selected_config() {
+  local dataset=$1 algorithm=$2
+  if [[ "$dataset" == "celeba" ]]; then
+    printf 'config/%s_celeba64.json\n' "$algorithm"
+  elif [[ "$CIFAR_BACKBONE" == "legacy" ]]; then
+    printf 'config/cifar_legacy/%s.json\n' "$algorithm"
+  elif [[ "$algorithm" == "mf" ]]; then
+    printf 'config/mf_v3_exact_jvp_b128.json\n'
+  else
+    printf 'config/%s_full.json\n' "$algorithm"
+  fi
+}
+
+config_run_dir() {
+  "$PYTHON" -c '
+from pathlib import Path
+import sys
+from config.config import ExperimentConfig
+from utils.run_lifecycle import run_directory
+root = Path.cwd().resolve()
+path = run_directory(ExperimentConfig.load(sys.argv[1]), root)
+try:
+    print(path.relative_to(root))
+except ValueError:
+    print(path)
+' "$1"
+}
+
 for dataset in "${DATASETS[@]}"; do
   for algorithm in "${ALGORITHMS[@]}"; do
+    config_path="$(selected_config "$dataset" "$algorithm")"
     command=(
       "$PROJECT_ROOT/scripts/linux/train_all.sh"
       --dataset "$dataset"
@@ -120,11 +181,26 @@ for dataset in "${DATASETS[@]}"; do
     if [[ "$dataset" == "cifar10" ]]; then
       command+=(--cifar-backbone "$CIFAR_BACKBONE")
     fi
+    command+=(--machine-label "$MACHINE_LABEL")
     [[ "$TRAIN_ONLY" == false ]] || command+=(--train-only)
     [[ "$DRY_RUN" == false ]] || command+=(--dry-run)
     if [[ "$dataset" == "cifar10" && "$algorithm" == "mf" && "$CIFAR_BACKBONE" == "current" ]]; then
       command+=(--mf-config config/mf_v3_exact_jvp_b128.json)
     fi
+
+    run_dir="$(config_run_dir "$config_path")"
+    planned_checkpoint="$(
+      "$PYTHON" scripts/checkpoint_path.py \
+        --run-dir "$run_dir" \
+        --class-name "${ALGORITHM_CLASSES[$algorithm]}" \
+        --epoch 100 --planned-mode "$MODE"
+    )"
+    export DIFFUSION_CHECKPOINT_SERIES
+    DIFFUSION_CHECKPOINT_SERIES="$(basename "$(dirname "$planned_checkpoint")")"
+    echo "[PLAN] dataset=$dataset algorithm=$algorithm checkpoint_series=$DIFFUSION_CHECKPOINT_SERIES"
+    job_log_dir="$PIXEL_LOG_DIR/$dataset/$algorithm"
+    log_relative="$job_log_dir/${dataset}_pixel_${algorithm}_${DIFFUSION_CHECKPOINT_SERIES}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
+    echo "[PLAN] log=$log_relative"
 
     if [[ "$DRY_RUN" == true ]]; then
       echo "[DRY-RUN] ${command[*]}"
@@ -134,16 +210,17 @@ for dataset in "${DATASETS[@]}"; do
 
     workflow_guard_verify_source "$DRY_RUN"
 
-    log_relative="$PIXEL_LOG_DIR/${dataset}_pixel_${algorithm}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
+    mkdir -p "$job_log_dir"
     {
       echo "[run] training_type=pixel_diffusion"
       echo "[run] representation_space=pixel"
       echo "[run] dataset=$dataset"
       echo "[run] algorithm=$algorithm"
-      echo "[run] source_identity_sha256=${DIFFUSION_SOURCE_IDENTITY}"
-      echo "[run] lifecycle_mode=$MODE"
-      echo "[run] parent_suite_timestamp=$DIFFUSION_PARENT_SUITE_TIMESTAMP"
-      echo "[run] checkpoint_series=resolved-by-train.py"
+      "$PYTHON" scripts/print_run_provenance.py \
+        --config "$config_path" \
+        --machine-label "$MACHINE_LABEL" \
+        --log-device-token "$LOG_DEVICE_TOKEN" \
+        --log-path "$log_relative"
       echo "[run] started_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       echo "[run] command=${command[*]}"
     } | tee "$log_relative"
@@ -156,6 +233,9 @@ for dataset in "${DATASETS[@]}"; do
       echo "[run] finished_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       echo "[run] exit_status=$status"
     } | tee -a "$log_relative"
+    "$PYTHON" scripts/write_training_log_metadata.py --log "$log_relative" >/dev/null
+    echo "[LOG] $log_relative"
+    echo "[METADATA] ${log_relative}.meta.json"
     if [[ "$status" -ne 0 ]]; then
       FAILURES+=("${dataset}:${algorithm}:${status}")
       echo "WARNING: $dataset/$algorithm failed; continuing to the next model." >&2

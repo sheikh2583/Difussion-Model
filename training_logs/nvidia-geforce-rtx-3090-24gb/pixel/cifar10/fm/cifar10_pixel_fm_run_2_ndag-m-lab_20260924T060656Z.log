@@ -1,0 +1,63 @@
+[run] training_type=pixel_diffusion
+[run] representation_space=pixel
+[run] dataset=cifar10
+[run] algorithm=fm
+[run] launcher_session_id=5d22333be8b542d286ca2f53923be191
+[run] hostname=NDAG-M-Lab
+[run] os_name=Linux
+[run] os_release=7.0.0-31-generic
+[run] architecture=x86_64
+[run] python_version=3.12.2
+[run] torch_version=2.5.1+cu121
+[run] cuda_version=12.1
+[run] cuda_visible_devices=unavailable
+[run] gpu_device_index=0
+[run] gpu_uuid=d4eecee8-2e57-baf1-f631-0660b6517f2b
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] gpu_count=1
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] git_commit=71b46966a37f9621455371b7543813c00dd2e82b
+[run] git_dirty=true
+[run] git_diff_sha256=85d387984f143cbe1833b950273f5746147324a689c1cc2f19e805d423fd0ef2
+[run] code_identity=71b46966a37f9621455371b7543813c00dd2e82b+dirty:85d387984f14
+[run] source_identity_sha256=80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[run] source_manifest=results/source_manifests/20260924T060656Z_pid493152.json
+[run] parent_suite_timestamp=20260924T060656Z
+[run] lifecycle_mode=fresh
+[run] checkpoint_series=run_2
+[run] selected_config_path=config/fm_full.json
+[run] selected_config_sha256=de3fd6c0d5ab8181eb230db746695af2f6924c1fe44c6cfaaca93eb3039840b2
+[run] log_device_token=nvidia-geforce-rtx-3090-24gb
+[run] log_path=training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10/fm/cifar10_pixel_fm_run_2_ndag-m-lab_20260924T060656Z.log
+[run] git_log_policy=eligible-not-auto-staged
+[run] started_utc=2026-09-24T06:06:58Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/linux/train_all.sh --dataset cifar10 --only fm --mode fresh --checkpoint-every 10 --cifar-backbone current --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[PLAN] /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/bin/python train.py --algorithm fm --config config/fm_full.json --mode fresh --checkpoint-every 10 --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[fresh] Previous run preserved at: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/history/fm_cifar10_20260924_120700
+[checkpoints] Active checkpoint series: run_2
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/fm_full.json
+[startup] algorithm: fm
+[startup] experiment: fm
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/fm_cifar10
+[startup] batch_size: 128
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0002
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 71b46966a37f9621455371b7543813c00dd2e82b+dirty:85d387984f14
+[startup] source_identity_sha256: 80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[startup] selected_config_file_sha256: de3fd6c0d5ab8181eb230db746695af2f6924c1fe44c6cfaaca93eb3039840b2
+[startup] lifecycle_mode: fresh
+[startup] checkpoint_series: run_2
+[startup] parent_suite_timestamp: 20260924T060656Z
+Files already downloaded and verified
+Files already downloaded and verified
+2026-09-24 12:07:24,915 [INFO] trainer.FlowMatchingAlgorithm: epoch=1 loss=0.316182 time=22.410s peak_mem=2249.1MB
+2026-09-24 12:07:47,368 [INFO] trainer.FlowMatchingAlgorithm: epoch=2 loss=0.233155 time=22.452s peak_mem=2250.9MB
+2026-09-24 12:08:09,903 [INFO] trainer.FlowMatchingAlgorithm: epoch=3 loss=0.217961 time=22.535s peak_mem=2250.9MB
+2026-09-24 12:08:32,362 [INFO] trainer.FlowMatchingAlgorithm: epoch=4 loss=0.210666 time=22.458s peak_mem=2250.9MB

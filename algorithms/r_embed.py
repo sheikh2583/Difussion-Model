@@ -51,6 +51,26 @@ class RCond(nn.Module):
         return self.net(r)
 
 
+class LegacyREmbed(nn.Module):
+    """Historical image-space r conditioner for existing MF checkpoints.
+
+    It is selected only when checkpoint tensor shapes prove that the payload
+    predates ``RCond``. New training continues to use ``RCond``.
+    """
+
+    def __init__(self, in_channels: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(1, 64),
+            nn.SiLU(),
+            nn.Linear(64, in_channels),
+        )
+
+    def forward(self, z: torch.Tensor, r: torch.Tensor) -> torch.Tensor:
+        r_signal = self.net(r.unsqueeze(-1))
+        return z + r_signal[:, :, None, None]
+
+
 class REmbed:
     """Removed pixel-space conditioner retained only as an explicit guard."""
 

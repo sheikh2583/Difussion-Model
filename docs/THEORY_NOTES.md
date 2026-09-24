@@ -21,9 +21,12 @@ v = dx_t/dt = x_1 - x_0    (constant along the path — key property of linear p
 
 All methods train a neural network f_θ(·) on the configured shared
 SimpleUNet backbone and differ in what f_θ predicts, what loss is used, and
-what is done at inference time. Parameter count depends on the dataset preset;
-the controlled CIFAR backbone is about 6.35M parameters, while the wider
-CelebA pixel/latent backbone is about 8.95M.
+what is done at inference time. Parameter count depends on the dataset preset:
+the controlled CIFAR backbone is about 6.35M parameters, CelebA pixel is about
+8.95M, and the completed CelebA latent suite uses a wider three-stage backbone
+with about 24.03M. The pixel-to-latent comparison therefore changes both
+representation size and backbone capacity; it is not a parameter-matched
+architecture ablation.
 
 ---
 

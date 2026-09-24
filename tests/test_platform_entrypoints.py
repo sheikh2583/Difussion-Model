@@ -88,7 +88,7 @@ def test_platform_wrappers_reference_shared_entrypoints() -> None:
     complete_windows_init = (WINDOWS_DIR / "init_all.ps1").read_text(
         encoding="utf-8"
     )
-    assert '"-Datasets", "all"' in complete_windows_init
+    assert 'Datasets = "all"' in complete_windows_init
     assert "setup_celeba_latent.ps1" in complete_windows_init
     assert "Start-WorkflowGuard" in complete_windows_init
     assert "Stop-WorkflowGuard" in complete_windows_init
@@ -117,10 +117,12 @@ def test_linux_cifar_launcher_uses_v3_meanflow_and_does_not_mutate_git() -> None
     assert "config/mf_v3_exact_jvp_b128.json" in text
     assert "training_logs/" in text
     assert 'DEVICE_LOG_DIR="training_logs/$GPU_TOKEN"' in text
-    assert 'PIXEL_LOG_DIR="$DEVICE_LOG_DIR/pixel"' in text
+    assert 'PIXEL_LOG_DIR="${LOG_DIR:-$DEVICE_LOG_DIR/pixel}"' in text
     assert "representation_space=pixel" in text
     assert "nvidia-smi --query-gpu=name" in text
     assert "nvidia-smi --query-gpu=memory.total" in text
+    assert "scripts/write_training_log_metadata.py" in text
+    assert "scripts/print_run_provenance.py" in text
     assert 'DATASETS=(cifar10 celeba)' in text
     assert 'ALGORITHMS=(fm fm_lognorm mf mf_distill consistency reflow)' in text
     assert '--cifar-backbone "$CIFAR_BACKBONE"' in text
@@ -158,6 +160,23 @@ def test_linux_latent_launcher_covers_suite_without_mutating_git() -> None:
     windows = (WINDOWS_DIR / "train_celeba_latent.ps1").read_text(encoding="utf-8")
     assert "AllowTeacherSourceMismatch" in windows
     assert "--allow-source-identity-mismatch" in windows
+
+
+def test_three_thesis_launchers_select_disjoint_stages_and_fresh_runs() -> None:
+    launchers = {
+        "01_train_cifar10.sh": ("--dataset cifar10", "train_all_datasets.sh"),
+        "02_train_celeba_pixel.sh": ("--dataset celeba", "train_all_datasets.sh"),
+        "03_train_celeba_latent.sh": ("--mode fresh", "train_celeba_latent.sh"),
+    }
+    thesis_dir = PROJECT_ROOT / "scripts" / "linux"
+    for name, required in launchers.items():
+        path = thesis_dir / name
+        text = path.read_text(encoding="utf-8")
+        assert path.stat().st_mode & 0o111
+        assert "--mode fresh" in text
+        assert "DIFFUSION_ENTRY_LAUNCHER" in text
+        assert "run_queued_thesis_stage" in text
+        assert all(fragment in text for fragment in required)
 
 
 def test_windows_suite_provenance_matches_linux_contract() -> None:

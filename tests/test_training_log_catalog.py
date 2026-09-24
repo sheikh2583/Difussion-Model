@@ -46,6 +46,7 @@ def test_scratch_codec_log_metrics_are_cataloged(tmp_path: Path) -> None:
     assert record["minimum_latent_std"] == 0.906543
     assert record["gate_result"] == "FAIL"
     assert record["exit_status"] == "2"
+    assert record["evidence_class"] == "meaningful_negative"
 
 
 def test_unknown_logs_and_sidecar_metadata_are_preserved(tmp_path: Path) -> None:
@@ -65,6 +66,7 @@ def test_unknown_logs_and_sidecar_metadata_are_preserved(tmp_path: Path) -> None
     assert len(catalog) == 2
     by_path = {row["path"]: row for row in catalog}
     assert by_path["training_logs/new_hardware/novel.log"]["training_type"] == "unclassified"
+    assert by_path["training_logs/new_hardware/novel.log"]["evidence_class"] == "operational_diagnostic"
     assert by_path["results/encoder_b/logs/run.log"]["training_type"] == "vector_quantizer"
 
 
@@ -165,6 +167,9 @@ def test_catalog_outputs_and_context_manifest_inventory(tmp_path: Path) -> None:
     assert (output / "training_log_catalog.json").is_file()
     assert (output / "training_log_catalog.csv").is_file()
     assert "results/run/logs/train.log" in (
+        output / "TRAINING_LOG_INDEX.md"
+    ).read_text(encoding="utf-8")
+    assert "Meaningful negative and partial evidence" in (
         output / "TRAINING_LOG_INDEX.md"
     ).read_text(encoding="utf-8")
     assert training_log_files([log], tmp_path) == ["results/run/logs/train.log"]

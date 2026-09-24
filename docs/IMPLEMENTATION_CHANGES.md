@@ -174,21 +174,18 @@ hard-coded list of CIFAR-10 directories.
 - retires converged samples early;
 - forces completion at the maximum NFE;
 - records per-sample NFE and average NFE;
-- clamps generated images to the project range `[-1, 1]`.
+- returns unbounded normalized latents when no codec is supplied;
+- decodes normalized latents through the frozen codec before clamping RGB.
 
 ### Multiscale Mean Flow sampling
 
-`MultiScaleMeanFlowPipeline` now implements coarse-to-fine generation:
-
-- generates a low-resolution draft with a coarse Mean Flow model;
-- validates channels and spatial dimensions;
-- upsamples the draft with bilinear interpolation;
-- refines it with a higher-resolution Mean Flow model from an intermediate time;
-- validates NFE and time settings;
-- returns images in `[-1, 1]`.
-
-The repository includes `config/mf_coarse16.json` for the coarse model and
-`scripts/sample_mean_flow_extensions.py` for adaptive and multiscale inference.
+`MultiScaleMeanFlowPipeline` is a single-model two-phase latent refinement
+wrapper. It generates a 16×16 draft, re-noises it onto the training path, and
+refines it from `t_renoise` to zero with the same trained MF model. It never
+bilinearly upsamples latents or assumes a nonexistent 32×32 model. Without a
+codec it returns unbounded normalized latents; with a codec it decodes before
+clamping RGB. `scripts/sample_mean_flow_extensions.py` exposes both inference
+wrappers and always loads the frozen codec before writing display images.
 
 ### Configurable logit-normal Flow Matching
 
@@ -377,3 +374,68 @@ remain unavailable because they inherently require CelebA model training.
   verification, MF-v3 preflight, seven-job latent dry-run, and dependency
   consistency. No model training, sampling, evaluation, or artifact migration
   was started by this audit.
+
+## 23 September 2026 post-Reflow evidence
+
+### Reflow latent pairs — source identity mismatch (accepted)
+
+The latent Reflow pairs were generated from the completed FM teacher checkpoint
+at `results/fm_celeba_latent/checkpoints/run_4/FlowMatchingAlgorithm_epoch100.pt`.
+The teacher records source identity
+`1a0feaa6767e5710a5b30d5c3d04961ff22f0fa38cac27689e0e7bfe9a2ef52a`,
+whereas pair generation and Reflow training record
+`600972b2044964c9d003a582166ab09d0f21c91c7794b2b0799a0d8f048be50e`.
+The Reflow session ran from commit `490719776ef2` with dirty-diff prefix
+`9bfb479bc89f`.
+
+The mismatch was accepted explicitly with the launcher's
+`--allow-teacher-source-mismatch` option; it was not silently or automatically
+ignored. Structured checkpoint provenance still matched the FM algorithm,
+three-channel 16×16 CelebA latent representation, SimpleUNet architecture, and
+run variant. The pair manifest records both source identities, the exact FM
+checkpoint digest, and `source_identity_mismatch_accepted: true`. Source changes
+since FM training did not change `algorithms/flow_matching.py` or the shared
+backbone recorded by the two source manifests.
+
+Reflow training reached epoch 100 with loss `0.006143` and wrote
+`ReflowAlgorithm_epoch100.pt`. The session nevertheless recorded
+`exit_status=1`: creation of the epoch-100 ZIP archive failed with `ENOSPC`
+(`No space left on device`). The checkpoint itself remained valid and was
+evaluated explicitly after storage was recovered. Epoch-100 results are:
+
+| NFE | FID | IS mean | IS std |
+|---:|---:|---:|---:|
+| 1 | 300.8571 | 2.4908 | 0.0685 |
+| 2 | 300.7416 | 2.4962 | 0.0829 |
+| 5 | 300.2236 | 2.5218 | 0.0778 |
+| 10 | 299.9267 | 2.5167 | 0.0788 |
+| 20 | 299.7504 | 2.5080 | 0.0799 |
+
+### MF latent — divergence after epoch 90, epoch-80 checkpoint used
+
+MF latent training completed 100 epochs in `run_2`. Loss remained approximately
+`1.69–1.74` through epoch 94, then rose from `1.755604` at epoch 95 to
+`2.163722` at epoch 100. The increase is strictly monotonic from epoch 94 through
+epoch 100, not throughout the entire epoch 91–100 interval.
+
+The epoch-80 checkpoint (`loss=1.725121`) is designated for the canonical MF
+latent evaluation, while the epoch-100 checkpoint is retained as historical
+evidence. The checkpoint contains the historical `REmbed` conditioner
+(`1→64→3`) rather than the later `RCond` architecture. Evaluation therefore
+uses a shape-detected compatibility path that reproduces the original
+r-dependent image bias; it does not reinterpret the weights as `RCond`.
+
+Canonical epoch-80 results are:
+
+| NFE | FID | IS mean | IS std |
+|---:|---:|---:|---:|
+| 1 | 294.7134 | 2.3358 | 0.0551 |
+| 2 | 297.2778 | 2.4037 | 0.0476 |
+| 5 | 300.4877 | 2.3924 | 0.0662 |
+| 10 | 299.8622 | 2.3838 | 0.0546 |
+| 20 | 299.4497 | 2.3886 | 0.0520 |
+
+No epoch-100 metric is relabelled as an epoch-80 result. A likely cause of the
+late loss rise is an interaction between the JVP target estimator and the
+latent distribution; the separate Hutchinson-CV experiment is the designed
+diagnostic for this regime.

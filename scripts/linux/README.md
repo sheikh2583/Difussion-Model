@@ -24,7 +24,7 @@ stages, commits, or pushes them. Version-control decisions remain with the
 operator. Large results, checkpoints, datasets, and generated samples remain
 excluded from Git.
 
-All GPU launchers share the ownership-checked `results/.lock`, and nested suite
+GPU launchers share the ownership-checked `results/.lock`, and nested suite
 calls inherit its random token without reacquiring it. Each suite also freezes
 a content hash of training-relevant source/config inputs and verifies it before
 starting the next serialized job. Documentation-only edits are excluded.
@@ -80,6 +80,11 @@ Useful checks that do not start training:
 ./scripts/linux/train_all_datasets.sh --dry-run
 ./scripts/linux/train_celeba_latent.sh --only mf_hutchinson --dry-run
 ```
+
+For the three independently logged thesis stages, see
+`scripts/thesis_runs/README.md`. Each numbered launcher defaults to a fresh,
+automatically incremented checkpoint run. The numbered wrappers queue and time
+the three stages on the workstation's single GPU.
 
 MF-Hutchinson is supported only by the CelebA latent workflow. There is no
 pixel-space Hutchinson preset, training/evaluation reject pixel configs, and

@@ -6,7 +6,7 @@
 #
 # FM is trained first because MF-Distill, Consistency, and Reflow depend on its
 # epoch-100 checkpoint. Reflow pairs are generated automatically when missing.
-# Jobs are intentionally serialized because they share one GPU.
+# Jobs inside this suite are intentionally serialized on the single GPU.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -135,6 +135,9 @@ done
 # become the owner and pass the same token to Reflow generation.
 source scripts/linux/workflow_guard.sh
 IDENTITY_ARGS=(--launcher scripts/linux/train_celeba_latent.sh)
+if [[ -n "${DIFFUSION_ENTRY_LAUNCHER:-}" ]]; then
+  IDENTITY_ARGS+=(--launcher "$DIFFUSION_ENTRY_LAUNCHER")
+fi
 for algorithm in "${ALGORITHMS[@]}"; do
   IDENTITY_ARGS+=(--config "${CONFIGS[$algorithm]}")
 done
@@ -211,7 +214,8 @@ run_logged() {
   shift 2
   local -a command=("$@")
   local job_log_dir="$LOG_DIR/$job_name"
-  local log_path="$job_log_dir/celeba_latent_${job_name}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
+  local checkpoint_series="${DIFFUSION_CHECKPOINT_SERIES:-no-checkpoint-series}"
+  local log_path="$job_log_dir/celeba_latent_${job_name}_${checkpoint_series}_${HOST_TOKEN}_${RUN_TIMESTAMP}.log"
   local sidecar_path="${log_path}.meta.json"
 
   echo "[PLAN] job=$job_name"
@@ -279,6 +283,7 @@ run_training() {
   )"
   export DIFFUSION_CHECKPOINT_SERIES
   DIFFUSION_CHECKPOINT_SERIES="$(basename "$(dirname "$resolved_checkpoint")")"
+  echo "[PLAN] algorithm=$algorithm checkpoint_series=$DIFFUSION_CHECKPOINT_SERIES"
   [[ -z "$MACHINE_LABEL" ]] || command+=(--machine-label "$MACHINE_LABEL")
   [[ -z "$CHECKPOINT_EVERY" ]] || command+=(--checkpoint-every "$CHECKPOINT_EVERY")
   [[ "$TRAIN_ONLY" == false ]] || command+=(--train-only)
@@ -367,7 +372,18 @@ if [[ "$ONLY" == "all" || "$ONLY" == "reflow" ]]; then
     exit 1
   fi
   require_file "$FM_CHECKPOINT" "corrected latent FM teacher checkpoint"
-  if [[ ! -f "$REFLOW_PAIRS" ]]; then
+  if [[ "$MODE" == "fresh" && -f "$REFLOW_PAIRS" ]]; then
+    HISTORY_DIR="data/history"
+    PAIR_BASENAME="${REFLOW_PAIRS##*/}"
+    PAIR_STEM="${PAIR_BASENAME%.pt}"
+    ARCHIVED_PAIRS="$HISTORY_DIR/${PAIR_STEM}_${RUN_TIMESTAMP}_pid$$.pt"
+    echo "[PLAN] Preserve existing latent Reflow pairs: $REFLOW_PAIRS -> $ARCHIVED_PAIRS"
+    if [[ "$DRY_RUN" == false ]]; then
+      mkdir -p "$HISTORY_DIR"
+      mv -- "$REFLOW_PAIRS" "$ARCHIVED_PAIRS"
+    fi
+  fi
+  if [[ "$MODE" == "fresh" || ! -f "$REFLOW_PAIRS" ]]; then
     workflow_guard_verify_source "$DRY_RUN"
     export DIFFUSION_SELECTED_CONFIG_SHA256="$(sha256sum "${CONFIGS[fm]}" | awk '{print $1}')"
     export DIFFUSION_CHECKPOINT_SERIES="$(basename "$(dirname "$FM_CHECKPOINT")")"

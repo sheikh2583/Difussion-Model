@@ -6,6 +6,8 @@ param(
     [ValidateRange(1, 1000000)][int]$CheckpointEvery = 10,
     [switch]$TrainOnly,
     [ValidateSet("current", "legacy")][string]$CifarBackbone = "current",
+    [string]$MachineLabel = "",
+    [string]$LogDir = "",
     [switch]$DryRun
 )
 Set-StrictMode -Version Latest
@@ -37,7 +39,12 @@ try {
     $algorithms = @("fm", "fm_lognorm", "mf", "mf_distill", "consistency", "reflow")
     $timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
     $hostToken = ($env:COMPUTERNAME.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')
-    $logRoot = Get-WorkflowDeviceLogDirectory -Category "pixel"
+    $logRoot = if ($LogDir) { $LogDir } else { Get-WorkflowDeviceLogDirectory -Category "pixel" }
+    if (-not $MachineLabel) {
+        $deviceToken = ($logRoot.Replace('\', '/') -split '/')[1]
+        $MachineLabel = "windows-$($env:COMPUTERNAME)-$deviceToken".ToLowerInvariant()
+    }
+    $env:DIFFUSION_MACHINE_LABEL = $MachineLabel
     $failures = [System.Collections.Generic.List[string]]::new()
 
     foreach ($datasetName in $datasets) {
@@ -49,6 +56,7 @@ try {
                 CheckpointEvery = $CheckpointEvery
                 TrainOnly = [bool]$TrainOnly
                 DryRun = [bool]$DryRun
+                MachineLabel = $MachineLabel
             }
             if ($datasetName -eq "cifar10") { $parameters.CifarBackbone = $CifarBackbone }
             if ($datasetName -eq "cifar10" -and $algorithm -eq "mf" -and $CifarBackbone -eq "current") {

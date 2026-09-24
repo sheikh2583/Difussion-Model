@@ -176,3 +176,53 @@ Defaulting to unsafe serialization. Pass `allow_pickle=False` to raise an error 
 2026-09-24 03:14:37,972 [INFO] trainer.ReflowAlgorithm: epoch=97 loss=0.006224 time=103.275s peak_mem=2167.9MB
 2026-09-24 03:16:22,381 [INFO] trainer.ReflowAlgorithm: epoch=98 loss=0.006214 time=104.408s peak_mem=2167.9MB
 2026-09-24 03:18:04,205 [INFO] trainer.ReflowAlgorithm: epoch=99 loss=0.006184 time=101.824s peak_mem=2167.9MB
+2026-09-24 03:19:47,924 [INFO] trainer.ReflowAlgorithm: epoch=100 loss=0.006143 time=103.719s peak_mem=2167.9MB
+2026-09-24 03:19:48,170 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_celeba_latent/checkpoints/run_1/ReflowAlgorithm_epoch100.pt
+Traceback (most recent call last):
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 289, in _zip_checkpoint
+    zf.write(ckpt_path, arcname="checkpoint.pt")
+  File "/home/ndag/anaconda3/lib/python3.12/zipfile/__init__.py", line 1849, in write
+    shutil.copyfileobj(src, dest, 1024*8)
+  File "/home/ndag/anaconda3/lib/python3.12/shutil.py", line 204, in copyfileobj
+    fdst_write(buf)
+  File "/home/ndag/anaconda3/lib/python3.12/zipfile/__init__.py", line 1208, in write
+    self._fileobj.write(data)
+OSError: [Errno 28] No space left on device
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ndag/anaconda3/lib/python3.12/zipfile/__init__.py", line 1947, in close
+    self._write_end_record()
+  File "/home/ndag/anaconda3/lib/python3.12/zipfile/__init__.py", line 2045, in _write_end_record
+    self.fp.flush()
+OSError: [Errno 28] No space left on device
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 345, in <module>
+    main()
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 341, in main
+    _main()
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/train.py", line 336, in _main
+    runner.run_full(resume_checkpoint=resume_checkpoint)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/experiments/runner.py", line 166, in run_full
+    self.train(resume_checkpoint=resume_checkpoint, evaluation_enabled=True)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/experiments/runner.py", line 162, in train
+    trainer.fit(start_epoch=start_epoch)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 404, in fit
+    self.save_checkpoint(epoch)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 252, in save_checkpoint
+    self._zip_checkpoint(epoch, path)
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/training/trainer.py", line 288, in _zip_checkpoint
+    with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_STORED) as zf:
+  File "/home/ndag/anaconda3/lib/python3.12/zipfile/__init__.py", line 1384, in __exit__
+    self.close()
+  File "/home/ndag/anaconda3/lib/python3.12/zipfile/__init__.py", line 1951, in close
+    self._fpclose(fp)
+  File "/home/ndag/anaconda3/lib/python3.12/zipfile/__init__.py", line 2051, in _fpclose
+    fp.close()
+OSError: [Errno 28] No space left on device
+[run] finished_utc=2026-09-23T21:19:48Z
+[run] exit_status=1
