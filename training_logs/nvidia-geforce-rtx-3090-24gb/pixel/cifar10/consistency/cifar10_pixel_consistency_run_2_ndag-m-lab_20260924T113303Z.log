@@ -1,0 +1,185 @@
+[run] training_type=pixel_diffusion
+[run] representation_space=pixel
+[run] dataset=cifar10
+[run] algorithm=consistency
+[run] launcher_session_id=f85eeb6dac8e4471b7f098c2ec9bdf58
+[run] hostname=NDAG-M-Lab
+[run] os_name=Linux
+[run] os_release=7.0.0-34-generic
+[run] architecture=x86_64
+[run] python_version=3.12.2
+[run] torch_version=2.5.1+cu121
+[run] cuda_version=12.1
+[run] cuda_visible_devices=unavailable
+[run] gpu_device_index=0
+[run] gpu_uuid=d4eecee8-2e57-baf1-f631-0660b6517f2b
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] gpu_count=1
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] git_commit=5cb916797c7cfce9b81eb765e51b50fb8d3ec2f6
+[run] git_dirty=true
+[run] git_diff_sha256=24b8b9549bbd07fc8a036e07ffef2c30c86405f1d48c0d1fc0b30a12ad8843b5
+[run] code_identity=5cb916797c7cfce9b81eb765e51b50fb8d3ec2f6+dirty:24b8b9549bbd
+[run] source_identity_sha256=80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[run] source_manifest=results/source_manifests/20260924T113303Z_pid16467.json
+[run] parent_suite_timestamp=20260924T113303Z
+[run] lifecycle_mode=fresh
+[run] checkpoint_series=run_2
+[run] selected_config_path=config/consistency_full.json
+[run] selected_config_sha256=7e50f72950df90c68334a2f3856b6f9694bf68a7914eec956c6a9e98299e02b9
+[run] log_device_token=nvidia-geforce-rtx-3090-24gb
+[run] log_path=training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10/consistency/cifar10_pixel_consistency_run_2_ndag-m-lab_20260924T113303Z.log
+[run] git_log_policy=eligible-not-auto-staged
+[run] started_utc=2026-09-24T16:29:47Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/linux/train_all.sh --dataset cifar10 --only consistency --mode fresh --checkpoint-every 10 --cifar-backbone current --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[OK] FM teacher checkpoint: results/fm_cifar10/checkpoints/run_4/FlowMatchingAlgorithm_epoch100.pt
+[PLAN] /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/bin/python train.py --algorithm consistency --config config/consistency_full.json --mode fresh --checkpoint-every 10 --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[fresh] Previous run preserved at: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/history/consistency_cifar10_20260924_222950
+[checkpoints] Active checkpoint series: run_2
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/consistency_full.json
+[startup] algorithm: consistency
+[startup] experiment: consistency
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/consistency_cifar10
+[startup] batch_size: 128
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0001
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 5cb916797c7cfce9b81eb765e51b50fb8d3ec2f6+dirty:24b8b9549bbd
+[startup] source_identity_sha256: 80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[startup] selected_config_file_sha256: 7e50f72950df90c68334a2f3856b6f9694bf68a7914eec956c6a9e98299e02b9
+[startup] lifecycle_mode: fresh
+[startup] checkpoint_series: run_2
+[startup] parent_suite_timestamp: 20260924T113303Z
+Files already downloaded and verified
+Files already downloaded and verified
+2026-09-24 22:30:29,620 [INFO] trainer.ConsistencyAlgorithm: epoch=1 loss=0.000924 time=38.419s peak_mem=2570.5MB
+2026-09-24 22:31:07,564 [INFO] trainer.ConsistencyAlgorithm: epoch=2 loss=0.000626 time=37.944s peak_mem=2570.5MB
+2026-09-24 22:31:45,446 [INFO] trainer.ConsistencyAlgorithm: epoch=3 loss=0.000520 time=37.882s peak_mem=2570.5MB
+2026-09-24 22:32:24,165 [INFO] trainer.ConsistencyAlgorithm: epoch=4 loss=0.000451 time=38.718s peak_mem=2570.5MB
+2026-09-24 22:33:02,810 [INFO] trainer.ConsistencyAlgorithm: epoch=5 loss=0.000389 time=38.645s peak_mem=2570.5MB
+2026-09-24 22:33:40,484 [INFO] trainer.ConsistencyAlgorithm: epoch=6 loss=0.000352 time=37.673s peak_mem=2570.5MB
+2026-09-24 22:34:18,299 [INFO] trainer.ConsistencyAlgorithm: epoch=7 loss=0.000318 time=37.814s peak_mem=2570.5MB
+2026-09-24 22:34:55,990 [INFO] trainer.ConsistencyAlgorithm: epoch=8 loss=0.000299 time=37.691s peak_mem=2570.5MB
+2026-09-24 22:35:33,693 [INFO] trainer.ConsistencyAlgorithm: epoch=9 loss=0.000280 time=37.702s peak_mem=2570.5MB
+2026-09-24 22:36:11,375 [INFO] trainer.ConsistencyAlgorithm: epoch=10 loss=0.000270 time=37.682s peak_mem=2570.5MB
+2026-09-24 22:36:11,491 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch10.pt
+2026-09-24 22:36:11,643 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch10.zip
+2026-09-24 22:36:49,364 [INFO] trainer.ConsistencyAlgorithm: epoch=11 loss=0.000249 time=37.721s peak_mem=2570.5MB
+2026-09-24 22:37:27,173 [INFO] trainer.ConsistencyAlgorithm: epoch=12 loss=0.000243 time=37.809s peak_mem=2570.5MB
+2026-09-24 22:38:04,873 [INFO] trainer.ConsistencyAlgorithm: epoch=13 loss=0.000233 time=37.699s peak_mem=2570.5MB
+2026-09-24 22:38:42,588 [INFO] trainer.ConsistencyAlgorithm: epoch=14 loss=0.000222 time=37.715s peak_mem=2570.5MB
+2026-09-24 22:39:20,274 [INFO] trainer.ConsistencyAlgorithm: epoch=15 loss=0.000233 time=37.685s peak_mem=2570.5MB
+2026-09-24 22:39:57,969 [INFO] trainer.ConsistencyAlgorithm: epoch=16 loss=0.000224 time=37.695s peak_mem=2570.5MB
+2026-09-24 22:40:35,677 [INFO] trainer.ConsistencyAlgorithm: epoch=17 loss=0.000206 time=37.708s peak_mem=2570.5MB
+2026-09-24 22:41:13,528 [INFO] trainer.ConsistencyAlgorithm: epoch=18 loss=0.000223 time=37.851s peak_mem=2570.5MB
+2026-09-24 22:41:51,230 [INFO] trainer.ConsistencyAlgorithm: epoch=19 loss=0.000223 time=37.701s peak_mem=2570.5MB
+2026-09-24 22:42:28,921 [INFO] trainer.ConsistencyAlgorithm: epoch=20 loss=0.000211 time=37.691s peak_mem=2570.5MB
+2026-09-24 22:42:29,040 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch20.pt
+2026-09-24 22:42:29,201 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch20.zip
+2026-09-24 22:43:06,894 [INFO] trainer.ConsistencyAlgorithm: epoch=21 loss=0.000212 time=37.692s peak_mem=2570.5MB
+2026-09-24 22:43:44,601 [INFO] trainer.ConsistencyAlgorithm: epoch=22 loss=0.000212 time=37.707s peak_mem=2570.5MB
+2026-09-24 22:44:22,291 [INFO] trainer.ConsistencyAlgorithm: epoch=23 loss=0.000216 time=37.689s peak_mem=2570.5MB
+2026-09-24 22:45:00,082 [INFO] trainer.ConsistencyAlgorithm: epoch=24 loss=0.000202 time=37.791s peak_mem=2570.5MB
+2026-09-24 22:45:37,765 [INFO] trainer.ConsistencyAlgorithm: epoch=25 loss=0.000208 time=37.682s peak_mem=2570.5MB
+/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: Metric `InceptionScore` will save all extracted features in buffer. For large datasets this may lead to large memory footprint.
+  warnings.warn(*args, **kwargs)
+2026-09-24 22:47:50,840 [INFO] trainer.ConsistencyAlgorithm: epoch=26 loss=0.000207 time=37.717s peak_mem=3014.1MB
+2026-09-24 22:48:28,667 [INFO] trainer.ConsistencyAlgorithm: epoch=27 loss=0.000226 time=37.826s peak_mem=3014.1MB
+2026-09-24 22:49:06,405 [INFO] trainer.ConsistencyAlgorithm: epoch=28 loss=0.000213 time=37.738s peak_mem=3014.1MB
+2026-09-24 22:49:44,138 [INFO] trainer.ConsistencyAlgorithm: epoch=29 loss=0.000244 time=37.732s peak_mem=3014.1MB
+2026-09-24 22:50:21,878 [INFO] trainer.ConsistencyAlgorithm: epoch=30 loss=0.000209 time=37.740s peak_mem=3014.1MB
+2026-09-24 22:50:21,993 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch30.pt
+2026-09-24 22:50:22,153 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch30.zip
+2026-09-24 22:50:59,892 [INFO] trainer.ConsistencyAlgorithm: epoch=31 loss=0.000237 time=37.739s peak_mem=3014.1MB
+2026-09-24 22:51:37,756 [INFO] trainer.ConsistencyAlgorithm: epoch=32 loss=0.000248 time=37.863s peak_mem=3014.1MB
+2026-09-24 22:52:15,493 [INFO] trainer.ConsistencyAlgorithm: epoch=33 loss=0.000251 time=37.736s peak_mem=3014.1MB
+2026-09-24 22:52:53,240 [INFO] trainer.ConsistencyAlgorithm: epoch=34 loss=0.000258 time=37.747s peak_mem=3014.1MB
+2026-09-24 22:53:30,967 [INFO] trainer.ConsistencyAlgorithm: epoch=35 loss=0.000249 time=37.726s peak_mem=3014.1MB
+2026-09-24 22:54:08,720 [INFO] trainer.ConsistencyAlgorithm: epoch=36 loss=0.000231 time=37.753s peak_mem=3014.1MB
+2026-09-24 22:54:46,448 [INFO] trainer.ConsistencyAlgorithm: epoch=37 loss=0.000252 time=37.727s peak_mem=3014.1MB
+2026-09-24 22:55:24,300 [INFO] trainer.ConsistencyAlgorithm: epoch=38 loss=0.000277 time=37.852s peak_mem=3014.1MB
+2026-09-24 22:56:02,037 [INFO] trainer.ConsistencyAlgorithm: epoch=39 loss=0.000251 time=37.736s peak_mem=3014.1MB
+2026-09-24 22:56:39,785 [INFO] trainer.ConsistencyAlgorithm: epoch=40 loss=0.000279 time=37.747s peak_mem=3014.1MB
+2026-09-24 22:56:39,901 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch40.pt
+2026-09-24 22:56:40,053 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch40.zip
+2026-09-24 22:57:17,792 [INFO] trainer.ConsistencyAlgorithm: epoch=41 loss=0.000229 time=37.738s peak_mem=3014.1MB
+2026-09-24 22:57:55,539 [INFO] trainer.ConsistencyAlgorithm: epoch=42 loss=0.000279 time=37.746s peak_mem=3014.1MB
+2026-09-24 22:58:33,401 [INFO] trainer.ConsistencyAlgorithm: epoch=43 loss=0.000298 time=37.862s peak_mem=3014.1MB
+2026-09-24 22:59:11,132 [INFO] trainer.ConsistencyAlgorithm: epoch=44 loss=0.000275 time=37.731s peak_mem=3014.1MB
+2026-09-24 22:59:48,878 [INFO] trainer.ConsistencyAlgorithm: epoch=45 loss=0.000251 time=37.745s peak_mem=3014.1MB
+2026-09-24 23:00:26,609 [INFO] trainer.ConsistencyAlgorithm: epoch=46 loss=0.000236 time=37.730s peak_mem=3014.1MB
+2026-09-24 23:01:04,362 [INFO] trainer.ConsistencyAlgorithm: epoch=47 loss=0.000259 time=37.753s peak_mem=3014.1MB
+2026-09-24 23:01:42,122 [INFO] trainer.ConsistencyAlgorithm: epoch=48 loss=0.000314 time=37.759s peak_mem=3014.1MB
+2026-09-24 23:02:19,967 [INFO] trainer.ConsistencyAlgorithm: epoch=49 loss=0.000263 time=37.844s peak_mem=3014.1MB
+2026-09-24 23:02:57,709 [INFO] trainer.ConsistencyAlgorithm: epoch=50 loss=0.000271 time=37.741s peak_mem=3014.1MB
+2026-09-24 23:02:57,826 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch50.pt
+2026-09-24 23:02:57,992 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch50.zip
+2026-09-24 23:05:11,094 [INFO] trainer.ConsistencyAlgorithm: epoch=51 loss=0.000256 time=37.770s peak_mem=3789.8MB
+2026-09-24 23:05:48,998 [INFO] trainer.ConsistencyAlgorithm: epoch=52 loss=0.000232 time=37.895s peak_mem=3789.8MB
+2026-09-24 23:06:26,761 [INFO] trainer.ConsistencyAlgorithm: epoch=53 loss=0.000287 time=37.762s peak_mem=3789.8MB
+2026-09-24 23:07:04,523 [INFO] trainer.ConsistencyAlgorithm: epoch=54 loss=0.000322 time=37.762s peak_mem=3789.8MB
+2026-09-24 23:07:42,292 [INFO] trainer.ConsistencyAlgorithm: epoch=55 loss=0.000213 time=37.768s peak_mem=3789.8MB
+2026-09-24 23:08:20,079 [INFO] trainer.ConsistencyAlgorithm: epoch=56 loss=0.000257 time=37.787s peak_mem=3789.8MB
+2026-09-24 23:08:57,837 [INFO] trainer.ConsistencyAlgorithm: epoch=57 loss=0.000228 time=37.757s peak_mem=3789.8MB
+2026-09-24 23:09:35,711 [INFO] trainer.ConsistencyAlgorithm: epoch=58 loss=0.000257 time=37.874s peak_mem=3789.8MB
+2026-09-24 23:10:13,475 [INFO] trainer.ConsistencyAlgorithm: epoch=59 loss=0.000253 time=37.763s peak_mem=3789.8MB
+2026-09-24 23:10:51,233 [INFO] trainer.ConsistencyAlgorithm: epoch=60 loss=0.000221 time=37.757s peak_mem=3789.8MB
+2026-09-24 23:10:51,349 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch60.pt
+2026-09-24 23:10:51,508 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch60.zip
+2026-09-24 23:11:29,262 [INFO] trainer.ConsistencyAlgorithm: epoch=61 loss=0.000283 time=37.754s peak_mem=3789.8MB
+2026-09-24 23:12:07,043 [INFO] trainer.ConsistencyAlgorithm: epoch=62 loss=0.000243 time=37.781s peak_mem=3789.8MB
+2026-09-24 23:12:44,918 [INFO] trainer.ConsistencyAlgorithm: epoch=63 loss=0.000228 time=37.875s peak_mem=3789.8MB
+2026-09-24 23:13:22,677 [INFO] trainer.ConsistencyAlgorithm: epoch=64 loss=0.000235 time=37.758s peak_mem=3789.8MB
+2026-09-24 23:14:00,455 [INFO] trainer.ConsistencyAlgorithm: epoch=65 loss=0.000271 time=37.777s peak_mem=3789.8MB
+2026-09-24 23:14:38,221 [INFO] trainer.ConsistencyAlgorithm: epoch=66 loss=0.000214 time=37.756s peak_mem=3789.8MB
+2026-09-24 23:15:15,981 [INFO] trainer.ConsistencyAlgorithm: epoch=67 loss=0.000230 time=37.760s peak_mem=3789.8MB
+2026-09-24 23:15:53,724 [INFO] trainer.ConsistencyAlgorithm: epoch=68 loss=0.000224 time=37.743s peak_mem=3789.8MB
+2026-09-24 23:16:31,639 [INFO] trainer.ConsistencyAlgorithm: epoch=69 loss=0.000255 time=37.915s peak_mem=3789.8MB
+2026-09-24 23:17:09,390 [INFO] trainer.ConsistencyAlgorithm: epoch=70 loss=0.000228 time=37.751s peak_mem=3789.8MB
+2026-09-24 23:17:09,506 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch70.pt
+2026-09-24 23:17:09,664 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch70.zip
+2026-09-24 23:17:47,443 [INFO] trainer.ConsistencyAlgorithm: epoch=71 loss=0.000253 time=37.779s peak_mem=3789.8MB
+2026-09-24 23:18:25,199 [INFO] trainer.ConsistencyAlgorithm: epoch=72 loss=0.000202 time=37.755s peak_mem=3789.8MB
+2026-09-24 23:19:02,980 [INFO] trainer.ConsistencyAlgorithm: epoch=73 loss=0.000225 time=37.780s peak_mem=3789.8MB
+2026-09-24 23:19:40,870 [INFO] trainer.ConsistencyAlgorithm: epoch=74 loss=0.000227 time=37.890s peak_mem=3789.8MB
+2026-09-24 23:20:18,632 [INFO] trainer.ConsistencyAlgorithm: epoch=75 loss=0.000215 time=37.761s peak_mem=3789.8MB
+2026-09-24 23:22:30,719 [INFO] trainer.ConsistencyAlgorithm: epoch=76 loss=0.000217 time=37.779s peak_mem=4453.7MB
+2026-09-24 23:23:08,594 [INFO] trainer.ConsistencyAlgorithm: epoch=77 loss=0.000238 time=37.874s peak_mem=4453.7MB
+2026-09-24 23:23:46,350 [INFO] trainer.ConsistencyAlgorithm: epoch=78 loss=0.000211 time=37.756s peak_mem=4453.7MB
+2026-09-24 23:24:24,105 [INFO] trainer.ConsistencyAlgorithm: epoch=79 loss=0.000215 time=37.754s peak_mem=4453.7MB
+2026-09-24 23:25:01,859 [INFO] trainer.ConsistencyAlgorithm: epoch=80 loss=0.000217 time=37.754s peak_mem=4453.7MB
+2026-09-24 23:25:01,974 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch80.pt
+2026-09-24 23:25:02,134 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch80.zip
+2026-09-24 23:25:39,881 [INFO] trainer.ConsistencyAlgorithm: epoch=81 loss=0.000236 time=37.746s peak_mem=4453.7MB
+2026-09-24 23:26:17,648 [INFO] trainer.ConsistencyAlgorithm: epoch=82 loss=0.000206 time=37.767s peak_mem=4453.7MB
+2026-09-24 23:26:55,519 [INFO] trainer.ConsistencyAlgorithm: epoch=83 loss=0.000204 time=37.870s peak_mem=4453.7MB
+2026-09-24 23:27:33,272 [INFO] trainer.ConsistencyAlgorithm: epoch=84 loss=0.000191 time=37.752s peak_mem=4453.7MB
+2026-09-24 23:28:11,030 [INFO] trainer.ConsistencyAlgorithm: epoch=85 loss=0.000214 time=37.758s peak_mem=4453.7MB
+2026-09-24 23:28:48,770 [INFO] trainer.ConsistencyAlgorithm: epoch=86 loss=0.000218 time=37.739s peak_mem=4453.7MB
+2026-09-24 23:29:26,655 [INFO] trainer.ConsistencyAlgorithm: epoch=87 loss=0.000195 time=37.885s peak_mem=4453.7MB
+2026-09-24 23:30:05,265 [INFO] trainer.ConsistencyAlgorithm: epoch=88 loss=0.000231 time=38.609s peak_mem=4453.7MB
+2026-09-24 23:30:43,715 [INFO] trainer.ConsistencyAlgorithm: epoch=89 loss=0.000191 time=38.450s peak_mem=4453.7MB
+2026-09-24 23:31:21,880 [INFO] trainer.ConsistencyAlgorithm: epoch=90 loss=0.000218 time=38.165s peak_mem=4453.7MB
+2026-09-24 23:31:21,996 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch90.pt
+2026-09-24 23:31:22,156 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch90.zip
+2026-09-24 23:31:59,962 [INFO] trainer.ConsistencyAlgorithm: epoch=91 loss=0.000194 time=37.805s peak_mem=4453.7MB
+2026-09-24 23:32:37,777 [INFO] trainer.ConsistencyAlgorithm: epoch=92 loss=0.000202 time=37.815s peak_mem=4453.7MB
+2026-09-24 23:33:15,600 [INFO] trainer.ConsistencyAlgorithm: epoch=93 loss=0.000214 time=37.823s peak_mem=4453.7MB
+2026-09-24 23:33:53,467 [INFO] trainer.ConsistencyAlgorithm: epoch=94 loss=0.000204 time=37.866s peak_mem=4453.7MB
+2026-09-24 23:34:31,340 [INFO] trainer.ConsistencyAlgorithm: epoch=95 loss=0.000197 time=37.872s peak_mem=4453.7MB
+2026-09-24 23:35:09,149 [INFO] trainer.ConsistencyAlgorithm: epoch=96 loss=0.000197 time=37.809s peak_mem=4453.7MB
+2026-09-24 23:35:46,961 [INFO] trainer.ConsistencyAlgorithm: epoch=97 loss=0.000207 time=37.811s peak_mem=4453.7MB
+2026-09-24 23:36:24,771 [INFO] trainer.ConsistencyAlgorithm: epoch=98 loss=0.000200 time=37.810s peak_mem=4453.7MB
+2026-09-24 23:37:02,558 [INFO] trainer.ConsistencyAlgorithm: epoch=99 loss=0.000196 time=37.786s peak_mem=4453.7MB
+2026-09-24 23:37:40,406 [INFO] trainer.ConsistencyAlgorithm: epoch=100 loss=0.000192 time=37.847s peak_mem=4453.7MB
+2026-09-24 23:37:40,513 [INFO] trainer.ConsistencyAlgorithm: Checkpoint saved -> results/consistency_cifar10/checkpoints/run_2/ConsistencyAlgorithm_epoch100.pt
+2026-09-24 23:37:40,676 [INFO] trainer.ConsistencyAlgorithm: Checkpoint archive -> results/consistency_cifar10/checkpoints/run_2/archive/ConsistencyAlgorithm_epoch100.zip
+Training workflow complete.
+[run] finished_utc=2026-09-24T17:39:16Z
+[run] exit_status=0

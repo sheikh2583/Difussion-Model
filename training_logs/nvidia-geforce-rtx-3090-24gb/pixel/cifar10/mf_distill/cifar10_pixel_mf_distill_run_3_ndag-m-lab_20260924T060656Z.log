@@ -1,0 +1,154 @@
+[run] training_type=pixel_diffusion
+[run] representation_space=pixel
+[run] dataset=cifar10
+[run] algorithm=mf_distill
+[run] launcher_session_id=44e591ea2210410c854d67c7beb7b0e6
+[run] hostname=NDAG-M-Lab
+[run] os_name=Linux
+[run] os_release=7.0.0-31-generic
+[run] architecture=x86_64
+[run] python_version=3.12.2
+[run] torch_version=2.5.1+cu121
+[run] cuda_version=12.1
+[run] cuda_visible_devices=unavailable
+[run] gpu_device_index=0
+[run] gpu_uuid=d4eecee8-2e57-baf1-f631-0660b6517f2b
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] gpu_count=1
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] git_commit=5cb916797c7cfce9b81eb765e51b50fb8d3ec2f6
+[run] git_dirty=true
+[run] git_diff_sha256=24b8b9549bbd07fc8a036e07ffef2c30c86405f1d48c0d1fc0b30a12ad8843b5
+[run] code_identity=5cb916797c7cfce9b81eb765e51b50fb8d3ec2f6+dirty:24b8b9549bbd
+[run] source_identity_sha256=80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[run] source_manifest=results/source_manifests/20260924T060656Z_pid493152.json
+[run] parent_suite_timestamp=20260924T060656Z
+[run] lifecycle_mode=fresh
+[run] checkpoint_series=run_3
+[run] selected_config_path=config/mf_distill_full.json
+[run] selected_config_sha256=898540b07590f06e049a47295f7c2fd2d128d25c97c5270d7dc35d1092fc4c90
+[run] log_device_token=nvidia-geforce-rtx-3090-24gb
+[run] log_path=training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10/mf_distill/cifar10_pixel_mf_distill_run_3_ndag-m-lab_20260924T060656Z.log
+[run] git_log_policy=eligible-not-auto-staged
+[run] started_utc=2026-09-24T09:36:39Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/linux/train_all.sh --dataset cifar10 --only mf_distill --mode fresh --checkpoint-every 10 --cifar-backbone current --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[OK] FM teacher checkpoint: results/fm_cifar10/checkpoints/run_2/FlowMatchingAlgorithm_epoch100.pt
+[PLAN] /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/bin/python train.py --algorithm mf_distill --config config/mf_distill_full.json --mode fresh --checkpoint-every 10 --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[fresh] Previous run preserved at: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/history/mf_distill_cifar10_20260924_153641
+[checkpoints] Active checkpoint series: run_3
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/mf_distill_full.json
+[startup] algorithm: mf_distill
+[startup] experiment: mf_distill
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/mf_distill_cifar10
+[startup] batch_size: 64
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 5e-05
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 5cb916797c7cfce9b81eb765e51b50fb8d3ec2f6+dirty:24b8b9549bbd
+[startup] source_identity_sha256: 80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[startup] selected_config_file_sha256: 898540b07590f06e049a47295f7c2fd2d128d25c97c5270d7dc35d1092fc4c90
+[startup] lifecycle_mode: fresh
+[startup] checkpoint_series: run_3
+[startup] parent_suite_timestamp: 20260924T060656Z
+Files already downloaded and verified
+Files already downloaded and verified
+2026-09-24 15:37:42,390 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=1 loss=0.154115 time=60.126s peak_mem=1204.4MB
+2026-09-24 15:38:41,493 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=2 loss=0.061016 time=59.102s peak_mem=1204.4MB
+2026-09-24 15:39:40,562 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=3 loss=0.044462 time=59.069s peak_mem=1204.4MB
+2026-09-24 15:40:39,624 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=4 loss=0.036548 time=59.061s peak_mem=1204.4MB
+2026-09-24 15:41:38,767 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=5 loss=0.031296 time=59.142s peak_mem=1204.4MB
+2026-09-24 15:42:37,881 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=6 loss=0.027559 time=59.114s peak_mem=1204.4MB
+2026-09-24 15:43:36,923 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=7 loss=0.024770 time=59.041s peak_mem=1204.4MB
+2026-09-24 15:44:35,866 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=8 loss=0.022035 time=58.942s peak_mem=1204.4MB
+2026-09-24 15:45:34,980 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=9 loss=0.020307 time=59.114s peak_mem=1204.4MB
+2026-09-24 15:46:33,981 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=10 loss=0.019000 time=59.000s peak_mem=1204.4MB
+2026-09-24 15:46:34,077 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_cifar10/checkpoints/run_3/MeanFlowDistillAlgorithm_epoch10.pt
+2026-09-24 15:46:34,200 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_cifar10/checkpoints/run_3/archive/MeanFlowDistillAlgorithm_epoch10.zip
+2026-09-24 15:47:33,279 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=11 loss=0.017554 time=59.078s peak_mem=1204.4MB
+2026-09-24 15:48:32,455 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=12 loss=0.016457 time=59.176s peak_mem=1204.4MB
+2026-09-24 15:49:31,397 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=13 loss=0.015297 time=58.941s peak_mem=1204.3MB
+2026-09-24 15:50:30,467 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=14 loss=0.014441 time=59.070s peak_mem=1204.4MB
+2026-09-24 15:51:29,491 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=15 loss=0.013744 time=59.023s peak_mem=1204.4MB
+2026-09-24 15:52:28,521 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=16 loss=0.012881 time=59.029s peak_mem=1204.4MB
+2026-09-24 15:53:27,682 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=17 loss=0.012280 time=59.160s peak_mem=1204.4MB
+2026-09-24 15:54:26,706 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=18 loss=0.011687 time=59.024s peak_mem=1204.4MB
+2026-09-24 15:55:25,705 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=19 loss=0.011118 time=58.999s peak_mem=1204.4MB
+2026-09-24 15:56:24,856 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=20 loss=0.010658 time=59.150s peak_mem=1204.4MB
+2026-09-24 15:56:24,955 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_cifar10/checkpoints/run_3/MeanFlowDistillAlgorithm_epoch20.pt
+2026-09-24 15:56:25,080 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_cifar10/checkpoints/run_3/archive/MeanFlowDistillAlgorithm_epoch20.zip
+2026-09-24 15:57:24,144 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=21 loss=0.010465 time=59.064s peak_mem=1204.4MB
+2026-09-24 15:58:23,214 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=22 loss=0.009853 time=59.069s peak_mem=1204.4MB
+2026-09-24 15:59:22,336 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=23 loss=0.009414 time=59.121s peak_mem=1204.4MB
+2026-09-24 16:00:21,391 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=24 loss=0.009073 time=59.055s peak_mem=1204.4MB
+2026-09-24 16:01:20,498 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=25 loss=0.008918 time=59.106s peak_mem=1204.4MB
+/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: Metric `InceptionScore` will save all extracted features in buffer. For large datasets this may lead to large memory footprint.
+  warnings.warn(*args, **kwargs)
+2026-09-24 16:04:03,446 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=26 loss=0.008458 time=59.100s peak_mem=1650.4MB
+2026-09-24 16:05:02,524 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=27 loss=0.008304 time=59.077s peak_mem=1650.3MB
+2026-09-24 16:06:01,716 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=28 loss=0.007969 time=59.192s peak_mem=1650.4MB
+2026-09-24 16:07:00,751 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=29 loss=0.007828 time=59.034s peak_mem=1650.4MB
+2026-09-24 16:07:59,853 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=30 loss=0.007551 time=59.101s peak_mem=1650.4MB
+2026-09-24 16:07:59,947 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_cifar10/checkpoints/run_3/MeanFlowDistillAlgorithm_epoch30.pt
+2026-09-24 16:08:00,070 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_cifar10/checkpoints/run_3/archive/MeanFlowDistillAlgorithm_epoch30.zip
+2026-09-24 16:08:59,233 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=31 loss=0.007399 time=59.162s peak_mem=1650.4MB
+2026-09-24 16:09:58,261 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=32 loss=0.007204 time=59.028s peak_mem=1650.4MB
+2026-09-24 16:10:57,509 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=33 loss=0.007024 time=59.247s peak_mem=1650.4MB
+2026-09-24 16:11:56,691 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=34 loss=0.006785 time=59.181s peak_mem=1650.4MB
+2026-09-24 16:12:55,785 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=35 loss=0.006712 time=59.094s peak_mem=1650.4MB
+2026-09-24 16:13:54,935 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=36 loss=0.006563 time=59.149s peak_mem=1650.4MB
+2026-09-24 16:14:54,107 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=37 loss=0.006393 time=59.171s peak_mem=1650.4MB
+2026-09-24 16:15:53,106 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=38 loss=0.006231 time=58.999s peak_mem=1650.4MB
+2026-09-24 16:16:52,223 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=39 loss=0.005976 time=59.116s peak_mem=1650.4MB
+2026-09-24 16:17:51,434 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=40 loss=0.005943 time=59.211s peak_mem=1650.4MB
+2026-09-24 16:17:51,532 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_cifar10/checkpoints/run_3/MeanFlowDistillAlgorithm_epoch40.pt
+2026-09-24 16:17:51,655 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_cifar10/checkpoints/run_3/archive/MeanFlowDistillAlgorithm_epoch40.zip
+2026-09-24 16:18:50,833 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=41 loss=0.005804 time=59.178s peak_mem=1650.4MB
+2026-09-24 16:19:49,923 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=42 loss=0.005751 time=59.089s peak_mem=1650.4MB
+2026-09-24 16:20:49,118 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=43 loss=0.005635 time=59.195s peak_mem=1650.4MB
+2026-09-24 16:21:48,271 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=44 loss=0.005528 time=59.152s peak_mem=1650.4MB
+2026-09-24 16:22:47,405 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=45 loss=0.005388 time=59.134s peak_mem=1650.4MB
+2026-09-24 16:23:46,611 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=46 loss=0.005355 time=59.206s peak_mem=1650.4MB
+2026-09-24 16:24:45,617 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=47 loss=0.005201 time=59.005s peak_mem=1650.4MB
+2026-09-24 16:25:44,824 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=48 loss=0.005086 time=59.206s peak_mem=1650.4MB
+2026-09-24 16:26:43,912 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=49 loss=0.005015 time=59.087s peak_mem=1650.4MB
+2026-09-24 16:27:42,990 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=50 loss=0.005018 time=59.078s peak_mem=1650.4MB
+2026-09-24 16:27:43,085 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_cifar10/checkpoints/run_3/MeanFlowDistillAlgorithm_epoch50.pt
+2026-09-24 16:27:43,208 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_cifar10/checkpoints/run_3/archive/MeanFlowDistillAlgorithm_epoch50.zip
+2026-09-24 16:30:26,113 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=51 loss=0.004969 time=59.146s peak_mem=2433.0MB
+2026-09-24 16:31:25,227 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=52 loss=0.004814 time=59.114s peak_mem=2433.0MB
+2026-09-24 16:32:24,401 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=53 loss=0.004717 time=59.173s peak_mem=2433.0MB
+2026-09-24 16:33:23,597 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=54 loss=0.004662 time=59.195s peak_mem=2432.9MB
+2026-09-24 16:34:22,786 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=55 loss=0.004597 time=59.189s peak_mem=2432.9MB
+2026-09-24 16:35:21,924 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=56 loss=0.004476 time=59.138s peak_mem=2433.0MB
+2026-09-24 16:36:21,086 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=57 loss=0.004444 time=59.161s peak_mem=2432.9MB
+2026-09-24 16:37:20,208 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=58 loss=0.004427 time=59.121s peak_mem=2433.0MB
+2026-09-24 16:38:19,440 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=59 loss=0.004339 time=59.232s peak_mem=2433.0MB
+2026-09-24 16:39:18,571 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=60 loss=0.004284 time=59.130s peak_mem=2432.9MB
+2026-09-24 16:39:18,667 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_cifar10/checkpoints/run_3/MeanFlowDistillAlgorithm_epoch60.pt
+2026-09-24 16:39:18,790 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_cifar10/checkpoints/run_3/archive/MeanFlowDistillAlgorithm_epoch60.zip
+2026-09-24 16:40:17,949 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=61 loss=0.004309 time=59.158s peak_mem=2433.0MB
+2026-09-24 16:41:17,139 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=62 loss=0.004179 time=59.189s peak_mem=2433.0MB
+2026-09-24 16:42:16,282 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=63 loss=0.004171 time=59.143s peak_mem=2432.9MB
+2026-09-24 16:43:15,465 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=64 loss=0.004067 time=59.182s peak_mem=2433.0MB
+2026-09-24 16:44:14,670 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=65 loss=0.004093 time=59.204s peak_mem=2433.0MB
+2026-09-24 16:45:13,783 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=66 loss=0.003912 time=59.113s peak_mem=2433.0MB
+2026-09-24 16:46:12,970 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=67 loss=0.003983 time=59.186s peak_mem=2433.0MB
+2026-09-24 16:47:12,153 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=68 loss=0.003950 time=59.183s peak_mem=2433.0MB
+2026-09-24 16:48:11,299 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=69 loss=0.003796 time=59.146s peak_mem=2433.0MB
+2026-09-24 16:49:10,563 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=70 loss=0.003923 time=59.263s peak_mem=2433.0MB
+2026-09-24 16:49:10,658 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint saved -> results/mf_distill_cifar10/checkpoints/run_3/MeanFlowDistillAlgorithm_epoch70.pt
+2026-09-24 16:49:10,786 [INFO] trainer.MeanFlowDistillAlgorithm: Checkpoint archive -> results/mf_distill_cifar10/checkpoints/run_3/archive/MeanFlowDistillAlgorithm_epoch70.zip
+2026-09-24 16:50:09,940 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=71 loss=0.003754 time=59.154s peak_mem=2433.0MB
+2026-09-24 16:51:09,103 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=72 loss=0.003716 time=59.162s peak_mem=2433.0MB
+2026-09-24 16:52:08,216 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=73 loss=0.003781 time=59.113s peak_mem=2433.0MB
+2026-09-24 16:53:07,425 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=74 loss=0.003659 time=59.209s peak_mem=2432.9MB
+2026-09-24 16:54:06,520 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=75 loss=0.003611 time=59.094s peak_mem=2433.0MB
+2026-09-24 16:56:49,044 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=76 loss=0.003620 time=59.077s peak_mem=3212.9MB
+2026-09-24 16:57:48,125 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=77 loss=0.003631 time=59.080s peak_mem=3101.7MB
+2026-09-24 16:58:47,139 [INFO] trainer.MeanFlowDistillAlgorithm: epoch=78 loss=0.003479 time=59.013s peak_mem=3101.8MB
