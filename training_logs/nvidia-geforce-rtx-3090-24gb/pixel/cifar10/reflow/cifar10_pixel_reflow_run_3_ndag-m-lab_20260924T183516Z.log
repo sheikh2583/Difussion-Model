@@ -1,0 +1,193 @@
+[run] training_type=pixel_diffusion
+[run] representation_space=pixel
+[run] dataset=cifar10
+[run] algorithm=reflow
+[run] launcher_session_id=0e2e6339c76d426d8268719f7e6b587a
+[run] hostname=NDAG-M-Lab
+[run] os_name=Linux
+[run] os_release=7.0.0-34-generic
+[run] architecture=x86_64
+[run] python_version=3.12.2
+[run] torch_version=2.5.1+cu121
+[run] cuda_version=12.1
+[run] cuda_visible_devices=unavailable
+[run] gpu_device_index=0
+[run] gpu_uuid=d4eecee8-2e57-baf1-f631-0660b6517f2b
+[run] gpu_name=NVIDIA GeForce RTX 3090
+[run] gpu_memory_gb=24
+[run] gpu_count=1
+[run] machine_label=linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[run] git_commit=975f260dccdf3101cc611f2f6b02667814e41291
+[run] git_dirty=true
+[run] git_diff_sha256=77eeaae9d70d146eb30b5a395767ea2c1a67a4ec5abb64491b1471bb7d3b16b9
+[run] code_identity=975f260dccdf3101cc611f2f6b02667814e41291+dirty:77eeaae9d70d
+[run] source_identity_sha256=80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[run] source_manifest=results/source_manifests/20260924T183516Z_pid201970.json
+[run] parent_suite_timestamp=20260924T183516Z
+[run] lifecycle_mode=fresh
+[run] checkpoint_series=run_3
+[run] selected_config_path=config/reflow_full.json
+[run] selected_config_sha256=6d9a73f39c4fca5a2f5d4ee2f478b7cd36ac7805d063ab8c1dd34ceda381e7ad
+[run] log_device_token=nvidia-geforce-rtx-3090-24gb
+[run] log_path=training_logs/nvidia-geforce-rtx-3090-24gb/pixel/cifar10/reflow/cifar10_pixel_reflow_run_3_ndag-m-lab_20260924T183516Z.log
+[run] git_log_policy=eligible-not-auto-staged
+[run] started_utc=2026-09-25T00:52:49Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/scripts/linux/train_all.sh --dataset cifar10 --only reflow --mode fresh --checkpoint-every 10 --cifar-backbone current --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[PLAN] Preserve existing Reflow pairs: data/reflow_pairs_cifar10.pt -> data/history/reflow_pairs_cifar10_20260925_065250_pid363071.pt
+[OK] FM teacher checkpoint: results/fm_cifar10/checkpoints/run_5/FlowMatchingAlgorithm_epoch100.pt
+[PLAN] Generate Reflow pairs: data/reflow_pairs_cifar10.pt
+Generating 50000 pairs at NFE=50...
+  40000/50000 pairs generated
+  50000/50000 pairs generated
+Saved 50000 pairs -> /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/data/reflow_pairs_cifar10.pt
+Shapes: z1=torch.Size([50000, 3, 32, 32]), x0=torch.Size([50000, 3, 32, 32])
+[OK] Reflow pairs: data/reflow_pairs_cifar10.pt
+[PLAN] /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/bin/python train.py --algorithm reflow --config config/reflow_full.json --mode fresh --checkpoint-every 10 --machine-label linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[fresh] Previous run preserved at: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/history/reflow_cifar10_20260925_070144
+[checkpoints] Active checkpoint series: run_3
+[startup] Resolved experiment configuration (before dataset loading):
+[startup] config: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/config/reflow_full.json
+[startup] algorithm: reflow
+[startup] experiment: reflow
+[startup] backbone: simple_unet
+[startup] result_dir: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/results/reflow_cifar10
+[startup] batch_size: 128
+[startup] epochs: 100
+[startup] seed: 0
+[startup] learning_rate: 0.0002
+[startup] scheduler: none
+[startup] gradient_clip_norm: None
+[startup] machine_label: linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb
+[startup] code_identity: 975f260dccdf3101cc611f2f6b02667814e41291+dirty:77eeaae9d70d
+[startup] source_identity_sha256: 80bd1b1e43d9c31bf77530f6950ff02cf82d82ca0612b1bcdd01fe2f1973fcec
+[startup] selected_config_file_sha256: 6d9a73f39c4fca5a2f5d4ee2f478b7cd36ac7805d063ab8c1dd34ceda381e7ad
+[startup] lifecycle_mode: fresh
+[startup] checkpoint_series: run_3
+[startup] parent_suite_timestamp: 20260924T183516Z
+Files already downloaded and verified
+Files already downloaded and verified
+2026-09-25 07:02:08,480 [INFO] trainer.ReflowAlgorithm: epoch=1 loss=0.118785 time=22.726s peak_mem=2251.4MB
+2026-09-25 07:02:30,958 [INFO] trainer.ReflowAlgorithm: epoch=2 loss=0.041593 time=22.477s peak_mem=2251.4MB
+2026-09-25 07:02:53,537 [INFO] trainer.ReflowAlgorithm: epoch=3 loss=0.028386 time=22.578s peak_mem=2251.4MB
+2026-09-25 07:03:16,099 [INFO] trainer.ReflowAlgorithm: epoch=4 loss=0.021824 time=22.561s peak_mem=2251.4MB
+2026-09-25 07:03:38,710 [INFO] trainer.ReflowAlgorithm: epoch=5 loss=0.018314 time=22.610s peak_mem=2251.4MB
+2026-09-25 07:04:01,280 [INFO] trainer.ReflowAlgorithm: epoch=6 loss=0.015272 time=22.570s peak_mem=2251.4MB
+2026-09-25 07:04:23,872 [INFO] trainer.ReflowAlgorithm: epoch=7 loss=0.013471 time=22.592s peak_mem=2251.4MB
+2026-09-25 07:04:46,465 [INFO] trainer.ReflowAlgorithm: epoch=8 loss=0.012416 time=22.592s peak_mem=2251.4MB
+2026-09-25 07:05:09,044 [INFO] trainer.ReflowAlgorithm: epoch=9 loss=0.010718 time=22.578s peak_mem=2251.4MB
+2026-09-25 07:05:31,622 [INFO] trainer.ReflowAlgorithm: epoch=10 loss=0.010649 time=22.578s peak_mem=2251.4MB
+2026-09-25 07:05:31,715 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch10.pt
+2026-09-25 07:05:31,837 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch10.zip
+2026-09-25 07:05:54,427 [INFO] trainer.ReflowAlgorithm: epoch=11 loss=0.009292 time=22.590s peak_mem=2251.4MB
+2026-09-25 07:06:17,001 [INFO] trainer.ReflowAlgorithm: epoch=12 loss=0.008952 time=22.573s peak_mem=2251.4MB
+2026-09-25 07:06:39,580 [INFO] trainer.ReflowAlgorithm: epoch=13 loss=0.008540 time=22.579s peak_mem=2251.4MB
+2026-09-25 07:07:02,073 [INFO] trainer.ReflowAlgorithm: epoch=14 loss=0.008060 time=22.493s peak_mem=2251.4MB
+2026-09-25 07:07:24,669 [INFO] trainer.ReflowAlgorithm: epoch=15 loss=0.007431 time=22.595s peak_mem=2251.4MB
+2026-09-25 07:07:47,151 [INFO] trainer.ReflowAlgorithm: epoch=16 loss=0.007320 time=22.481s peak_mem=2251.4MB
+2026-09-25 07:08:09,745 [INFO] trainer.ReflowAlgorithm: epoch=17 loss=0.007314 time=22.593s peak_mem=2251.4MB
+2026-09-25 07:08:32,310 [INFO] trainer.ReflowAlgorithm: epoch=18 loss=0.007130 time=22.564s peak_mem=2251.4MB
+2026-09-25 07:08:54,900 [INFO] trainer.ReflowAlgorithm: epoch=19 loss=0.006441 time=22.590s peak_mem=2251.4MB
+2026-09-25 07:09:17,407 [INFO] trainer.ReflowAlgorithm: epoch=20 loss=0.006189 time=22.506s peak_mem=2251.4MB
+2026-09-25 07:09:17,499 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch20.pt
+2026-09-25 07:09:17,620 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch20.zip
+2026-09-25 07:09:40,191 [INFO] trainer.ReflowAlgorithm: epoch=21 loss=0.006245 time=22.571s peak_mem=2251.4MB
+2026-09-25 07:10:02,765 [INFO] trainer.ReflowAlgorithm: epoch=22 loss=0.005778 time=22.573s peak_mem=2251.4MB
+2026-09-25 07:10:25,255 [INFO] trainer.ReflowAlgorithm: epoch=23 loss=0.005833 time=22.490s peak_mem=2251.4MB
+2026-09-25 07:10:47,850 [INFO] trainer.ReflowAlgorithm: epoch=24 loss=0.005641 time=22.594s peak_mem=2251.4MB
+2026-09-25 07:11:10,430 [INFO] trainer.ReflowAlgorithm: epoch=25 loss=0.005544 time=22.571s peak_mem=2251.4MB
+/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torchmetrics/utilities/prints.py:43: UserWarning: Metric `InceptionScore` will save all extracted features in buffer. For large datasets this may lead to large memory footprint.
+  warnings.warn(*args, **kwargs)
+2026-09-25 07:13:11,898 [INFO] trainer.ReflowAlgorithm: epoch=26 loss=0.005418 time=22.578s peak_mem=2697.1MB
+2026-09-25 07:13:34,563 [INFO] trainer.ReflowAlgorithm: epoch=27 loss=0.004963 time=22.664s peak_mem=2697.1MB
+2026-09-25 07:13:57,094 [INFO] trainer.ReflowAlgorithm: epoch=28 loss=0.005068 time=22.531s peak_mem=2697.1MB
+2026-09-25 07:14:19,726 [INFO] trainer.ReflowAlgorithm: epoch=29 loss=0.005051 time=22.632s peak_mem=2697.1MB
+2026-09-25 07:14:42,353 [INFO] trainer.ReflowAlgorithm: epoch=30 loss=0.004949 time=22.627s peak_mem=2697.1MB
+2026-09-25 07:14:42,447 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch30.pt
+2026-09-25 07:14:42,567 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch30.zip
+2026-09-25 07:15:05,196 [INFO] trainer.ReflowAlgorithm: epoch=31 loss=0.004716 time=22.628s peak_mem=2697.1MB
+2026-09-25 07:15:27,717 [INFO] trainer.ReflowAlgorithm: epoch=32 loss=0.004627 time=22.521s peak_mem=2697.1MB
+2026-09-25 07:15:50,244 [INFO] trainer.ReflowAlgorithm: epoch=33 loss=0.004512 time=22.518s peak_mem=2697.1MB
+2026-09-25 07:16:12,863 [INFO] trainer.ReflowAlgorithm: epoch=34 loss=0.004425 time=22.618s peak_mem=2697.1MB
+2026-09-25 07:16:35,475 [INFO] trainer.ReflowAlgorithm: epoch=35 loss=0.004556 time=22.611s peak_mem=2697.1MB
+2026-09-25 07:16:58,099 [INFO] trainer.ReflowAlgorithm: epoch=36 loss=0.004303 time=22.615s peak_mem=2697.1MB
+2026-09-25 07:17:20,633 [INFO] trainer.ReflowAlgorithm: epoch=37 loss=0.004328 time=22.533s peak_mem=2697.1MB
+2026-09-25 07:17:43,256 [INFO] trainer.ReflowAlgorithm: epoch=38 loss=0.004165 time=22.623s peak_mem=2697.1MB
+2026-09-25 07:18:05,881 [INFO] trainer.ReflowAlgorithm: epoch=39 loss=0.004272 time=22.624s peak_mem=2697.1MB
+2026-09-25 07:18:28,531 [INFO] trainer.ReflowAlgorithm: epoch=40 loss=0.004196 time=22.649s peak_mem=2697.1MB
+2026-09-25 07:18:28,624 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch40.pt
+2026-09-25 07:18:28,743 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch40.zip
+2026-09-25 07:18:51,252 [INFO] trainer.ReflowAlgorithm: epoch=41 loss=0.004024 time=22.508s peak_mem=2697.1MB
+2026-09-25 07:19:13,781 [INFO] trainer.ReflowAlgorithm: epoch=42 loss=0.003974 time=22.528s peak_mem=2697.1MB
+2026-09-25 07:19:36,403 [INFO] trainer.ReflowAlgorithm: epoch=43 loss=0.003928 time=22.622s peak_mem=2697.1MB
+2026-09-25 07:19:59,038 [INFO] trainer.ReflowAlgorithm: epoch=44 loss=0.004172 time=22.634s peak_mem=2697.1MB
+2026-09-25 07:20:21,677 [INFO] trainer.ReflowAlgorithm: epoch=45 loss=0.003924 time=22.639s peak_mem=2697.1MB
+2026-09-25 07:20:44,300 [INFO] trainer.ReflowAlgorithm: epoch=46 loss=0.003894 time=22.622s peak_mem=2697.1MB
+2026-09-25 07:21:06,919 [INFO] trainer.ReflowAlgorithm: epoch=47 loss=0.003685 time=22.618s peak_mem=2697.1MB
+2026-09-25 07:21:29,532 [INFO] trainer.ReflowAlgorithm: epoch=48 loss=0.003565 time=22.613s peak_mem=2697.1MB
+2026-09-25 07:21:52,134 [INFO] trainer.ReflowAlgorithm: epoch=49 loss=0.003668 time=22.602s peak_mem=2697.1MB
+2026-09-25 07:22:14,769 [INFO] trainer.ReflowAlgorithm: epoch=50 loss=0.003500 time=22.634s peak_mem=2697.1MB
+2026-09-25 07:22:14,866 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch50.pt
+2026-09-25 07:22:14,983 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch50.zip
+2026-09-25 07:24:16,673 [INFO] trainer.ReflowAlgorithm: epoch=51 loss=0.003580 time=22.608s peak_mem=3473.4MB
+2026-09-25 07:24:39,311 [INFO] trainer.ReflowAlgorithm: epoch=52 loss=0.003627 time=22.630s peak_mem=3473.4MB
+2026-09-25 07:25:01,957 [INFO] trainer.ReflowAlgorithm: epoch=53 loss=0.003391 time=22.645s peak_mem=3473.4MB
+2026-09-25 07:25:24,620 [INFO] trainer.ReflowAlgorithm: epoch=54 loss=0.003590 time=22.663s peak_mem=3473.4MB
+2026-09-25 07:25:47,258 [INFO] trainer.ReflowAlgorithm: epoch=55 loss=0.003544 time=22.638s peak_mem=3473.4MB
+2026-09-25 07:26:09,891 [INFO] trainer.ReflowAlgorithm: epoch=56 loss=0.003523 time=22.632s peak_mem=3473.4MB
+2026-09-25 07:26:32,527 [INFO] trainer.ReflowAlgorithm: epoch=57 loss=0.003264 time=22.635s peak_mem=3473.4MB
+2026-09-25 07:26:55,062 [INFO] trainer.ReflowAlgorithm: epoch=58 loss=0.003677 time=22.534s peak_mem=3473.4MB
+2026-09-25 07:27:17,681 [INFO] trainer.ReflowAlgorithm: epoch=59 loss=0.003202 time=22.619s peak_mem=3473.4MB
+2026-09-25 07:27:40,304 [INFO] trainer.ReflowAlgorithm: epoch=60 loss=0.003307 time=22.623s peak_mem=3473.4MB
+2026-09-25 07:27:40,399 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch60.pt
+2026-09-25 07:27:40,517 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch60.zip
+2026-09-25 07:28:03,163 [INFO] trainer.ReflowAlgorithm: epoch=61 loss=0.003095 time=22.645s peak_mem=3473.4MB
+2026-09-25 07:28:25,847 [INFO] trainer.ReflowAlgorithm: epoch=62 loss=0.003313 time=22.684s peak_mem=3473.4MB
+2026-09-25 07:28:48,497 [INFO] trainer.ReflowAlgorithm: epoch=63 loss=0.003390 time=22.650s peak_mem=3473.4MB
+2026-09-25 07:29:11,152 [INFO] trainer.ReflowAlgorithm: epoch=64 loss=0.003121 time=22.654s peak_mem=3473.4MB
+2026-09-25 07:29:33,826 [INFO] trainer.ReflowAlgorithm: epoch=65 loss=0.003156 time=22.665s peak_mem=3473.4MB
+2026-09-25 07:29:56,478 [INFO] trainer.ReflowAlgorithm: epoch=66 loss=0.003204 time=22.651s peak_mem=3473.4MB
+2026-09-25 07:30:19,138 [INFO] trainer.ReflowAlgorithm: epoch=67 loss=0.003043 time=22.660s peak_mem=3473.4MB
+2026-09-25 07:30:41,684 [INFO] trainer.ReflowAlgorithm: epoch=68 loss=0.003126 time=22.545s peak_mem=3473.4MB
+2026-09-25 07:31:04,334 [INFO] trainer.ReflowAlgorithm: epoch=69 loss=0.003010 time=22.650s peak_mem=3473.4MB
+2026-09-25 07:31:26,983 [INFO] trainer.ReflowAlgorithm: epoch=70 loss=0.002983 time=22.649s peak_mem=3473.4MB
+2026-09-25 07:31:27,077 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch70.pt
+2026-09-25 07:31:27,194 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch70.zip
+2026-09-25 07:31:49,854 [INFO] trainer.ReflowAlgorithm: epoch=71 loss=0.003304 time=22.659s peak_mem=3473.4MB
+2026-09-25 07:32:12,532 [INFO] trainer.ReflowAlgorithm: epoch=72 loss=0.003280 time=22.678s peak_mem=3473.4MB
+2026-09-25 07:32:35,190 [INFO] trainer.ReflowAlgorithm: epoch=73 loss=0.003101 time=22.657s peak_mem=3473.4MB
+2026-09-25 07:32:57,847 [INFO] trainer.ReflowAlgorithm: epoch=74 loss=0.002920 time=22.657s peak_mem=3473.4MB
+2026-09-25 07:33:20,493 [INFO] trainer.ReflowAlgorithm: epoch=75 loss=0.003024 time=22.645s peak_mem=3473.4MB
+2026-09-25 07:35:21,667 [INFO] trainer.ReflowAlgorithm: epoch=76 loss=0.002991 time=22.588s peak_mem=4135.4MB
+2026-09-25 07:35:44,194 [INFO] trainer.ReflowAlgorithm: epoch=77 loss=0.003099 time=22.527s peak_mem=4135.4MB
+2026-09-25 07:36:06,836 [INFO] trainer.ReflowAlgorithm: epoch=78 loss=0.003099 time=22.641s peak_mem=4135.4MB
+2026-09-25 07:36:29,455 [INFO] trainer.ReflowAlgorithm: epoch=79 loss=0.003099 time=22.618s peak_mem=4135.4MB
+2026-09-25 07:36:52,089 [INFO] trainer.ReflowAlgorithm: epoch=80 loss=0.002773 time=22.634s peak_mem=4135.4MB
+2026-09-25 07:36:52,183 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch80.pt
+2026-09-25 07:36:52,302 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch80.zip
+2026-09-25 07:37:14,818 [INFO] trainer.ReflowAlgorithm: epoch=81 loss=0.002899 time=22.516s peak_mem=4135.4MB
+2026-09-25 07:37:37,342 [INFO] trainer.ReflowAlgorithm: epoch=82 loss=0.002916 time=22.523s peak_mem=4135.4MB
+2026-09-25 07:37:59,883 [INFO] trainer.ReflowAlgorithm: epoch=83 loss=0.003019 time=22.541s peak_mem=4135.4MB
+2026-09-25 07:38:22,525 [INFO] trainer.ReflowAlgorithm: epoch=84 loss=0.002757 time=22.633s peak_mem=4135.4MB
+2026-09-25 07:38:45,047 [INFO] trainer.ReflowAlgorithm: epoch=85 loss=0.002861 time=22.521s peak_mem=4135.4MB
+2026-09-25 07:39:07,578 [INFO] trainer.ReflowAlgorithm: epoch=86 loss=0.002724 time=22.530s peak_mem=4135.4MB
+2026-09-25 07:39:30,221 [INFO] trainer.ReflowAlgorithm: epoch=87 loss=0.002969 time=22.643s peak_mem=4135.4MB
+2026-09-25 07:39:52,865 [INFO] trainer.ReflowAlgorithm: epoch=88 loss=0.002706 time=22.644s peak_mem=4135.4MB
+2026-09-25 07:40:15,445 [INFO] trainer.ReflowAlgorithm: epoch=89 loss=0.002782 time=22.580s peak_mem=4135.4MB
+2026-09-25 07:40:38,089 [INFO] trainer.ReflowAlgorithm: epoch=90 loss=0.002814 time=22.643s peak_mem=4135.4MB
+2026-09-25 07:40:38,182 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch90.pt
+2026-09-25 07:40:38,311 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch90.zip
+2026-09-25 07:41:00,829 [INFO] trainer.ReflowAlgorithm: epoch=91 loss=0.002645 time=22.518s peak_mem=4135.4MB
+2026-09-25 07:41:23,487 [INFO] trainer.ReflowAlgorithm: epoch=92 loss=0.002997 time=22.657s peak_mem=4135.4MB
+2026-09-25 07:41:46,128 [INFO] trainer.ReflowAlgorithm: epoch=93 loss=0.002745 time=22.641s peak_mem=4135.4MB
+2026-09-25 07:42:08,777 [INFO] trainer.ReflowAlgorithm: epoch=94 loss=0.002665 time=22.649s peak_mem=4135.4MB
+2026-09-25 07:42:31,414 [INFO] trainer.ReflowAlgorithm: epoch=95 loss=0.002842 time=22.628s peak_mem=4135.4MB
+2026-09-25 07:42:54,079 [INFO] trainer.ReflowAlgorithm: epoch=96 loss=0.002687 time=22.664s peak_mem=4135.4MB
+2026-09-25 07:43:16,624 [INFO] trainer.ReflowAlgorithm: epoch=97 loss=0.002713 time=22.544s peak_mem=4135.4MB
+2026-09-25 07:43:39,285 [INFO] trainer.ReflowAlgorithm: epoch=98 loss=0.002677 time=22.661s peak_mem=4135.4MB
+2026-09-25 07:44:01,951 [INFO] trainer.ReflowAlgorithm: epoch=99 loss=0.002601 time=22.665s peak_mem=4135.4MB
+2026-09-25 07:44:24,625 [INFO] trainer.ReflowAlgorithm: epoch=100 loss=0.002700 time=22.673s peak_mem=4135.4MB
+2026-09-25 07:44:24,718 [INFO] trainer.ReflowAlgorithm: Checkpoint saved -> results/reflow_cifar10/checkpoints/run_3/ReflowAlgorithm_epoch100.pt
+2026-09-25 07:44:24,835 [INFO] trainer.ReflowAlgorithm: Checkpoint archive -> results/reflow_cifar10/checkpoints/run_3/archive/ReflowAlgorithm_epoch100.zip
+Training workflow complete.
+[run] finished_utc=2026-09-25T01:46:04Z
+[run] exit_status=0

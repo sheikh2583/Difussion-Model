@@ -155,3 +155,30 @@ Files already downloaded and verified
 2026-09-25 02:14:37,275 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=80 loss=0.142552 time=22.380s peak_mem=4358.0MB
 2026-09-25 02:14:37,369 [INFO] trainer.FlowMatchingLognormAlgorithm: Checkpoint saved -> results/fm_lognorm_cifar10/checkpoints/run_4/FlowMatchingLognormAlgorithm_epoch80.pt
 2026-09-25 02:14:37,490 [INFO] trainer.FlowMatchingLognormAlgorithm: Checkpoint archive -> results/fm_lognorm_cifar10/checkpoints/run_4/archive/FlowMatchingLognormAlgorithm_epoch80.zip
+2026-09-25 02:14:59,977 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=81 loss=0.142471 time=22.487s peak_mem=4358.0MB
+2026-09-25 02:15:22,512 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=82 loss=0.143160 time=22.534s peak_mem=4358.0MB
+2026-09-25 02:15:45,002 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=83 loss=0.142787 time=22.489s peak_mem=4358.0MB
+2026-09-25 02:16:07,447 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=84 loss=0.142904 time=22.445s peak_mem=4358.0MB
+2026-09-25 02:16:29,929 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=85 loss=0.142625 time=22.481s peak_mem=4358.0MB
+2026-09-25 02:16:52,767 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=86 loss=0.142412 time=22.838s peak_mem=4358.0MB
+2026-09-25 02:17:15,007 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=87 loss=0.142564 time=22.239s peak_mem=4358.0MB
+2026-09-25 02:17:37,262 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=88 loss=0.142331 time=22.254s peak_mem=4358.0MB
+2026-09-25 02:17:59,527 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=89 loss=0.142248 time=22.265s peak_mem=4358.0MB
+2026-09-25 02:18:21,731 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=90 loss=0.142295 time=22.204s peak_mem=4358.0MB
+2026-09-25 02:18:21,830 [INFO] trainer.FlowMatchingLognormAlgorithm: Checkpoint saved -> results/fm_lognorm_cifar10/checkpoints/run_4/FlowMatchingLognormAlgorithm_epoch90.pt
+2026-09-25 02:18:21,948 [INFO] trainer.FlowMatchingLognormAlgorithm: Checkpoint archive -> results/fm_lognorm_cifar10/checkpoints/run_4/archive/FlowMatchingLognormAlgorithm_epoch90.zip
+2026-09-25 02:18:44,197 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=91 loss=0.142465 time=22.248s peak_mem=4358.0MB
+2026-09-25 02:19:06,443 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=92 loss=0.142266 time=22.245s peak_mem=4358.0MB
+2026-09-25 02:19:28,655 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=93 loss=0.142180 time=22.212s peak_mem=4358.0MB
+2026-09-25 02:19:50,913 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=94 loss=0.142190 time=22.257s peak_mem=4358.0MB
+2026-09-25 02:20:13,189 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=95 loss=0.142210 time=22.275s peak_mem=4358.0MB
+2026-09-25 02:20:35,480 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=96 loss=0.141913 time=22.291s peak_mem=4358.0MB
+2026-09-25 02:20:57,874 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=97 loss=0.142028 time=22.394s peak_mem=4358.0MB
+2026-09-25 02:21:20,147 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=98 loss=0.142260 time=22.273s peak_mem=2249.6MB
+2026-09-25 02:21:42,542 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=99 loss=0.142046 time=22.394s peak_mem=2249.6MB
+2026-09-25 02:22:04,837 [INFO] trainer.FlowMatchingLognormAlgorithm: epoch=100 loss=0.142257 time=22.295s peak_mem=2249.6MB
+2026-09-25 02:22:04,932 [INFO] trainer.FlowMatchingLognormAlgorithm: Checkpoint saved -> results/fm_lognorm_cifar10/checkpoints/run_4/FlowMatchingLognormAlgorithm_epoch100.pt
+2026-09-25 02:22:05,053 [INFO] trainer.FlowMatchingLognormAlgorithm: Checkpoint archive -> results/fm_lognorm_cifar10/checkpoints/run_4/archive/FlowMatchingLognormAlgorithm_epoch100.zip
+Training workflow complete.
+[run] finished_utc=2026-09-24T20:26:41Z
+[run] exit_status=0
