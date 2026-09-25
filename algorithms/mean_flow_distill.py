@@ -39,7 +39,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from algorithms.base import BaseAlgorithm
+from algorithms.base import BaseAlgorithm, backbone_forward_with_embedding
 from algorithms.r_embed import RCond
 from models.backbone import build_backbone
 from utils.checkpoints import extract_model_state, resolve_checkpoint_reference
@@ -83,24 +83,7 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
         self, z: torch.Tensor, t_emb: torch.Tensor
     ) -> torch.Tensor:
         """Run SimpleUNet with an externally supplied time embedding."""
-        m = self.model
-        h = m.in_conv(z)
-        skips = [h]
-        for stage, down in zip(m.down_blocks, m.downsamples):
-            for block in stage:
-                h = block(h, t_emb)
-                skips.append(h)
-            h = down(h)
-            if not isinstance(down, torch.nn.Identity):
-                skips.append(h)
-        h = m.mid1(h, t_emb)
-        h = m.mid2(h, t_emb)
-        for stage, up in zip(m.up_blocks, m.upsamples):
-            for block in stage:
-                skip = skips.pop()
-                h = block(torch.cat([h, skip], dim=1), t_emb)
-            h = up(h)
-        return m.out_conv(torch.nn.functional.silu(m.out_norm(h)))
+        return backbone_forward_with_embedding(self.model, z, t_emb)
 
     def _student_forward(
         self, z: torch.Tensor, r: torch.Tensor, t: torch.Tensor

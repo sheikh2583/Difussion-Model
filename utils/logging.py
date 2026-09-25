@@ -20,7 +20,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def setup_logger(name: str, log_dir: str) -> logging.Logger:
@@ -52,6 +52,6 @@ class JsonlLogger:
 
     def log(self, event: dict) -> None:
         event = dict(event)
-        event.setdefault("timestamp", datetime.utcnow().isoformat())
+        event.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
         with open(self.path, "a") as f:
             f.write(json.dumps(event) + "\n")

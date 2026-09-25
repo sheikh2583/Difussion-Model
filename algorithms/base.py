@@ -97,3 +97,33 @@ class BaseAlgorithm(ABC):
 
     def name(self) -> str:
         return type(self).__name__
+
+
+def backbone_forward_with_embedding(
+    model: nn.Module, z: torch.Tensor, t_emb: torch.Tensor
+) -> torch.Tensor:
+    """Run the shared SimpleUNet backbone with an externally supplied time embedding.
+
+    This is the single implementation of the custom-embedding forward pass used
+    by all Mean Flow algorithm variants (MF, MF-Hutchinson, MF-Distill).
+    Previously each variant contained an identical private ``_backbone_forward``
+    method; centralising the logic here prevents silent divergence if the
+    backbone architecture is ever updated.
+    """
+    h = model.in_conv(z)
+    skips = [h]
+    for stage, down in zip(model.down_blocks, model.downsamples):
+        for block in stage:
+            h = block(h, t_emb)
+            skips.append(h)
+        h = down(h)
+        if not isinstance(down, nn.Identity):
+            skips.append(h)
+    h = model.mid1(h, t_emb)
+    h = model.mid2(h, t_emb)
+    for stage, up in zip(model.up_blocks, model.upsamples):
+        for block in stage:
+            skip = skips.pop()
+            h = block(torch.cat([h, skip], dim=1), t_emb)
+        h = up(h)
+    return model.out_conv(torch.nn.functional.silu(model.out_norm(h)))

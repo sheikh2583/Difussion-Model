@@ -205,26 +205,27 @@ quality override preserves the failed rFID/PSNR values in both the validation
 report and accepted checkpoint while allowing the selected latent experiment
 to proceed.
 
-## Rejected self-trained CelebA codec experiment
+## Fresh self-trained CelebA KL-VAE experiment
 
-The completed scratch factor-4 codec run is retained as a thesis result, but it
-failed the reconstruction-FID gate and must not be resumed or substituted for
-the primary codec. The old launcher remains available only for reproducibility
-of that historical experiment; running it would create a new experiment.
+This launcher starts a new scratch factor-4 KL-VAE run from random initialization.
+It never resumes a checkpoint. The default work directory is
+`results/codecs/scratch_kl_vae_linux_fresh`; if that directory already contains
+a checkpoint, the launcher exits and asks for a new work directory. Existing
+VQ codec results and the stopped Windows KL-VAE run remain untouched.
 
 ```bash
 ./scripts/linux/train_scratch_codec.sh --dry-run
 ./scripts/linux/train_scratch_codec.sh
 ```
 
-The historical launcher uses the RTX 3090 preset (batch 128, 60
-epochs, AdamW at `1e-4`, weight decay `1e-4`, AMP, gradient clipping `1.0`, and
-KL warmup `1e-5` to `1e-4` over 20 epochs). It resumes the numerically latest
-five-epoch checkpoint automatically and refuses to overwrite checkpoints in
-fresh mode. Use `--help` to see safe path and batch-size overrides.
+The launcher uses batch 64 for 200 epochs, AdamW at `1e-4`, weight decay
+`1e-4`, AMP, gradient clipping `1.0`, and KL warmup `1e-5` to `1e-4` over 20
+epochs. It validates every 20 epochs on 5,000 images. Use `--dry-run` to inspect
+the exact command before starting and `--help` for safe data, output, and
+hyperparameter overrides.
 
 Every scratch-codec launch writes standard `[run]` metadata and a complete
-timestamped transcript under `results/scratch_vae/logs/`. Running
+timestamped transcript under the experiment logs. Running
 `./scripts/linux/make_summary.sh` discovers it together with every `.log` under
 `training_logs/` and `results/`, then writes a generic log catalog and Markdown
 index under `results/aggregate/`. This discovery is not tied to a fixed list of

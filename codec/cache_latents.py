@@ -300,7 +300,7 @@ def _build_manifest(codec, args, content_hash, file_hashes, splits_encoded) -> d
         "dataset": "celeba",
         "celeba_root": os.path.abspath(args.celeba_root),
         "batch_size_used": args.batch_size,
-        "created_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "created_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
     }
 
 
