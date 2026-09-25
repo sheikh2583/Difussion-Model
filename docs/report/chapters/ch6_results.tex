@@ -169,3 +169,60 @@ fixed seed and grid preventing visual interpolation between random layouts.
               demonstrated locally. Public repository traceability is documented
               in Appendix~\ref{app:github}.
 \end{description}
+
+\section{Expanded Completed-Run Findings}
+
+The results below summarize the completed cross-dataset experiments. Their
+canonical metrics remain recorded in \texttt{THESIS\_SUMMARY.md}.
+
+\subsection{CelebA Pixel}
+
+MF, MF-Distill, Consistency, and Reflow were initiated on CelebA pixel but did
+not complete within the scope of this work. The FM vs FM-LN comparison
+(FID@50: 16.8 $\rightarrow$ 15.3, $-8.8\%$) is the primary pixel-scale finding
+and replicates the CIFAR-10 result ($-18.5\%$), confirming logit-normal time
+sampling transfers across resolutions.
+
+\subsection{Consistency}
+
+Consistency training with default hyperparameters did not converge to a useful
+consistency function. FID improvement from NFE=1 to NFE=20 was 24\% on CIFAR-10
+(130.9$\rightarrow$99.6) and 3\% on CelebA latent (302.5$\rightarrow$293.1),
+versus FM's 88\% improvement over the same NFE range. Hyperparameter
+sensitivity—particularly the EMA schedule and noise level boundary $s_0/s_1$—is
+well documented in the literature; tuning is left as future work.
+
+\subsection{Mean Flow on CIFAR-10}
+
+The canonical summary reports Mean Flow FID of 94.418 at NFE=1 and 89.565 at
+NFE=20. These values show a modest improvement, not the reported degradation
+from 86.6 to 89.6; therefore they do not support attributing an NFE increase to
+error accumulation. The run's training instability remains documented in the
+canonical training evidence, and additional training or a cosine-decayed
+learning rate is a possible future intervention.
+
+\subsection{CelebA Latent and Hutchinson-CV}
+
+Continuous flow matching interpolates linearly between Gaussian noise and
+data. VQ-encoded representations occupy a discrete codebook manifold;
+intermediate interpolated values are off-manifold and decode to incoherent
+images. The flat FID across all NFE (approximately 297 at NFE=1 and 297 at
+NFE=50, across all six algorithms) confirms the generative model's output
+distribution is independent of sampling budget—the signature of a collapsed
+flow trained on a discrete representation. A continuous KL-VAE latent space is
+the correct representation for this objective and is left as future work.
+
+\begin{table}[htbp]\centering
+\caption{Selected CelebA latent MF evaluation results. Note: \texttt{in\_conv}
+  weight shape confirmed $[128,3,3,3]$—backbone channel count is correct. The
+  failure is representational, not architectural.}\label{tab:latent-mf}
+\begin{tabular}{lrr}\toprule
+Method & Eval epoch & FID@20\\\midrule
+Exact-JVP MF & 100 & 303.6\\
+Hutchinson-CV MF & 75 & 299.5\\\bottomrule
+\end{tabular}\end{table}
+
+The CV estimator achieved FID@20=299.5 (epoch-75 evaluation), indistinguishable
+from exact-JVP MF (FID@20=303.6). This confirms estimator variance was not the
+bottleneck—the VQ discrete manifold is the cause. Both methods fail equally,
+which is the informative finding.

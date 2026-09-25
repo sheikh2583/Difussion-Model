@@ -37,6 +37,8 @@ def load_codec(
     path: str,
     device: torch.device,
     require_frozen: bool = True,
+    *,
+    continuous: bool | None = None,
 ) -> "codec.base.BaseCodec":  # type: ignore[name-defined]
     """
     Load a codec checkpoint and return a fully-initialised BaseCodec instance.
@@ -49,6 +51,9 @@ def load_codec(
     path            : path to a .pt codec checkpoint written by BaseCodec.save()
     device          : device to place the codec on
     require_frozen  : if True (default), reject checkpoints without frozen stats
+    continuous      : override the pretrained VQ posterior mode. If this
+                      differs from checkpoint metadata, load without frozen
+                      statistics; callers must compute mode-specific stats.
 
     Returns
     -------
@@ -99,11 +104,16 @@ def load_codec(
             raise ImportError(
                 f"Cannot load pretrained_vq_f4 codec from '{path}': {exc}"
             ) from exc
-        return PretrainedVQCodec.from_checkpoint(
-            path, device, require_frozen=require_frozen
-        )
+        load_kwargs = {"require_frozen": require_frozen}
+        if continuous is not None:
+            load_kwargs["continuous"] = continuous
+        return PretrainedVQCodec.from_checkpoint(path, device, **load_kwargs)
 
     if codec_type == "scratch_kl_vae":
+        if continuous:
+            raise CodecCheckpointError(
+                "continuous mode is supported only by pretrained_vq_f4 codecs"
+            )
         # Lazy import; scratch_vae.py is owned by Codex.
         try:
             from codec.scratch_vae import ScratchKLVAE  # type: ignore[import]

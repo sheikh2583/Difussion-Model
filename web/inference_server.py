@@ -60,7 +60,7 @@ MAX_REQUEST_BYTES = 64 * 1024
 MAX_IMAGES = 64
 MAX_TRAJECTORY_IMAGES = 16
 MAX_TRAJECTORY_FRAMES = 12
-UI_SCHEMA_VERSION = 8
+UI_SCHEMA_VERSION = 9
 CACHED_SAMPLE_NAME = re.compile(r"^epoch(\d+)_nfe(\d+)(?:_seed(\d+))?\.png$")
 
 
@@ -510,6 +510,14 @@ def model_catalog() -> list[dict]:
         evaluations = evaluation_history(spec, records)
         samplings = sampling_history(spec, records)
         cached_samples = cached_sample_artifacts(spec)
+        # Legacy configs may omit NFE values that were evaluated or rendered.
+        nfe_values = sorted(
+            {
+                *spec.nfe_values,
+                *(row["nfe"] for row in evaluations),
+                *(row["nfe"] for row in cached_samples),
+            }
+        )
         backbone_key, backbone_label = backbone_identity(spec)
         catalog.append(
             {
@@ -528,7 +536,7 @@ def model_catalog() -> list[dict]:
                 "available": bool(checkpoints) and spec.config_path.is_file(),
                 "epochs": list(checkpoints),
                 "default_epoch": max(checkpoints) if checkpoints else None,
-                "nfe_values": list(spec.nfe_values),
+                "nfe_values": nfe_values,
                 "backbone_key": backbone_key,
                 "backbone_label": backbone_label,
                 "backbone": spec.backbone,

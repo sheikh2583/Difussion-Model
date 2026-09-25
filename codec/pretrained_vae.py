@@ -3,6 +3,18 @@
 The primary codec maps 64x64 RGB images to deterministic, quantized
 three-channel 16x16 latents. The encoder, codebook, and decoder are frozen;
 only separately initialized generative U-Nets are trained downstream.
+
+Continuous mode
+───────────────
+The VQ quantization step maps continuous encoder output to the nearest
+codebook entry.  This is ideal for reconstruction but produces a *discrete*
+latent manifold where linear interpolation (as used by Flow Matching) hits
+off-manifold intermediates that decode to garbage.
+
+Setting ``continuous=True`` bypasses the VQ look-up. ``encode_mean()`` then
+returns the pre-quantization continuous encoder output and ``decode()`` skips
+the codebook. Statistics must be computed on this mode's training latents;
+linear interpolation is not guaranteed to remain on the encoder manifold.
 """
 from __future__ import annotations
 
@@ -44,12 +56,22 @@ def _require_diffusers() -> None:
 
 
 class PretrainedVQCodec(BaseCodec):
-    """Frozen CompVis VQ-f4 encoder/codebook/decoder."""
+    """Frozen CompVis VQ-f4 encoder/codebook/decoder.
+
+    Parameters
+    ----------
+    continuous : bool
+        If True, ``encode_mean`` returns the pre-quantization continuous
+        encoder output and ``decode`` feeds through post_quant_conv →
+        decoder (bypassing codebook look-up).  The codec is functionally
+        a different codec when this flag is set — cache identity,
+        normalization stats, and experiment output directories must all
+        be kept separate from the quantized variant.
+    """
 
     latent_channels = 3
     spatial_factor = 4
     pixel_size = 64
-    posterior_mode = "quantized"
 
     def __init__(
         self,
@@ -60,6 +82,8 @@ class PretrainedVQCodec(BaseCodec):
         codec_weights_sha256: str,
         source_path: str,
         device: torch.device,
+        *,
+        continuous: bool = False,
     ) -> None:
         super().__init__()
         _require_diffusers()
@@ -72,6 +96,8 @@ class PretrainedVQCodec(BaseCodec):
         self._codec_weights_sha256 = codec_weights_sha256
         self._source_path = os.path.abspath(source_path)
         self._device = device
+        self._continuous = continuous
+        self.posterior_mode = "continuous" if continuous else "quantized"
         self._vae.eval().requires_grad_(False).to(device)
         self._verify_shape()
 
@@ -83,6 +109,8 @@ class PretrainedVQCodec(BaseCodec):
         codec_source: str = _CODEC_SOURCE,
         codec_source_revision: str = "local",
         native_scaling_factor: float = _DEFAULT_NATIVE_SCALING_FACTOR,
+        *,
+        continuous: bool = False,
     ) -> "PretrainedVQCodec":
         _require_diffusers()
         if not os.path.isdir(source_path):
@@ -99,11 +127,17 @@ class PretrainedVQCodec(BaseCodec):
             codec_weights_sha256=cls._weights_sha256(vae),
             source_path=source_path,
             device=device,
+            continuous=continuous,
         )
 
     @classmethod
     def from_checkpoint(
-        cls, path: str, device: torch.device, require_frozen: bool = True
+        cls,
+        path: str,
+        device: torch.device,
+        require_frozen: bool = True,
+        *,
+        continuous: bool | None = None,
     ) -> "PretrainedVQCodec":
         _require_diffusers()
         ckpt = torch.load(path, map_location="cpu", weights_only=False)
@@ -127,6 +161,18 @@ class PretrainedVQCodec(BaseCodec):
                 f"Codec weight digest mismatch for '{path}': stored={stored_sha}, "
                 f"actual={actual_sha}. Revalidate the codec."
             )
+        stored_continuous = meta.get("posterior_mode") == "continuous"
+        if continuous is None:
+            continuous = stored_continuous
+        stats_match_mode = bool(continuous) == stored_continuous
+        if require_frozen and not stats_match_mode:
+            raise CodecCheckpointError(
+                f"Codec checkpoint '{path}' contains {meta.get('posterior_mode')!r} "
+                "normalization statistics, which cannot be used for the requested "
+                f"{'continuous' if continuous else 'quantized'} posterior mode. "
+                "Load with require_frozen=False, recompute statistics, and save a "
+                "separate checkpoint."
+            )
         codec = cls(
             vae=vae,
             native_scaling_factor=meta["native_scaling_factor"],
@@ -135,8 +181,9 @@ class PretrainedVQCodec(BaseCodec):
             codec_weights_sha256=stored_sha,
             source_path=source_path,
             device=device,
+            continuous=continuous,
         )
-        if meta.get("stats_frozen") is True:
+        if meta.get("stats_frozen") is True and stats_match_mode:
             codec._load_frozen_stats(meta["latent_mean"], meta["latent_std"], device)
         return codec
 
@@ -151,15 +198,32 @@ class PretrainedVQCodec(BaseCodec):
         quantized, _, _ = self._vae.quantize(encoded)
         return quantized
 
+    @torch.no_grad()
+    def _encode_continuous(self, images: torch.Tensor) -> torch.Tensor:
+        """Return pre-quantization continuous encoder output.
+
+        Bypasses the VQ nearest-neighbor look-up.  The output is the
+        continuous tensor produced by encoder → quant_conv, living on the
+        encoder output space rather than the codebook. Tensor interpolation
+        is defined, though it is not guaranteed to remain on the encoder
+        manifold.
+
+        Shape: same as ``_encode_quantized`` — (B, 3, 16, 16).
+        """
+        return self._vae.encode(images).latents
+
     def _verify_shape(self) -> None:
         with torch.no_grad():
             dummy = torch.zeros(1, 3, REQUIRED_PIXEL_SIZE, REQUIRED_PIXEL_SIZE,
                                 device=self._device)
             try:
-                z = self._encode_quantized(dummy)
+                if self._continuous:
+                    z = self._encode_continuous(dummy)
+                else:
+                    z = self._encode_quantized(dummy)
             except Exception as exc:
                 raise CodecCheckpointError(
-                    f"VQ encode/quantize failed on synthetic 64x64 input: {exc}"
+                    f"VQ encode failed on synthetic 64x64 input: {exc}"
                 ) from exc
         expected_size = REQUIRED_PIXEL_SIZE // REQUIRED_SPATIAL_FACTOR
         expected = (1, REQUIRED_LATENT_CHANNELS, expected_size, expected_size)
@@ -171,16 +235,55 @@ class PretrainedVQCodec(BaseCodec):
 
     @torch.no_grad()
     def encode_mean(self, images: torch.Tensor) -> torch.Tensor:
-        """Return deterministic quantized VQ latents (legacy API method name)."""
+        """Return deterministic latents — quantized or continuous per mode."""
         self._assert_pixel_input(images)
-        z = self._encode_quantized(images.to(self._device))
+        if self._continuous:
+            z = self._encode_continuous(images.to(self._device))
+        else:
+            z = self._encode_quantized(images.to(self._device))
         return z * self._native_scaling_factor
 
     @torch.no_grad()
+    def encode_continuous(self, images: torch.Tensor) -> torch.Tensor:
+        """Encode images with the pre-quantization VQ representation.
+
+        This explicit method is available only on a continuous-mode codec so
+        callers cannot accidentally normalize continuous latents with frozen
+        quantized statistics.
+        """
+        if not self._continuous:
+            raise RuntimeError(
+                "encode_continuous() requires a continuous-mode codec checkpoint"
+            )
+        self._assert_pixel_input(images)
+        z = self._encode_continuous(images.to(self._device))
+        return z * self._native_scaling_factor
+
+    def encode_continuous_normalized(self, images: torch.Tensor) -> torch.Tensor:
+        """Encode and normalize using the frozen continuous-mode statistics."""
+        return self.normalise(self.encode_continuous(images))
+
+    def decode_continuous_normalized(self, latents: torch.Tensor) -> torch.Tensor:
+        """Decode normalized latents with the continuous VQ decoder path."""
+        if not self._continuous:
+            raise RuntimeError(
+                "decode_continuous_normalized() requires a continuous-mode codec checkpoint"
+            )
+        return self.decode_normalised(latents)
+
+    @torch.no_grad()
     def decode(self, scaled_latents: torch.Tensor) -> torch.Tensor:
+        """Decode native-scaled latents back to pixel space.
+
+        In continuous mode, the latents bypass the codebook, so we use
+        ``force_not_quantize=True`` to skip the VQ look-up in the
+        decoder path (post_quant_conv → decoder).  This is safe because
+        The caller must provide latents produced by continuous mode.
+        """
         self._assert_latent_input(scaled_latents, name="scaled_latents")
         z = scaled_latents.to(self._device) / self._native_scaling_factor
-        return self._vae.decode(z, force_not_quantize=False).sample.clamp(-1.0, 1.0)
+        force_no_q = self._continuous
+        return self._vae.decode(z, force_not_quantize=force_no_q).sample.clamp(-1.0, 1.0)
 
     def save(
         self,
@@ -202,6 +305,7 @@ class PretrainedVQCodec(BaseCodec):
             "spatial_factor": self.spatial_factor,
             "pixel_size": self.pixel_size,
             "posterior_mode": self.posterior_mode,
+            "continuous": self._continuous,
             "native_scaling_factor": self._native_scaling_factor,
             "stats_frozen": True,
             "latent_mean": self._stats_to_list(self.latent_mean),

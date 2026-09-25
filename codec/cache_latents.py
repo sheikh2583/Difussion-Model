@@ -12,7 +12,7 @@ The cache directory name is derived from a content hash that covers:
   • codec_weights_sha256  (encoder/decoder identity)
   • codec_source_revision
   • split                 ("train" | "valid")
-  • posterior_mode        ("quantized" for VQ, "mean" for KL)
+  • posterior_mode        ("quantized" or "continuous" for VQ, "mean" for KL)
   • normalization_schema  ("v1" — mean-std normalisation with frozen training stats)
   • preprocessing_schema  ("celeba_center_crop_178_resize_64_norm_m1p1")
 
@@ -82,7 +82,51 @@ def _main() -> int:
     # ── Load codec ──────────────────────────────────────────────────────────
     print("[1/3] Loading codec …")
     from codec.codec_factory import load_codec
-    codec = load_codec(args.codec_path, device, require_frozen=True)
+    source_codec_path = os.path.abspath(args.codec_path)
+    args.source_codec_path = source_codec_path
+    if args.continuous:
+        output_codec_path = args.continuous_codec_output or _default_continuous_codec_path(
+            source_codec_path
+        )
+        output_codec_path = os.path.abspath(output_codec_path)
+        if output_codec_path == source_codec_path:
+            raise ValueError("Continuous mode requires a separate codec checkpoint path")
+
+        source_codec = load_codec(
+            source_codec_path, device, require_frozen=False, continuous=True
+        )
+        if os.path.isfile(output_codec_path):
+            codec = load_codec(output_codec_path, device, require_frozen=True)
+            if codec.posterior_mode != "continuous":
+                raise ValueError(
+                    f"Continuous codec output has posterior_mode={codec.posterior_mode!r}: "
+                    f"{output_codec_path}"
+                )
+            if codec._codec_weights_sha256 != source_codec._codec_weights_sha256:
+                raise ValueError(
+                    "Existing continuous codec checkpoint was built from different "
+                    "weights; choose another --continuous-codec-output path."
+                )
+        else:
+            # Continuous mode has a different latent distribution. Never reuse
+            # quantized statistics; compute them from the training split only.
+            from config.config import DatasetConfig
+            from data.celeba import get_dataloaders
+
+            stats_cfg = DatasetConfig(
+                name="celeba", root=args.celeba_root,
+                image_size=64, num_workers=args.num_workers
+            )
+            train_loader, _ = get_dataloaders(
+                stats_cfg, args.batch_size, seed=0
+            )
+            source_codec.compute_and_freeze_stats(train_loader, device)
+            codec = source_codec
+            codec.save(output_codec_path)
+            print(f"    Saved continuous codec checkpoint: {output_codec_path}")
+        args.codec_path = output_codec_path
+    else:
+        codec = load_codec(source_codec_path, device, require_frozen=True)
     print(f"    ✓ codec_type = {type(codec).__name__}")
 
     # Derive content hash for cache identity
@@ -169,7 +213,10 @@ def _encode_split(codec, loader, device) -> "torch.Tensor":
             else:
                 images = batch
             images = images.to(device)
-            z = codec.encode_mean(images)          # native latents
+            if codec.posterior_mode == "continuous":
+                z = codec.encode_continuous(images)
+            else:
+                z = codec.encode_mean(images)
             z_norm = codec.normalise(z)             # normalised
             all_latents.append(z_norm.cpu().float())
     return torch.cat(all_latents, dim=0)
@@ -237,6 +284,9 @@ def _build_manifest(codec, args, content_hash, file_hashes, splits_encoded) -> d
         "codec_source_revision": codec_rev,
         "codec_weights_sha256": codec_sha,
         "codec_checkpoint_path": os.path.abspath(args.codec_path),
+        "source_codec_checkpoint_path": os.path.abspath(
+            getattr(args, "source_codec_path", args.codec_path)
+        ),
         "posterior_mode": codec.posterior_mode,
         "normalization_schema": _NORMALIZATION_SCHEMA,
         "preprocessing_schema": _PREPROCESSING_SCHEMA,
@@ -298,7 +348,35 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--batch-size", type=int, default=64)
     p.add_argument("--num-workers", type=int, default=4)
     p.add_argument("--device", default="cuda")
+    p.add_argument(
+        "--continuous", action="store_true",
+        help=(
+            "Bypass VQ quantization and cache pre-quantization continuous "
+            "encoder output.  Produces a separate content-addressed cache "
+            "that must be used with a continuous-mode codec.  Required for "
+            "FM-compatible latent training."
+        ),
+    )
+    p.add_argument(
+        "--continuous-codec-output",
+        default=None,
+        help=(
+            "Path for the separate continuous-mode checkpoint containing "
+            "continuous training-set normalization statistics. Defaults to "
+            "<source codec stem>_continuous.pt."
+        ),
+    )
     return p.parse_args()
+
+
+def _default_continuous_codec_path(source_path: str) -> str:
+    stem, extension = os.path.splitext(source_path)
+    if not extension:
+        raise ValueError(
+            f"Cannot derive continuous checkpoint name from source path {source_path!r}; "
+            "pass --continuous-codec-output explicitly."
+        )
+    return f"{stem}_continuous{extension}"
 
 
 if __name__ == "__main__":

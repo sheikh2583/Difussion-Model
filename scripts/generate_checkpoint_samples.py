@@ -220,6 +220,7 @@ def process_run(
     seeds,
     n_samples,
     device,
+    epochs=None,
 ):
     run_dir  = os.path.join(results_root, experiment_name)
     cfg_path = os.path.join(run_dir, "config.json")
@@ -262,6 +263,11 @@ def process_run(
         ),
         key=checkpoint_epoch,
     )
+    if epochs is not None:
+        ckpt_files = [
+            filename for filename in ckpt_files
+            if checkpoint_epoch(filename) in epochs
+        ]
 
     if not ckpt_files:
         print(f"[SKIP] No .pt checkpoints found in {ckpt_dir}")
@@ -342,6 +348,10 @@ def parse_args():
         help="Number of images per grid (default: 64, displayed as 8×8)."
     )
     parser.add_argument(
+        "--epochs", type=str, default=None,
+        help="Comma-separated checkpoint epochs (default: every checkpoint).",
+    )
+    parser.add_argument(
         "--seeds", type=str, default="0,1,2,3",
         help="Comma-separated non-negative generation seeds (default: 0,1,2,3)."
     )
@@ -375,6 +385,13 @@ def main(args=None):
         raise ValueError("--nfe must contain positive integers")
     if not seeds or any(value < 0 or value > 2**32 - 1 for value in seeds):
         raise ValueError("--seeds must contain integers between 0 and 4294967295")
+    if args.n_samples < 1:
+        raise ValueError("--n-samples must be positive")
+    epochs = None
+    if args.epochs:
+        epochs = {int(value.strip()) for value in args.epochs.split(",")}
+        if not epochs or any(value < 1 for value in epochs):
+            raise ValueError("--epochs must contain positive integers")
 
     if args.experiments:
         experiments = [e.strip() for e in args.experiments.split(",")]
@@ -401,6 +418,7 @@ def main(args=None):
             seeds,
             args.n_samples,
             DEVICE,
+            epochs=epochs,
         )
 
     print(f"\nDone. Grids saved to {args.out_dir}/")

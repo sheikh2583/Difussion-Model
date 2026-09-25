@@ -51,7 +51,7 @@ SUPPORTED_LATENT_CHANNELS = frozenset({3, 4})
 SUPPORTED_SPATIAL_FACTORS = frozenset({4, 8})
 
 _SUPPORTED_SCHEMA_VERSIONS = frozenset({1})
-_SUPPORTED_POSTERIOR_MODES = frozenset({"mean", "quantized"})
+_SUPPORTED_POSTERIOR_MODES = frozenset({"mean", "quantized", "continuous"})
 
 
 # ── Exception ─────────────────────────────────────────────────────────────────

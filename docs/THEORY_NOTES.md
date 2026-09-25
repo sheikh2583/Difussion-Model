@@ -156,6 +156,22 @@ pixel-space configurations.
 
 **In codebase:** `algorithms/mean_flow_hutchinson.py`
 
+### Completed latent-study finding
+
+Continuous flow matching interpolates linearly between Gaussian noise and
+data. VQ-encoded representations occupy a discrete codebook manifold;
+intermediate interpolated values are off-manifold and decode to incoherent
+images. The flat FID across all NFE (approximately 297 at NFE=1 and 297 at
+NFE=50, across all six algorithms) confirms the generative model's output
+distribution is independent of sampling budget—the signature of a collapsed
+flow trained on a discrete representation. A continuous KL-VAE latent space
+is the correct representation for this objective and is left as future work.
+
+The CV estimator achieved FID@20=299.5 (epoch-75 evaluation), indistinguishable
+from exact-JVP MF (FID@20=303.6). This confirms estimator variance was not the
+bottleneck; the VQ discrete manifold is the cause. Both methods fail equally,
+which is the informative finding.
+
 ---
 
 ## §4 — Mean Flow Distillation (MF-Distill)

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_hash": "83d497c1fd67b95b43c0b96a0e2a7024cd0d77f12fee0ea39a89611eabd714cb",
+  "codec_type": "PretrainedVQCodec",
+  "codec_source": "CompVis/ldm-celebahq-256",
+  "codec_source_revision": "03978f22272a3c2502da709c3940e227c9714bdd",
+  "codec_weights_sha256": "85ba0c563657e1b158614c8cf00990613965b19a616a792099ca8f4e48a7e1f7",
+  "codec_checkpoint_path": "X:\\Thesis\\DiffusionProject\\results\\codecs\\celeba_vq_f4\\accepted_codec_continuous.pt",
+  "source_codec_checkpoint_path": "X:\\Thesis\\DiffusionProject\\results\\codecs\\celeba_vq_f4\\accepted_codec.pt",
+  "posterior_mode": "continuous",
+  "normalization_schema": "v1_mean_std_frozen_train",
+  "preprocessing_schema": "celeba_center_crop_178_resize_64_norm_m1p1",
+  "latent_channels": 3,
+  "spatial_factor": 4,
+  "pixel_size": 64,
+  "latent_mean": [
+    [
+      [
+        [
+          0.16343025863170624
+        ]
+      ],
+      [
+        [
+          -0.052880045026540756
+        ]
+      ],
+      [
+        [
+          0.12030300498008728
+        ]
+      ]
+    ]
+  ],
+  "latent_std": [
+    [
+      [
+        [
+          0.8611874580383301
+        ]
+      ],
+      [
+        [
+          1.1791324615478516
+        ]
+      ],
+      [
+        [
+          1.3425730466842651
+        ]
+      ]
+    ]
+  ],
+  "splits": [
+    "train",
+    "valid"
+  ],
+  "file_hashes": {
+    "latents_train.pt": "27667c11dd387f20a2fe6b2a3231d41e9d142cdf5dd5cde6a1d2121332e7f85b",
+    "latents_valid.pt": "174e5c0c7a3a82c93f6d733e7ebe85fcf093a4725b14d1e3f56f35e4447b7df5"
+  },
+  "dataset": "celeba",
+  "celeba_root": "X:\\Thesis\\DiffusionProject\\data\\raw",
+  "batch_size_used": 64,
+  "created_at": "2026-09-25T04:04:24.147276Z"
+}

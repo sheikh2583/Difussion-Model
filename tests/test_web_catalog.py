@@ -70,6 +70,56 @@ def test_catalog_uses_config_names_and_numbered_checkpoints(tmp_path: Path) -> N
     assert model["evidence"]["protocol_key"]
 
 
+def test_catalog_exposes_nfe_values_found_in_metrics_and_cached_outputs(
+    tmp_path: Path,
+) -> None:
+    run = tmp_path / "fm_cifar10"
+    checkpoint_dir = run / "checkpoints" / "run_1"
+    checkpoint_dir.mkdir(parents=True)
+    (checkpoint_dir / "FlowMatchingAlgorithm_epoch10.pt").touch()
+    (run / "config.json").write_text(
+        json.dumps(
+            {
+                "experiment_name": "fm",
+                "dataset": {"name": "cifar10", "image_size": 32},
+                "evaluation": {"nfe_values": [1, 5]},
+            }
+        ),
+        encoding="utf-8",
+    )
+    metrics = run / "metrics"
+    metrics.mkdir()
+    (metrics / "fm_cifar10.jsonl").write_text(
+        json.dumps(
+            {"record_type": "evaluation", "epoch": 10, "nfe": 2, "fid": 20.0}
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    artifact_dir = tmp_path / "checkpoint_samples" / "fm_cifar10"
+    artifact_dir.mkdir(parents=True)
+    (artifact_dir / "epoch010_nfe10_seed0.png").write_bytes(b"png")
+    (artifact_dir / "epoch010_nfe10_seed0.json").write_text(
+        json.dumps(
+            {
+                "artifact_type": "checkpoint_sample_grid",
+                "experiment": "fm_cifar10",
+                "checkpoint": "FlowMatchingAlgorithm_epoch10.pt",
+                "dataset": "cifar10",
+                "epoch": 10,
+                "nfe": 10,
+                "seed": 0,
+                "num_images": 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    server.MODEL_SPECS = server.build_model_specs(tmp_path)
+
+    assert server.model_catalog()[0]["nfe_values"] == [1, 2, 5, 10]
+
+
 def test_catalog_discovers_checkpoint_derived_sample_artifact(tmp_path: Path) -> None:
     run = tmp_path / "fm_celeba"
     checkpoint_dir = run / "checkpoints" / "run_1"

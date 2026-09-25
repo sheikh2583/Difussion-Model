@@ -39,6 +39,13 @@ The study contains three sequential experiment families:
 > also failed. Latent results must therefore be interpreted under a measurable
 > reconstruction ceiling; the override does not turn the failed gate into a
 > pass.
+>
+> Channel count verified post-training: `in_conv` weight shape
+> `[128, 3, 3, 3]` confirms the backbone received 3-channel VQ-f4 output
+> correctly. The flat FID (297–305 across all NFE and all six algorithms) is
+> attributed to continuous flow matching on a discrete VQ manifold, not to an
+> architectural mismatch. See [docs/IMPLEMENTATION_CHANGES.md](docs/IMPLEMENTATION_CHANGES.md)
+> for the full codec investigation record.
 
 ## Thesis focus and contributions
 
