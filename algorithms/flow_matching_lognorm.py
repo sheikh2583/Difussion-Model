@@ -1,18 +1,14 @@
 """
-Flow Matching algorithm — Lipman et al. 2022 / rectified-flow style
-conditional flow matching, adapted for unconditional CIFAR-10 generation.
+Flow Matching with Logit-Normal Time Sampling.
 
-Mathematical background
------------------------
-We define a probability path from data (t=0) to noise (t=1):
-    x_t = (1 - t) * x_data + t * epsilon,    epsilon ~ N(0, I)
+Variant of FlowMatchingAlgorithm (Lipman et al. 2022 / rectified-flow style)
+that replaces uniform time sampling with logit-normal sampling
+(Esser et al. 2024, Stable Diffusion 3).  This concentrates training
+on intermediate timesteps where the model learns the most.
 
-The instantaneous velocity along this path (its time-derivative) is:
-    v = dx_t/dt = epsilon - x_data
-
-The backbone is trained to predict v given (x_t, t). At sampling time
-we integrate the learned ODE backward from t=1 (pure noise) to t=0
-(data) using the Euler method with `nfe` steps.
+The only difference from FlowMatchingAlgorithm is the time distribution
+in ``training_step``.  Sampling (Euler ODE integration) is identical
+and inherited from the base class.
 
 Pixel tensors are in [-1, 1]; latent presets use normalized codec tensors.
 """
@@ -23,14 +19,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from algorithms.base import BaseAlgorithm
+from algorithms.flow_matching import FlowMatchingAlgorithm
 
 
-class FlowMatchingLognormAlgorithm(BaseAlgorithm):
+class FlowMatchingLognormAlgorithm(FlowMatchingAlgorithm):
     """
-    Conditional Flow Matching (CFM) / rectified-flow training and
-    Euler ODE sampling on the linear interpolation path between data
-    and Gaussian noise.
+    Conditional Flow Matching (CFM) with logit-normal time sampling.
+
+    Inherits the Euler ODE sampler from FlowMatchingAlgorithm; only
+    the training-time distribution is overridden.
 
     algorithm_kwargs recognised (all optional):
         logit_mean (float, default 0.0): mean of the Gaussian before sigmoid.
@@ -46,38 +43,24 @@ class FlowMatchingLognormAlgorithm(BaseAlgorithm):
             raise ValueError(f"logit_std must be positive, got {self.logit_std}")
 
     # ------------------------------------------------------------------
-    # Training
+    # Training (overrides uniform time sampling with logit-normal)
     # ------------------------------------------------------------------
 
     def training_step(self, batch: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
-        One gradient step of the Flow Matching objective.
+        One gradient step of the Flow Matching objective with logit-normal
+        time sampling instead of uniform.
 
-        Implements (Lipman et al. 2022 / rectified flow):
-            1. Sample noise epsilon ~ N(0, I) with the same shape as batch.
-            2. Sample a time t ~ Uniform(0, 1) independently per image.
-            3. Interpolate: x_t = (1-t)*x_data + t*epsilon.
-            4. Ground-truth velocity: v = epsilon - x_data.
-            5. Predicted velocity: v_pred = model(x_t, t).
-            6. Loss: MSE(v_pred, v).
-
-        Args:
-            batch: Real images, shape (B, C, H, W), values in [-1, 1].
-
-        Returns:
-            {"loss": scalar tensor with grad attached}.
+        Steps identical to FlowMatchingAlgorithm.training_step except Step 2:
+            2. Sample t ~ sigmoid(logit_mean + logit_std * N(0,1))
+               instead of t ~ Uniform(0, 1).
         """
         x_data = batch  # real images in [-1, 1], shape (B, C, H, W)
 
         # --- Step 1: sample Gaussian noise with the same shape as x_data ---
-        # epsilon is the "pure noise" endpoint of our probability path (t=1)
         epsilon = torch.randn_like(x_data)  # epsilon ~ N(0, I)
 
-        # --- Step 2: sample a time step t ~ Uniform(0, 1), one per image ---
-        # t=0 is data, t=1 is noise; we train on random points along the path
-        # Logit-normal time sampling (Esser et al. 2024, Stable Diffusion 3)
-        # Concentrates training on intermediate timesteps where the model
-        # learns the most, rather than uniform sampling.
+        # --- Step 2: logit-normal time sampling (Esser et al. 2024) ---
         u = (
             torch.randn(x_data.shape[0], device=x_data.device) * self.logit_std
             + self.logit_mean
@@ -85,80 +68,18 @@ class FlowMatchingLognormAlgorithm(BaseAlgorithm):
         t = torch.sigmoid(u)
 
         # --- Step 3: compute the noisy interpolant x_t ---
-        # x_t = (1-t)*x_data + t*epsilon  (linear interpolation between data and noise)
-        # reshape t from (B,) to (B, 1, 1, 1) so it broadcasts over (C, H, W)
         t_view = t.view(-1, 1, 1, 1)
         x_t = (1.0 - t_view) * x_data + t_view * epsilon
 
         # --- Step 4: compute the ground-truth velocity ---
-        # v = d/dt [x_t] = epsilon - x_data
-        # (points in the direction of increasing t, i.e. data → noise)
         target_v = epsilon - x_data  # shape (B, C, H, W)
 
         # --- Step 5: predict velocity with the backbone ---
-        # model(x_t, t) outputs a vector field of the same shape as x_t;
-        # t is passed as a (B,) tensor of scalars in [0, 1]
         pred_v = self.model(x_t, t)  # shape (B, C, H, W)
 
-        # --- Step 6: flow matching loss (MSE between predicted and target velocity) ---
-        # Minimising this loss pushes the model to correctly predict the
-        # instantaneous velocity at every point along the interpolation path
+        # --- Step 6: flow matching loss ---
         loss = F.mse_loss(pred_v, target_v)  # scalar
 
         return {"loss": loss}
 
-    # ------------------------------------------------------------------
-    # Sampling
-    # ------------------------------------------------------------------
-
-    def sample(self, n_samples: int, nfe: int, device: torch.device) -> torch.Tensor:
-        """
-        Generate images by integrating the learned ODE from t=1 to t=0
-        using the Euler method with `nfe` equi-spaced steps.
-
-        Euler update rule (one step of size `step` at time t_cur):
-            x_{t - step} = x_t - model(x_t, t_cur) * step
-
-        (Subtracting because t is decreasing; the velocity is defined
-        to point from data toward noise, so we reverse it to move from
-        noise toward data.)
-
-        Args:
-            n_samples: Number of images to generate (≥ 1, validated by caller).
-            nfe:       Number of function evaluations / Euler steps (≥ 1).
-            device:    Target device.
-
-        Returns:
-            Tensor finalized according to the configured representation.
-        """
-        # Determine image shape from backbone configuration
-        C = self.model.cfg.in_channels          # number of image channels (3 for CIFAR-10)
-        H = W = self.model._expected_image_size  # spatial resolution (32 for CIFAR-10)
-
-        # --- Step 1: start from pure noise at t=1 ---
-        x = torch.randn(n_samples, C, H, W, device=device)  # x ~ N(0, I)
-
-        # --- Step 2: define the step size for the Euler discretisation ---
-        # We divide the interval [0, 1] into `nfe` equal steps
-        step = 1.0 / nfe
-
-        # --- Steps 3–4: Euler ODE integration from t=1 down to t=0 ---
-        with torch.no_grad():
-            for i in range(nfe):
-                # Current time: starts at 1.0, decreases by `step` each iteration
-                t_cur = 1.0 - i * step  # scalar float, in (0, 1]
-
-                # Broadcast t_cur to a (B,) tensor as required by model(x, t)
-                t_batch = torch.full(
-                    (n_samples,), t_cur, device=device, dtype=torch.float32
-                )
-
-                # Evaluate the learned velocity field v_theta(x, t)
-                v = self.model(x, t_batch)  # shape (n_samples, C, H, W)
-
-                # Euler step: move x in the direction opposite to v (toward t=0)
-                # x ← x - v * step   (since t is decreasing, we subtract)
-                x = x - v * step
-
-        # Pixel presets clamp to [-1,1]; normalized latent presets stay unbounded.
-        return self._finalize_sample(x)
+    # sample() is inherited from FlowMatchingAlgorithm — identical Euler ODE.

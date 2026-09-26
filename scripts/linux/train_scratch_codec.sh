@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Train the self-trained factor-4 CelebA KL-VAE fallback on one GPU.
+# Train the self-trained factor-4 CelebA KL-VAE encoder/decoder on one GPU.
 #
-# Recommended start (RTX 3090 24 GB):
+# Start a new scratch KL-VAE encoder/decoder run (no checkpoint resume):
 #   ./scripts/linux/train_scratch_codec.sh
 #
 # Preview without training:
 #   ./scripts/linux/train_scratch_codec.sh --dry-run
 #
-# Start over only in a new work directory (existing artifacts are preserved):
-#   ./scripts/linux/train_scratch_codec.sh --mode fresh \
-#     --work-dir results/scratch_vae_experiment_2
+# This launcher is fresh-only. If its work directory already contains a
+# checkpoint, it exits without modifying that experiment. Choose a new
+# --work-dir and matching --output for another fresh run.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,16 +22,22 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 1
 fi
 
-MODE="continue"
+MODE="fresh"
 DRY_RUN=false
 DATA_ROOT="data/raw"
-WORK_DIR="results/scratch_vae"
-OUTPUT="results/codecs/accepted_scratch_kl_vae.pt"
-BATCH_SIZE=128
-EPOCHS=60
+WORK_DIR="results/codecs/scratch_kl_vae_linux_fresh"
+OUTPUT="results/codecs/scratch_kl_vae_linux_fresh/accepted_codec.pt"
+BATCH_SIZE=64
+EPOCHS=200
 LEARNING_RATE="1e-4"
 WEIGHT_DECAY="1e-4"
-NUM_WORKERS=4
+KL_START="1e-5"
+KL_END="1e-4"
+KL_WARMUP_EPOCHS=20
+GRADIENT_CLIP_NORM=1.0
+VALIDATE_EVERY=20
+VALIDATION_SAMPLES=5000
+NUM_WORKERS=3
 SEED=0
 
 while [[ $# -gt 0 ]]; do
@@ -42,6 +48,14 @@ while [[ $# -gt 0 ]]; do
     --output) OUTPUT="${2:?--output requires a path}"; shift 2 ;;
     --batch-size) BATCH_SIZE="${2:?--batch-size requires a value}"; shift 2 ;;
     --epochs) EPOCHS="${2:?--epochs requires a value}"; shift 2 ;;
+    --learning-rate) LEARNING_RATE="${2:?--learning-rate requires a value}"; shift 2 ;;
+    --weight-decay) WEIGHT_DECAY="${2:?--weight-decay requires a value}"; shift 2 ;;
+    --kl-start) KL_START="${2:?--kl-start requires a value}"; shift 2 ;;
+    --kl-end) KL_END="${2:?--kl-end requires a value}"; shift 2 ;;
+    --kl-warmup-epochs) KL_WARMUP_EPOCHS="${2:?--kl-warmup-epochs requires a value}"; shift 2 ;;
+    --gradient-clip-norm) GRADIENT_CLIP_NORM="${2:?--gradient-clip-norm requires a value}"; shift 2 ;;
+    --validate-every) VALIDATE_EVERY="${2:?--validate-every requires a value}"; shift 2 ;;
+    --validation-samples) VALIDATION_SAMPLES="${2:?--validation-samples requires a value}"; shift 2 ;;
     --num-workers) NUM_WORKERS="${2:?--num-workers requires a value}"; shift 2 ;;
     --seed) SEED="${2:?--seed requires a value}"; shift 2 ;;
     --dry-run) DRY_RUN=true; shift ;;
@@ -50,29 +64,28 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-case "$MODE" in continue|fresh) ;; *)
-  echo "ERROR: --mode must be continue or fresh" >&2; exit 2 ;;
+case "$MODE" in fresh) ;; *)
+  echo "ERROR: this launcher only supports --mode fresh; use a separate resume command for existing runs" >&2; exit 2 ;;
 esac
-for value in "$BATCH_SIZE" "$EPOCHS" "$NUM_WORKERS" "$SEED"; do
+for value in "$BATCH_SIZE" "$EPOCHS" "$NUM_WORKERS" "$SEED" \
+  "$KL_WARMUP_EPOCHS" "$VALIDATE_EVERY" "$VALIDATION_SAMPLES"; do
   [[ "$value" =~ ^[0-9]+$ ]] || {
     echo "ERROR: numeric arguments must be non-negative integers" >&2; exit 2;
   }
 done
-[[ "$BATCH_SIZE" -gt 0 && "$EPOCHS" -gt 0 ]] || {
-  echo "ERROR: batch size and epochs must be positive" >&2; exit 2;
+[[ "$BATCH_SIZE" -gt 0 && "$EPOCHS" -gt 0 && "$KL_WARMUP_EPOCHS" -gt 0 \
+  && "$VALIDATE_EVERY" -gt 0 && "$VALIDATION_SAMPLES" -gt 0 ]] || {
+  echo "ERROR: batch size, epochs, warmup, validation interval, and sample count must be positive" >&2; exit 2;
 }
 
-CHECKPOINT_DIR="$WORK_DIR/checkpoints"
-shopt -s nullglob
-CHECKPOINTS=("$CHECKPOINT_DIR"/scratch_vae_epoch*.pt)
-shopt -u nullglob
-
-RESUME_ARGS=()
-if [[ "$MODE" == "continue" && ${#CHECKPOINTS[@]} -gt 0 ]]; then
-  RESUME_ARGS=(--resume auto)
-elif [[ "$MODE" == "fresh" && ${#CHECKPOINTS[@]} -gt 0 ]]; then
-  echo "ERROR: fresh mode refuses to overwrite checkpoints in $CHECKPOINT_DIR" >&2
-  echo "Choose a new --work-dir, or use --mode continue." >&2
+if [[ -d "$WORK_DIR" ]] && [[ -n "$(find "$WORK_DIR" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+  echo "ERROR: fresh mode requires an empty or nonexistent work directory: $WORK_DIR" >&2
+  echo "Choose a new --work-dir and matching --output to start a fresh experiment." >&2
+  exit 1
+fi
+if [[ -e "$OUTPUT" ]]; then
+  echo "ERROR: fresh mode refuses to overwrite the existing output: $OUTPUT" >&2
+  echo "Choose a new --output path." >&2
   exit 1
 fi
 
@@ -86,16 +99,15 @@ COMMAND=(
   --epochs "$EPOCHS"
   --learning-rate "$LEARNING_RATE"
   --weight-decay "$WEIGHT_DECAY"
-  --kl-start 1e-5
-  --kl-end 1e-4
-  --kl-warmup-epochs 20
-  --gradient-clip-norm 1.0
-  --validate-every 5
-  --validation-samples 5000
+  --kl-start "$KL_START"
+  --kl-end "$KL_END"
+  --kl-warmup-epochs "$KL_WARMUP_EPOCHS"
+  --gradient-clip-norm "$GRADIENT_CLIP_NORM"
+  --validate-every "$VALIDATE_EVERY"
+  --validation-samples "$VALIDATION_SAMPLES"
   --num-workers "$NUM_WORKERS"
   --seed "$SEED"
   --amp
-  "${RESUME_ARGS[@]}"
 )
 
 printf 'Selected scratch-codec command:\n  '
