@@ -176,6 +176,42 @@ epochs. It reached acceptable PSNR but failed the reconstruction-FID gate:
 The scratch run is retained as historical evidence. It is not resumed and is
 not an automatic fallback for the accepted latent experiment.
 
+### Stage 3b — Scratch KL-VAE retraining: perceptual + adversarial loss
+
+The 60-epoch MSE+KL baseline produced blurry reconstructions (rFID `14.24`) despite
+passing PSNR. Root cause: pixel MSE alone cannot capture perceptual fidelity.
+Fix: add LPIPS perceptual loss and PatchGAN adversarial loss while keeping the
+latent space continuous and approximately Gaussian for Flow Matching.
+
+**Architecture unchanged** — only the loss function was extended:
+- **Perceptual (LPIPS-VGG)**: always active, weight `--lambda-perc` (default `0.1`)
+- **Adversarial (70×70 PatchGAN, hinge loss)**: activates at `--adv-start-epoch` (default 5), weight `--lambda-adv` (default `0.1`)
+- **KL weight** (`--lambda-kl`): critical for continuous latent space; tuned via staged sweeps (see below)
+
+**Staged hyperparameter sweeps** (each stops early if KL unhealthy):
+| Stage | Command | Purpose |
+|---|---|---|
+| A | `./scripts/linux/train_scratch_codec.sh --stage A` | Sweep λ_kl ∈ {1e-4, 1e-5, 1e-6, 1e-7} for 5 epochs (no perc/adv) |
+| B | `./scripts/linux/train_scratch_codec.sh --stage B --lambda-kl <best>` | Add perceptual (10 epochs, no adv) |
+| C | `./scripts/linux/train_scratch_codec.sh --stage C --lambda-kl <best>` | Full loss probe (20 epochs) |
+| D | `./scripts/linux/train_scratch_codec.sh --stage D --lambda-kl <best>` | Full 150-epoch run |
+
+**KL health monitoring**: each sweep epoch prints `kl_per_dim = L_kl / latent_dim`. Target: `0.1–2.0 nats/dim`.
+- `< 0.01` → COLLAPSE (λ_kl too high, posterior collapses)
+- `> 50` → UNBOUNDED (λ_kl too low, latents diverge)
+- `0.01–0.1` → WEAK (borderline)
+- `≥ 0.1` → HEALTHY
+
+**Success gate**: rFID `< 5` and PSNR `> 30 dB`. Once passed, re-cache latents and train FM:
+```bash
+venv/bin/python codec/cache_latents.py \
+  --codec-path results/codecs/scratch_kl_vae_full/accepted_codec.pt \
+  --celeba-root data/raw --output-dir data/latent_cache_kl_full --split both --device cuda
+./scripts/linux/run_train.sh --algorithm fm --config config/fm_celeba_latent_kl.json --mode fresh
+```
+
+The original 60-epoch MSE-only run remains as evidence in `training_logs/.../celeba_codec_scratch_kl_vae_train_20260921_182111_pid188820.log`.
+
 ### Stage 4 — Second latent attempt: frozen Stable Diffusion VAE
 
 The frozen `stabilityai/sd-vae-ft-mse` factor-8 VAE produced `4×8×8` codes.
@@ -728,6 +764,40 @@ $CacheDir = ".\data\latent_cache\latents_<hash>"
 ```
 
 Proceed only after `ALL FULL SMOKE CHECKS PASSED`.
+
+### Alternative: train a continuous scratch KL-VAE (perceptual + adversarial)
+
+If the frozen VQ-f4 codec is unavailable or a continuous latent space is preferred,
+train the self-trained factor-4 KL-VAE with LPIPS perceptual and PatchGAN
+adversarial losses:
+
+```bash
+# Stage A: sweep λ_kl (5 epochs each, no perceptual/adv)
+./scripts/linux/train_scratch_codec.sh --stage A --dry-run
+./scripts/linux/train_scratch_codec.sh --stage A
+
+# Stage B: add perceptual loss (10 epochs, use best λ_kl from Stage A)
+./scripts/linux/train_scratch_codec.sh --stage B --lambda-kl 1e-6 --dry-run
+./scripts/linux/train_scratch_codec.sh --stage B --lambda-kl 1e-6
+
+# Stage C: full loss probe (20 epochs)
+./scripts/linux/train_scratch_codec.sh --stage C --lambda-kl 1e-6 --dry-run
+./scripts/linux/train_scratch_codec.sh --stage C --lambda-kl 1e-6
+
+# Stage D: full 150-epoch run
+./scripts/linux/train_scratch_codec.sh --stage D --lambda-kl 1e-6 --dry-run
+./scripts/linux/train_scratch_codec.sh --stage D --lambda-kl 1e-6
+```
+
+Key differences from the VQ-f4 path:
+- Output: **continuous** `4×16×16` latents (not quantized)
+- Normalization: frozen per-channel statistics from training set
+- Codec checkpoint: `results/codecs/scratch_kl_vae_full/accepted_codec.pt`
+- Latent cache: `data/latent_cache_kl_full/latents_<hash>/`
+- FM config: `config/fm_celeba_latent_kl.json` (set `cache_dir` accordingly)
+
+Success gate: **rFID `< 5` and PSNR `> 30 dB`**. The original 60-epoch MSE-only
+baseline (rFID `14.24`) is retained as evidence in `training_logs/.../codec/`.
 
 ### Linux: train the complete latent suite
 

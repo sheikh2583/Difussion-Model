@@ -10,23 +10,31 @@ Example (run only after the pretrained codec is rejected):
 The recommended baseline is AdamW at 1e-4, batch 128, 60 epochs, AMP,
 gradient clipping at 1.0, and a linear KL weight warmup from 1e-5 to 1e-4
 over the first 20 epochs. Every setting is available as a CLI option.
+
+Extended with perceptual (LPIPS) and adversarial (PatchGAN) losses for
+improved perceptual quality. Staged hyperparameter sweeps are supported
+via --sweep-mode to catch posterior collapse or unbounded latents early.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import math
 import os
 import random
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
+import lpips
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
+from codec.patch_discriminator import PatchDiscriminator, hinge_loss_disc, hinge_loss_gen
 from codec.scratch_vae import ScratchKLVAE
 from config.config import DatasetConfig
 from data.celeba import get_datasets
@@ -44,6 +52,14 @@ DEFAULT_KL_WARMUP_EPOCHS = 20
 DEFAULT_GRAD_CLIP_NORM = 1.0
 DEFAULT_VALIDATE_EVERY = 5
 DEFAULT_VALIDATION_SAMPLES = 5000
+
+# Loss weight defaults for perceptual + adversarial extension
+DEFAULT_LAMBDA_KL = 1e-6
+DEFAULT_LAMBDA_PERC = 0.1
+DEFAULT_LAMBDA_ADV = 0.1
+DEFAULT_ADV_START_EPOCH = 5
+DEFAULT_DISC_LR = 4e-4
+DEFAULT_SWEEP_EPOCHS = 10
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -81,6 +97,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--amp", action=argparse.BooleanOptionalAction, default=True,
         help="Use CUDA automatic mixed precision (recommended on RTX GPUs)",
     )
+    # Perceptual + adversarial loss weights
+    parser.add_argument("--lambda-kl", type=float, default=DEFAULT_LAMBDA_KL,
+                        help="KL regularization weight (constant, no warmup when perceptual/adv used)")
+    parser.add_argument("--lambda-perc", type=float, default=DEFAULT_LAMBDA_PERC,
+                        help="LPIPS perceptual loss weight")
+    parser.add_argument("--lambda-adv", type=float, default=DEFAULT_LAMBDA_ADV,
+                        help="PatchGAN adversarial loss weight")
+    parser.add_argument("--adv-start-epoch", type=int, default=DEFAULT_ADV_START_EPOCH,
+                        help="Epoch at which discriminator activates")
+    parser.add_argument("--disc-lr", type=float, default=DEFAULT_DISC_LR,
+                        help="Discriminator learning rate")
+    # Sweep control
+    parser.add_argument("--sweep-mode", action=argparse.BooleanOptionalAction, default=False,
+                        help="Run only sweep_epochs then exit with KL health status")
+    parser.add_argument("--sweep-epochs", type=int, default=DEFAULT_SWEEP_EPOCHS,
+                        help="Epochs to run before reporting KL health in sweep mode")
     args = parser.parse_args(argv)
     positive_ints = {
         "batch_size": args.batch_size,
@@ -88,6 +120,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "kl_warmup_epochs": args.kl_warmup_epochs,
         "validate_every": args.validate_every,
         "validation_samples": args.validation_samples,
+        "adv_start_epoch": args.adv_start_epoch,
+        "sweep_epochs": args.sweep_epochs,
     }
     for name, value in positive_ints.items():
         if value <= 0:
@@ -98,6 +132,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("weight decay and KL weights must be non-negative")
     if args.gradient_clip_norm < 0:
         parser.error("--gradient-clip-norm must be non-negative")
+    if args.lambda_kl < 0 or args.lambda_perc < 0 or args.lambda_adv < 0:
+        parser.error("loss weights must be non-negative")
+    if args.disc_lr <= 0:
+        parser.error("--disc-lr must be positive")
     return args
 
 
@@ -168,6 +206,13 @@ def _hyperparameters(args: argparse.Namespace) -> dict[str, Any]:
         "gradient_clip_norm": args.gradient_clip_norm,
         "amp": args.amp,
         "seed": args.seed,
+        "lambda_kl": args.lambda_kl,
+        "lambda_perc": args.lambda_perc,
+        "lambda_adv": args.lambda_adv,
+        "adv_start_epoch": args.adv_start_epoch,
+        "disc_lr": args.disc_lr,
+        "sweep_mode": args.sweep_mode,
+        "sweep_epochs": args.sweep_epochs,
     }
 
 
@@ -180,6 +225,7 @@ def _validate_resume_hyperparameters(
         immutable = (
             "batch_size", "learning_rate", "weight_decay", "kl_start", "kl_end",
             "kl_warmup_epochs", "gradient_clip_norm", "seed",
+            "lambda_kl", "lambda_perc", "lambda_adv", "adv_start_epoch", "disc_lr",
         )
         mismatches = [
             f"{key}: checkpoint={stored[key]!r}, requested={requested[key]!r}"
@@ -272,6 +318,19 @@ def _print_gate(metrics: dict[str, Any]) -> bool:
     return passed
 
 
+def check_kl_health(kl_loss: float, latent_dim: int, lambda_kl: float) -> str:
+    """Check KL health for sweep mode early stopping."""
+    kl_per_dim = kl_loss / latent_dim
+    if kl_per_dim < 0.01:
+        return "COLLAPSE"   # lambda_kl too high
+    elif kl_per_dim > 50.0:
+        return "UNBOUNDED"  # lambda_kl too low
+    elif kl_per_dim < 0.1:
+        return "WEAK"       # borderline
+    else:
+        return "HEALTHY"    # 0.1–50 nats/dim is acceptable
+
+
 def main() -> None:
     args = parse_args()
     if args.device.startswith("cuda") and not torch.cuda.is_available():
@@ -297,6 +356,22 @@ def main() -> None:
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
     )
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
+
+    # Perceptual loss (VGG features) — frozen, eval mode
+    perceptual_fn = lpips.LPIPS(net='vgg').to(device)
+    perceptual_fn.eval()
+    for p in perceptual_fn.parameters():
+        p.requires_grad = False
+
+    # Discriminator
+    discriminator = PatchDiscriminator(in_channels=3).to(device)
+    disc_optimizer = torch.optim.Adam(
+        discriminator.parameters(),
+        lr=args.disc_lr,
+        betas=(0.5, 0.9),      # lower beta1 for adversarial stability
+    )
+    disc_scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
+
     hyperparameters = _hyperparameters(args)
     start_epoch = 0
     work_dir = Path(args.work_dir)
@@ -316,6 +391,12 @@ def main() -> None:
         optimizer.load_state_dict(state["optimizer_state"])
         if "scaler_state" in state:
             scaler.load_state_dict(state["scaler_state"])
+        if "discriminator_state" in state:
+            discriminator.load_state_dict(state["discriminator_state"])
+        if "disc_optimizer_state" in state:
+            disc_optimizer.load_state_dict(state["disc_optimizer_state"])
+        if "disc_scaler_state" in state:
+            disc_scaler.load_state_dict(state["disc_scaler_state"])
         start_epoch = int(state["epoch"])
         if start_epoch >= args.epochs:
             raise ValueError(
@@ -337,46 +418,126 @@ def main() -> None:
     print(
         "Scratch KL-VAE settings: "
         f"batch={args.batch_size}, epochs={args.epochs}, lr={args.learning_rate:g}, "
-        f"weight_decay={args.weight_decay:g}, KL={args.kl_start:g}->{args.kl_end:g} "
-        f"over {args.kl_warmup_epochs} epochs, grad_clip={args.gradient_clip_norm:g}, "
-        f"amp={use_amp}",
+        f"weight_decay={args.weight_decay:g}, lambda_kl={args.lambda_kl:g}, "
+        f"lambda_perc={args.lambda_perc:g}, lambda_adv={args.lambda_adv:g}, "
+        f"adv_start_epoch={args.adv_start_epoch}, disc_lr={args.disc_lr:g}, "
+        f"grad_clip={args.gradient_clip_norm:g}, amp={use_amp}",
         flush=True,
     )
     final_metrics: dict[str, Any] | None = None
+    latent_dim = model.latent_channels * 16 * 16  # 4 * 16 * 16 = 1024
     for epoch_index in range(start_epoch, args.epochs):
         model.train()
+        discriminator.train()
         beta = _kl_weight(
             epoch_index, args.kl_start, args.kl_end, args.kl_warmup_epochs
         )
         running = 0.0
+        running_recon = 0.0
+        running_kl = 0.0
+        running_perc = 0.0
+        running_adv = 0.0
+        running_disc = 0.0
         for images, _ in train_loader:
             images = images.to(device, non_blocking=True)
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=device.type, enabled=use_amp):
                 sample, mean, logvar = model.encode(images)
                 reconstruction = model.decode(sample)
-                reconstruction_loss = F.mse_loss(reconstruction, images)
+
+                # Clamp to valid image range for perceptual/disc
+                x_hat_clamped = reconstruction.clamp(-1.0, 1.0)
+
+                # --- KL loss ---
                 kl = model.kl_loss(mean, logvar)
-                loss = reconstruction_loss + beta * kl
-            scaler.scale(loss).backward()
+
+                # --- Reconstruction loss (L1) ---
+                recon_loss = F.l1_loss(reconstruction, images)
+
+                # --- Perceptual loss (always on) ---
+                with contextlib.nullcontext():
+                    perc_loss = perceptual_fn(x_hat_clamped, images.clamp(-1.0, 1.0)).mean()
+
+                # --- Adversarial loss (staged: only after adv_start_epoch) ---
+                use_adv = (epoch_index + 1 >= args.adv_start_epoch)
+
+                if use_adv:
+                    # Step 1: update discriminator
+                    disc_optimizer.zero_grad(set_to_none=True)
+                    with torch.autocast(device_type=device.type, enabled=use_amp):
+                        logits_real = discriminator(images.detach())
+                        logits_fake = discriminator(x_hat_clamped.detach())
+                        disc_loss = hinge_loss_disc(logits_real, logits_fake)
+                    disc_scaler.scale(disc_loss).backward()
+                    if args.gradient_clip_norm > 0:
+                        disc_scaler.unscale_(disc_optimizer)
+                        torch.nn.utils.clip_grad_norm_(discriminator.parameters(), args.gradient_clip_norm)
+                    disc_scaler.step(disc_optimizer)
+                    disc_scaler.update()
+
+                    # Step 2: adversarial loss for VAE
+                    with torch.autocast(device_type=device.type, enabled=use_amp):
+                        logits_fake_vae = discriminator(x_hat_clamped)
+                        adv_loss = hinge_loss_gen(logits_fake_vae)
+                else:
+                    adv_loss = torch.tensor(0.0, device=device)
+                    disc_loss = torch.tensor(0.0, device=device)
+
+                # --- Total VAE loss ---
+                total_loss = (
+                    recon_loss
+                    + args.lambda_kl * kl
+                    + args.lambda_perc * perc_loss
+                    + (args.lambda_adv * adv_loss if use_adv else 0.0)
+                )
+
+            scaler.scale(total_loss).backward()
             if args.gradient_clip_norm > 0:
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.gradient_clip_norm)
             scaler.step(optimizer)
             scaler.update()
-            running += loss.item()
+
+            running += total_loss.item()
+            running_recon += recon_loss.item()
+            running_kl += kl.item()
+            running_perc += perc_loss.item()
+            running_adv += (adv_loss.item() if use_adv else 0.0)
+            running_disc += (disc_loss.item() if use_adv else 0.0)
 
         completed_epoch = epoch_index + 1
+        n_batches = max(len(train_loader), 1)
+        avg_total = running / n_batches
+        avg_recon = running_recon / n_batches
+        avg_kl = running_kl / n_batches
+        avg_perc = running_perc / n_batches
+        avg_adv = running_adv / n_batches
+        avg_disc = running_disc / n_batches
+        kl_per_dim = avg_kl / latent_dim
         print(
             f"epoch={completed_epoch}/{args.epochs} beta={beta:.8f} "
-            f"loss={running / max(len(train_loader), 1):.6f}", flush=True
+            f"L_total={avg_total:.6f} L_recon={avg_recon:.6f} L_kl={avg_kl:.6f} "
+            f"L_perc={avg_perc:.6f} L_adv={avg_adv:.6f} L_disc={avg_disc:.6f} "
+            f"kl_per_dim={kl_per_dim:.6f}", flush=True
         )
+
+        # Sweep mode: check KL health and exit early
+        if args.sweep_mode and completed_epoch >= args.sweep_epochs:
+            status = check_kl_health(avg_kl, latent_dim, args.lambda_kl)
+            print(f"[SWEEP] lambda_kl={args.lambda_kl:.0e} status={status} "
+                  f"kl_per_dim={kl_per_dim:.4f} "
+                  f"L_recon={avg_recon:.4f} L_perc={avg_perc:.4f} L_adv={avg_adv:.4f}")
+            sys.exit(0)
+
         if completed_epoch % args.validate_every == 0 or completed_epoch == args.epochs:
             checkpoint = {
                 "epoch": completed_epoch,
                 "model_state": model.state_dict(),
                 "optimizer_state": optimizer.state_dict(),
                 "scaler_state": scaler.state_dict(),
+                "discriminator_state": discriminator.state_dict(),
+                "disc_optimizer_state": disc_optimizer.state_dict(),
+                "disc_scaler_state": disc_scaler.state_dict(),
                 "generator_state": generator.get_state(),
                 "seed": args.seed,
                 "hyperparameters": hyperparameters,
