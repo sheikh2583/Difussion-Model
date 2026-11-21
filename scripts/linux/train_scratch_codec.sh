@@ -28,12 +28,20 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 1
 fi
 
+# torch hub (LPIPS/VGG16 weights) is looked up under $TORCH_HOME or
+# $XDG_CACHE_HOME/torch. Reuse the standard cache when VGG16 is already there.
+if [[ -z "${TORCH_HOME:-}" ]] && compgen -G "$HOME/.cache/torch/hub/checkpoints/vgg16-*.pth" >/dev/null; then
+  export TORCH_HOME="$HOME/.cache/torch"
+fi
+
 STAGE=""
 MODE="fresh"
 DRY_RUN=false
 DATA_ROOT="data/raw"
 WORK_DIR="results/codecs/scratch_kl_vae_linux_fresh"
 OUTPUT="results/codecs/scratch_kl_vae_linux_fresh/accepted_codec.pt"
+WORK_DIR_SET=false
+OUTPUT_SET=false
 BATCH_SIZE=64
 EPOCHS=200
 LEARNING_RATE="1e-4"
@@ -61,8 +69,8 @@ while [[ $# -gt 0 ]]; do
     --stage) STAGE="${2:?--stage requires A|B|C|D}"; shift 2 ;;
     --mode) MODE="${2:?--mode requires continue or fresh}"; shift 2 ;;
     --data-root) DATA_ROOT="${2:?--data-root requires a path}"; shift 2 ;;
-    --work-dir) WORK_DIR="${2:?--work-dir requires a path}"; shift 2 ;;
-    --output) OUTPUT="${2:?--output requires a path}"; shift 2 ;;
+    --work-dir) WORK_DIR="${2:?--work-dir requires a path}"; WORK_DIR_SET=true; shift 2 ;;
+    --output) OUTPUT="${2:?--output requires a path}"; OUTPUT_SET=true; shift 2 ;;
     --batch-size) BATCH_SIZE="${2:?--batch-size requires a value}"; shift 2 ;;
     --epochs) EPOCHS="${2:?--epochs requires a value}"; shift 2 ;;
     --learning-rate) LEARNING_RATE="${2:?--learning-rate requires a value}"; shift 2 ;;
@@ -128,6 +136,14 @@ case "$STAGE" in
   *)
     echo "ERROR: --stage must be A, B, C, or D" >&2; exit 2 ;;
 esac
+
+# Each stage gets its own work dir so A -> B -> C -> D never collide with the
+# fresh-only guard (or with earlier failed attempts).
+if [[ -n "$STAGE" ]]; then
+  STAGE_TAG="stage_${STAGE}_kl${LAMBDA_KL}"
+  [[ "$WORK_DIR_SET" == true ]] || WORK_DIR="results/codecs/scratch_kl_vae_${STAGE_TAG}"
+  [[ "$OUTPUT_SET" == true ]] || OUTPUT="$WORK_DIR/accepted_codec.pt"
+fi
 
 case "$MODE" in fresh) ;; *)
   echo "ERROR: this launcher only supports --mode fresh; use a separate resume command for existing runs" >&2; exit 2 ;;

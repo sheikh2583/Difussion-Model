@@ -319,8 +319,15 @@ def _print_gate(metrics: dict[str, Any]) -> bool:
 
 
 def check_kl_health(kl_loss: float, latent_dim: int, lambda_kl: float) -> str:
-    """Check KL health for sweep mode early stopping."""
-    kl_per_dim = kl_loss / latent_dim
+    """Check KL health for sweep mode early stopping.
+
+    ``kl_loss`` is ``ScratchKLVAE.kl_loss`` averaged over batches. That
+    function already takes ``.mean()`` over every latent element, so the value
+    is nats **per latent dimension**; dividing by ``latent_dim`` again (as an
+    earlier revision did) under-reported it by 1024x and flagged every
+    lambda_kl as COLLAPSE. ``latent_dim`` is kept only for call compatibility.
+    """
+    kl_per_dim = kl_loss
     if kl_per_dim < 0.01:
         return "COLLAPSE"   # lambda_kl too high
     elif kl_per_dim > 50.0:
@@ -513,7 +520,7 @@ def main() -> None:
         avg_perc = running_perc / n_batches
         avg_adv = running_adv / n_batches
         avg_disc = running_disc / n_batches
-        kl_per_dim = avg_kl / latent_dim
+        kl_per_dim = avg_kl  # kl_loss() is already a per-element mean
         print(
             f"epoch={completed_epoch}/{args.epochs} beta={beta:.8f} "
             f"L_total={avg_total:.6f} L_recon={avg_recon:.6f} L_kl={avg_kl:.6f} "
