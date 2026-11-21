@@ -117,6 +117,16 @@ def parse_args() -> argparse.Namespace:
         default=str(PROJECT_ROOT / "THESIS_SUMMARY.md"),
         help="Path for the concise Markdown thesis summary.",
     )
+    parser.add_argument(
+        "--rescored-latent-fid",
+        default=None,
+        help=(
+            "JSONL written by scripts/rescore_latent_fid.py. Default: "
+            "<output-dir>/latent_rescored/rescored_latent_fid.jsonl. Latent FID "
+            "values from the original evaluator used an invalid reference and "
+            "are only reported when a rescored value exists."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -220,6 +230,86 @@ def load_records(paths: list[Path]) -> list[dict[str, Any]]:
             record["algorithm"] = comparison
             records.append(record)
     return records
+
+
+LATENT_DATASET = "celeba_latent"
+RESCORED_FID_SOURCE = "rescored_raw_celeba_validation_pixels"
+INVALID_FID_SOURCE = "withheld_invalid_latent_tensor_reference"
+
+
+def load_rescored_latent_fid(path: Path) -> list[dict[str, Any]]:
+    """Read rows produced by scripts/rescore_latent_fid.py (empty if absent)."""
+    if not path.is_file():
+        return []
+    rows = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as error:
+            raise ValueError(f"Invalid JSON in {path}:{line_number}: {error}") from error
+        for field in ("experiment", "epoch", "nfe", "fid_corrected"):
+            if field not in row:
+                raise ValueError(f"{path}:{line_number} is missing '{field}'")
+        rows.append(row)
+    return rows
+
+
+def apply_rescored_latent_fid(
+    records: list[dict[str, Any]], rescored: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Replace the invalid latent FID with the rescored value.
+
+    Before the evaluator fix, latent runs were scored against a reference made
+    of latent tensors (FID ~300, meaningless). For every latent evaluation row:
+
+    * a rescored row for the same (experiment, epoch, nfe) supplies ``fid``;
+      the old value is kept as ``fid_original_invalid``;
+    * otherwise ``fid`` is withheld (``None``) rather than reported;
+    * rescored checkpoints that have no original evaluation row (their
+      checkpoints were evaluated at a different epoch) are added as new
+      evaluation rows cloned from their experiment's metadata.
+
+    Pixel rows are never modified.
+    """
+    index = {
+        (row["experiment"], row["epoch"], row["nfe"]): row for row in rescored
+    }
+    used: set[tuple[Any, ...]] = set()
+    templates: dict[str, dict[str, Any]] = {}
+    for record in records:
+        if record.get("dataset") != LATENT_DATASET or record.get("record_type") != "evaluation":
+            continue
+        templates[record["experiment"]] = record
+        match = index.get((record["experiment"], record.get("epoch"), record.get("nfe")))
+        record["fid_original_invalid"] = record.get("fid")
+        if match is not None:
+            record["fid"] = match["fid_corrected"]
+            record["fid_source"] = RESCORED_FID_SOURCE
+            used.add((record["experiment"], record.get("epoch"), record.get("nfe")))
+        else:
+            record["fid"] = None
+            record["fid_source"] = INVALID_FID_SOURCE
+
+    added = []
+    for key, match in index.items():
+        if key in used or match["experiment"] not in templates:
+            continue
+        row = dict(templates[match["experiment"]])
+        row.update({
+            "epoch": match["epoch"],
+            "nfe": match["nfe"],
+            "fid": match["fid_corrected"],
+            "fid_original_invalid": None,
+            "fid_source": RESCORED_FID_SOURCE,
+            "is_mean": match.get("is_mean"),
+            "is_std": match.get("is_std"),
+            "checkpoint_path": match.get("checkpoint"),
+            "num_generated_samples": match.get("num_samples"),
+        })
+        added.append(row)
+    return records + added
 
 
 def deduplicate(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -792,6 +882,12 @@ def write_comparison_manifest(path: Path, records: list[dict[str, Any]]) -> None
                 "dataset_family", "representation", "epoch", "nfe", "seed",
                 "num_generated_samples", "machine_label", "backbone_signature",
             ],
+            "latent_fid_policy": (
+                "celeba_latent FID is taken from scripts/rescore_latent_fid.py "
+                "(raw CelebA validation reference). Original latent FID values "
+                "used an invalid latent-tensor reference and are withheld or "
+                "kept only as fid_original_invalid."
+            ),
             "provenance_policy": (
                 "Source identity is reported as a match flag. A mismatch does not "
                 "erase a historical comparison, but it must be disclosed."
@@ -916,6 +1012,10 @@ def write_markdown_summary(
         f"- Pixel/latent pairs available: {len(representation_rows or [])}",
         "- Latent FID includes codec reconstruction error; decoder time and codec "
         "quality must be reported separately.",
+        "- Latent FID comes from `scripts/rescore_latent_fid.py` (raw CelebA "
+        "validation reference). The original evaluator scored latent runs "
+        "against latent tensors (FID ~300, invalid); those values are withheld "
+        "and shown as — unless a rescored value exists.",
         "",
         "## Interactive checkpoint demo and external handoff",
         "",
@@ -1199,7 +1299,22 @@ def main() -> int:
         print(f"No metric JSONL files found under {results_root}", file=sys.stderr)
         return 1
 
-    records = deduplicate(load_records(inputs))
+    rescored_path = (
+        Path(args.rescored_latent_fid).expanduser().resolve()
+        if args.rescored_latent_fid
+        else output_dir / "latent_rescored" / "rescored_latent_fid.jsonl"
+    )
+    rescored = load_rescored_latent_fid(rescored_path)
+    if rescored:
+        print(f"Using {len(rescored)} rescored latent FID rows from {rescored_path}")
+    else:
+        print(
+            f"  [WARN] No rescored latent FID at {rescored_path}; latent FID values "
+            "are withheld because the original evaluator's reference was invalid. "
+            "Run scripts/rescore_latent_fid.py.",
+            file=sys.stderr,
+        )
+    records = deduplicate(apply_rescored_latent_fid(load_records(inputs), rescored))
     if not records:
         print("Metric files contained no records.", file=sys.stderr)
         return 1

@@ -1,4 +1,6 @@
 from scripts.aggregate_results import (
+    apply_rescored_latent_fid,
+    load_rescored_latent_fid,
     _dataset_identity,
     add_pareto_flags,
     build_algorithm_progression,
@@ -167,3 +169,42 @@ def test_pareto_flags_quality_against_nfe():
     rows = add_pareto_flags([fast_bad, slow_good, dominated])
     flags = {row["method_key"]: row["pareto_fid_vs_nfe"] for row in rows}
     assert flags == {"fm": True, "fm_lognorm": True, "mf": False}
+
+
+def _latent_eval(experiment, epoch, nfe, fid):
+    row = _evaluation(experiment, nfe, fid, 5000)
+    row.update({"dataset": "celeba_latent", "epoch": epoch})
+    return row
+
+
+def test_rescored_latent_fid_replaces_and_withholds():
+    records = [
+        _latent_eval("fm_celeba_latent", 100, 5, 305.0),
+        _latent_eval("fm_celeba_latent", 100, 20, 300.0),
+        _latent_eval("consistency_celeba_latent", 75, 1, 302.0),
+        {**_evaluation("fm_cifar10", 5, 58.0, 5000), "dataset": "cifar10", "epoch": 100},
+    ]
+    rescored = [
+        {"experiment": "fm_celeba_latent", "epoch": 100, "nfe": 5, "fid_corrected": 27.2},
+        {"experiment": "consistency_celeba_latent", "epoch": 90, "nfe": 1,
+         "fid_corrected": 99.0, "is_mean": 2.1, "is_std": 0.1,
+         "checkpoint": "x/ConsistencyAlgorithm_epoch90.pt", "num_samples": 5000},
+    ]
+
+    out = apply_rescored_latent_fid(records, rescored)
+
+    by_key = {(r["experiment"], r["epoch"], r["nfe"]): r for r in out}
+    matched = by_key[("fm_celeba_latent", 100, 5)]
+    assert matched["fid"] == 27.2 and matched["fid_original_invalid"] == 305.0
+    assert by_key[("fm_celeba_latent", 100, 20)]["fid"] is None       # no rescored value
+    assert by_key[("consistency_celeba_latent", 75, 1)]["fid"] is None  # checkpoint gone
+    added = by_key[("consistency_celeba_latent", 90, 1)]               # synthesized row
+    assert added["fid"] == 99.0 and added["is_mean"] == 2.1
+    assert by_key[("fm_cifar10", 100, 5)]["fid"] == 58.0               # pixel untouched
+    assert "fid_source" not in by_key[("fm_cifar10", 100, 5)]
+
+
+def test_missing_rescored_file_withholds_all_latent_fid(tmp_path):
+    assert load_rescored_latent_fid(tmp_path / "absent.jsonl") == []
+    out = apply_rescored_latent_fid([_latent_eval("fm_celeba_latent", 100, 5, 305.0)], [])
+    assert out[0]["fid"] is None
