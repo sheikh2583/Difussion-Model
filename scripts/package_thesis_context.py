@@ -30,7 +30,6 @@ DEFAULT_OUTPUT = PROJECT_ROOT / "thesis_context.zip"
 EXCLUDED_PARTS = {".git", "venv", "__pycache__"}
 EXCLUDED_SUFFIXES = {".pt", ".zip", ".npz"}
 EXPLICIT_IGNORED_CONTEXT_PATHS = (
-    "AGENTS.md",
     "ANTIGRAVITY_PRETRAINED_LATENT_PLAN.md",
     "BLOCKER_DECISIONS.md",
     "CODEX_SELF_TRAINED_CODEC_PLAN.md",

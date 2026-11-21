@@ -6,25 +6,25 @@ Generated from the canonical experiment metric files by `scripts/aggregate_resul
 
 | Dataset | Space | Experiment | Run identity | Algorithm | Train epoch | Eval epoch | Samples | FID@1 | FID@5 | FID@10 | FID@20 | FID@50 | IS@20 |
 |---|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| celeba_latent | latent | consistency_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@5269eeabfc91 | ConsistencyAlgorithm | 100 | 75 | 5000 | 302.530 | 299.796 | 297.435 | 293.102 | — | 2.335 |
+| celeba_latent | latent | consistency_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@5269eeabfc91 | ConsistencyAlgorithm | 100 | 90 | 5000 | 26.749 | 23.318 | 23.778 | 27.089 | — | 2.361 |
 | cifar10 | pixel | consistency_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@975f260dccdf | ConsistencyAlgorithm | 100 | 100 | 5000 | 130.968 | 100.845 | 95.879 | 99.635 | — | 4.329 |
 | celeba | pixel | fm_celeba | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@2ea2a5e2039b | FlowMatchingAlgorithm | 100 | 100 | 5000 | 223.126 | 44.357 | 25.975 | 19.808 | 16.779 | 2.410 |
 | celeba | pixel | fm_celeba | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@c1f065aee704 | FlowMatchingAlgorithm | 100 | 100 | 5000 | 223.126 | 44.357 | 25.975 | 19.808 | 16.779 | 2.410 |
-| celeba_latent | latent | fm_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@1575e2beaf3f | FlowMatchingAlgorithm | 100 | 100 | 5000 | 329.205 | 305.048 | 302.265 | 299.849 | 297.914 | 2.639 |
+| celeba_latent | latent | fm_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@1575e2beaf3f | FlowMatchingAlgorithm | 100 | 100 | 5000 | 280.033 | 27.378 | 21.257 | 19.690 | 19.317 | 2.639 |
 | cifar10 | pixel | fm_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@975f260dccdf | FlowMatchingAlgorithm | 100 | 100 | 5000 | 380.620 | 58.568 | 47.243 | 45.467 | 43.427 | 6.014 |
 | celeba | pixel | fm_lognorm_celeba | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@cef2edc1be6d | FlowMatchingLognormAlgorithm | 98 | 80 | 5000 | 215.889 | 35.888 | 23.292 | 19.557 | 17.349 | 2.598 |
 | celeba | pixel | fm_lognorm_celeba | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@e04529a3f533 | FlowMatchingLognormAlgorithm | 100 | 100 | 5000 | 193.165 | 30.538 | 19.580 | 16.555 | 15.304 | 2.674 |
-| celeba_latent | latent | fm_lognorm_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@69763e69e3ba | FlowMatchingLognormAlgorithm | 100 | 100 | 5000 | 322.722 | 304.616 | 301.459 | 299.177 | 297.595 | 2.658 |
+| celeba_latent | latent | fm_lognorm_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@69763e69e3ba | FlowMatchingLognormAlgorithm | 100 | 100 | 5000 | 269.824 | 27.188 | 21.423 | 20.032 | 19.629 | 2.658 |
 | cifar10 | pixel | fm_lognorm_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@975f260dccdf | FlowMatchingLognormAlgorithm | 100 | 100 | 5000 | 384.190 | 57.260 | 44.183 | 38.601 | 35.400 | 6.529 |
-| celeba_latent | latent | mf_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@69763e69e3ba | MeanFlowAlgorithm | 100 | 100 | 5000 | 304.972 | 304.027 | 304.469 | 303.576 | — | 2.594 |
+| celeba_latent | latent | mf_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@69763e69e3ba | MeanFlowAlgorithm | 100 | 100 | 5000 | 34.472 | 29.484 | 29.654 | 29.075 | — | 2.594 |
 | cifar10 | pixel | mf_cifar10 | unknown@unknown | MeanFlowAlgorithm | 100 | 100 | 5000 | 94.418 | 85.936 | 87.868 | 89.565 | — | 4.151 |
-| celeba_latent | latent | mf_distill_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@69763e69e3ba | MeanFlowDistillAlgorithm | 100 | 100 | 5000 | 314.526 | 303.177 | 301.536 | 300.414 | — | 2.670 |
+| celeba_latent | latent | mf_distill_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@69763e69e3ba | MeanFlowDistillAlgorithm | 100 | 100 | 5000 | 43.148 | 23.389 | 22.624 | 22.538 | — | 2.670 |
 | cifar10 | pixel | mf_distill_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@975f260dccdf | MeanFlowDistillAlgorithm | 100 | 100 | 5000 | 99.338 | 50.627 | 49.646 | 47.841 | — | 5.811 |
 | celeba_latent | latent | mf_hutchinson_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@7893916c5fb5 | MeanFlowHutchinsonAlgorithm | 2 | — | unknown | — | — | — | — | — | — |
-| celeba_latent | latent | mf_hutchinson_cv_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@71b46966a37f | MeanFlowHutchinsonAlgorithm | 91 | 75 | 5000 | 299.961 | 298.531 | 298.948 | 299.467 | — | 2.649 |
+| celeba_latent | latent | mf_hutchinson_cv_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@71b46966a37f | MeanFlowHutchinsonAlgorithm | 91 | 90 | 5000 | 29.569 | 27.632 | 27.402 | 27.353 | — | 2.658 |
 | cifar10 | pixel | mf_v3_exact_jvp_b128_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@975f260dccdf | MeanFlowAlgorithm | 100 | 100 | 5000 | 86.505 | 70.938 | 69.405 | 67.714 | — | 4.789 |
 | cifar10 | pixel | mf_v3_exact_jvp_b128_probe_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@86185312c104 | MeanFlowAlgorithm | 10 | — | unknown | — | — | — | — | — | — |
-| celeba_latent | latent | reflow_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@490719776ef2 | ReflowAlgorithm | 100 | 100 | 5000 | 300.857 | 300.224 | 299.927 | 299.750 | — | 2.508 |
+| celeba_latent | latent | reflow_celeba_latent | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@490719776ef2 | ReflowAlgorithm | 100 | 100 | 5000 | 25.742 | 24.070 | 23.584 | 23.310 | — | 2.508 |
 | cifar10 | pixel | reflow_cifar10 | linux-ndag-m-lab-nvidia-geforce-rtx-3090-24gb@975f260dccdf | ReflowAlgorithm | 100 | 100 | 5000 | 53.021 | 49.159 | 48.620 | 48.087 | — | 5.720 |
 
 ## Controlled comparison artifacts
@@ -34,6 +34,7 @@ The aggregate directory contains protocol-matched FM-relative gains, cross-datas
 - Transfer groups available: 39
 - Pixel/latent pairs available: 35
 - Latent FID includes codec reconstruction error; decoder time and codec quality must be reported separately.
+- Latent FID comes from `scripts/rescore_latent_fid.py` (raw CelebA validation reference). The original evaluator scored latent runs against latent tensors (FID ~300, invalid); those values are withheld and shown as — unless a rescored value exists.
 
 ## Interactive checkpoint demo and external handoff
 
