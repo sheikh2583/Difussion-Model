@@ -158,19 +158,29 @@ pixel-space configurations.
 
 ### Completed latent-study finding
 
-Continuous flow matching interpolates linearly between Gaussian noise and
-data. VQ-encoded representations occupy a discrete codebook manifold;
-intermediate interpolated values are off-manifold and decode to incoherent
-images. The flat FID across all NFE (approximately 297 at NFE=1 and 297 at
-NFE=50, across all six algorithms) confirms the generative model's output
-distribution is independent of sampling budget—the signature of a collapsed
-flow trained on a discrete representation. A continuous KL-VAE latent space
-is the correct representation for this objective and is left as future work.
+**Erratum (2026-11-21).** An earlier version of this section attributed a flat
+FID of about 297–305 (all NFE, all six algorithms) to continuous flow matching
+failing on a discrete VQ codebook manifold. That conclusion is withdrawn. The
+flat value came from an evaluator defect: latent runs were scored against a
+reference built from latent tensors instead of raw 64×64 RGB faces. Sample
+grids show coherent faces, and the decoder reproduces the codec's recorded rFID
+(10.06) against the correct reference.
 
-The CV estimator achieved FID@20=299.5 (epoch-75 evaluation), indistinguishable
-from exact-JVP MF (FID@20=303.6). This confirms estimator variance was not the
-bottleneck; the VQ discrete manifold is the cause. Both methods fail equally,
-which is the informative finding.
+With the corrected reference (see `README.md`, "Latent results after the
+evaluator correction"), linear-path flow matching on the quantized VQ-f4
+latents works: FM reaches FID 19.3–19.7 at NFE 20–50, matching pixel-space FM
+(19.8 at NFE 20). The VQ codebook therefore did not prevent learning, although
+a theoretical argument that straight interpolants leave the codebook manifold
+remains plausible for intermediate states; it is simply not what limited these
+results, and no continuous-latent experiment was needed to explain them.
+
+The ranking of objectives in latent space follows the pixel-space pattern:
+multi-step Euler (FM, FM-LN) is best at NFE ≥ 10 and fails at NFE 1; Reflow,
+Consistency, and MF-Distill are the best few-step methods (FID 23–43); ordinary
+Mean Flow works but trails (FID 29–35). The control-variate Hutchinson variant
+(FID 27–30) is slightly better than ordinary MF, so estimator variance may have
+contributed modestly to MF's weaker result, but the difference is small and the
+run stopped at epoch 91.
 
 ---
 

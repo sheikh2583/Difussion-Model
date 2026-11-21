@@ -186,11 +186,13 @@ sampling transfers across resolutions.
 \subsection{Consistency}
 
 Consistency training with default hyperparameters did not converge to a useful
-consistency function. FID improvement from NFE=1 to NFE=20 was 24\% on CIFAR-10
-(130.9$\rightarrow$99.6) and 3\% on CelebA latent (302.5$\rightarrow$293.1),
-versus FM's 88\% improvement over the same NFE range. Hyperparameter
-sensitivity—particularly the EMA schedule and noise level boundary $s_0/s_1$—is
-well documented in the literature; tuning is left as future work.
+consistency function on CIFAR-10: FID improved by only 24\% from NFE=1 to NFE=20
+(130.9$\rightarrow$99.6), versus FM's 88\% improvement over the same NFE range.
+On CelebA latent, evaluated against the corrected raw-pixel reference, the
+epoch-90 checkpoint is competitive among few-step methods (FID 26.7 at NFE=1 and
+23.3 at NFE=5) but degrades at larger budgets (27.1 at NFE=20). Hyperparameter
+sensitivity---particularly the EMA schedule and noise level boundary
+$s_0/s_1$---is well documented in the literature; tuning is left as future work.
 
 \subsection{Mean Flow on CIFAR-10}
 
@@ -203,26 +205,40 @@ learning rate is a possible future intervention.
 
 \subsection{CelebA Latent and Hutchinson-CV}
 
-Continuous flow matching interpolates linearly between Gaussian noise and
-data. VQ-encoded representations occupy a discrete codebook manifold;
-intermediate interpolated values are off-manifold and decode to incoherent
-images. The flat FID across all NFE (approximately 297 at NFE=1 and 297 at
-NFE=50, across all six algorithms) confirms the generative model's output
-distribution is independent of sampling budget—the signature of a collapsed
-flow trained on a discrete representation. A continuous KL-VAE latent space is
-the correct representation for this objective and is left as future work.
+\paragraph{Evaluation correction.} An earlier draft reported a flat FID of
+roughly 297--305 for every latent method and attributed it to continuous flow
+matching on a discrete VQ codebook manifold. That conclusion is withdrawn. The
+evaluator had scored latent runs against a reference built from latent tensors
+($3\times16\times16$) instead of raw $64\times64$ RGB validation images. Sample
+grids show coherent faces, and the frozen decoder reproduces the codec's recorded
+reconstruction FID (10.06) against the correct reference. All retained latent
+checkpoints were re-scored with the corrected reference
+(Table~\ref{tab:latent-rescored}); the invalid values are preserved only as
+historical evidence.
 
 \begin{table}[htbp]\centering
-\caption{Selected CelebA latent MF evaluation results. Note: \texttt{in\_conv}
-  weight shape confirmed $[128,3,3,3]$—backbone channel count is correct. The
-  failure is representational, not architectural.}\label{tab:latent-mf}
-\begin{tabular}{lrr}\toprule
-Method & Eval epoch & FID@20\\\midrule
-Exact-JVP MF & 100 & 303.6\\
-Hutchinson-CV MF & 75 & 299.5\\\bottomrule
+\caption{CelebA latent FID against the raw-pixel reference (5{,}000 samples,
+  seed 0, decoded $64\times64$ RGB). Latent FID includes the codec
+  reconstruction ceiling (rFID 10.06). Hutchinson-CV is a diagnostic variant.
+  The latent backbone is about $2.7\times$ larger than the pixel backbone.}
+  \label{tab:latent-rescored}
+\begin{tabular}{lrrrrr}\toprule
+Method & Epoch & NFE 1 & NFE 5 & NFE 20 & NFE 50\\\midrule
+FM & 100 & 280.0 & 27.4 & 19.7 & 19.3\\
+FM-LN & 100 & 269.8 & 27.2 & 20.0 & 19.6\\
+MF-Distill & 100 & 43.1 & 23.4 & 22.5 & ---\\
+Consistency & 90 & 26.7 & 23.3 & 27.1 & ---\\
+Reflow & 100 & 25.7 & 24.1 & 23.3 & ---\\
+MF & 100 & 34.5 & 29.5 & 29.1 & ---\\
+Hutchinson-CV MF & 90 & 29.6 & 27.6 & 27.4 & ---\\\bottomrule
 \end{tabular}\end{table}
 
-The CV estimator achieved FID@20=299.5 (epoch-75 evaluation), indistinguishable
-from exact-JVP MF (FID@20=303.6). This confirms estimator variance was not the
-bottleneck—the VQ discrete manifold is the cause. Both methods fail equally,
-which is the informative finding.
+Latent FM at NFE=20 (19.7) matches pixel-space FM (19.8) and is better at NFE=5
+(27.4 versus 44.4), whereas pixel FM-LN is better at NFE=20 (16.6 versus 20.0).
+Multi-step Euler sampling (FM, FM-LN) is best at NFE$\geq$10 and unusable at
+NFE=1; Reflow, Consistency, and MF-Distill give the best few-step samples
+(FID 23--43). Ordinary Mean Flow works but trails (FID 29--35), and its
+late-training loss rise did not affect image quality: the epoch-80 and
+epoch-100 checkpoints score about the same. The Hutchinson control-variate
+variant is slightly better (FID 27--30), suggesting estimator variance
+contributed modestly to MF's weaker result; this run stopped at epoch 91.

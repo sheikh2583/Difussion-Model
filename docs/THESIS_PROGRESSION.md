@@ -91,6 +91,13 @@ explicit.
 The six canonical latent methods have configurations and measured evidence.
 Latent tensors remain unbounded until they are denormalized and decoded.
 
+Evaluation correction (2026-11-21): latent FID reported before this date was
+computed against a latent-tensor reference and is invalid. The evaluator now
+builds the reference from raw CelebA validation pixels, and all retained latent
+checkpoints were re-scored (`results/aggregate/latent_rescored/`). Corrected
+latent FID is 19–30, comparable to pixel-space results; the earlier statement
+that all latent methods failed equally is withdrawn.
+
 ## 6. Latent fixes and MF-Hutchinson — partial diagnostic
 
 The ordinary latent MF late-loss rise and the original Hutchinson divergence

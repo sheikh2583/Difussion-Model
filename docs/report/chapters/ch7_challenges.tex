@@ -69,6 +69,23 @@ Checkpoints are saved every ten epochs; no trained images exist for epochs 1--9
 in any run. The training history UI therefore begins at epoch 10. This gap
 prevents studying early-training behaviour qualitatively.
 
+\section{Latent Evaluation Reference Defect}
+
+The first complete latent evaluation reported an FID of roughly 300 for all six
+methods at every NFE, which was initially interpreted as a representational
+failure of flow matching on a discrete VQ codebook. Inspection of decoded sample
+grids contradicted that reading, and the reference cache turned out to contain
+5{,}000 normalized latent tensors rather than raw $64\times64$ RGB images:
+the generic reference builder was called with the latent validation loader. The
+Inception Score, which uses only generated images, was unaffected, and that
+asymmetry was an early hint. The evaluator now builds the latent reference from
+raw CelebA validation pixels and rejects caches without that provenance; all
+retained latent checkpoints were re-scored without modifying the original
+metric files. The episode is kept in the record as a lesson in validating an
+evaluation pipeline end-to-end (for example, by scoring codec reconstructions
+and checking that the result matches the recorded reconstruction FID) before
+interpreting an implausible metric as a scientific finding.
+
 \section{Documentation Drift}
 
 Earlier root README text described placeholders after working implementations

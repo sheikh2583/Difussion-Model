@@ -51,6 +51,11 @@ label or source mismatch remain available, but are explicitly marked
 - state shape and state-value reduction;
 - codec reconstruction metrics and exact codec identity.
 
+The latent FID reference must be raw 64x64 RGB validation pixels. Before
+2026-11-21 the evaluator built it from latent tensors, which invalidated every
+latent FID; `ensure_fid_reference` now enforces the raw-pixel reference
+(`source: raw_celeba_validation_pixels`) and rejects older caches.
+
 Latent FID includes the codec's reconstruction ceiling. It is not a pure
 measurement of the generative backbone. Pixel and latent results therefore
 remain separate rankings, with paired deltas in

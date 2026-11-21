@@ -9,6 +9,16 @@ Sections dated by the original Windows bring-up are retained as historical
 validation evidence. Current operator behavior is defined by `README.md`,
 `RUNBOOK.md`, and the platform guides.
 
+> **Erratum (2026-11-21) — latent FID values in this document are invalid.**
+> Every FID reported below for `celeba_latent` runs (about 295–330) was computed
+> against a reference made of latent tensors, not raw CelebA pixels. They are kept
+> as a historical record only. Corrected values, produced by
+> `scripts/rescore_latent_fid.py`, are in
+> `results/aggregate/latent_rescored/rescored_latent_fid.csv` and in the README
+> section "Latent results after the evaluator correction". Statements below that
+> latent MF/Reflow "failed" or that results were "indistinguishable" across
+> methods rest on those invalid values. IS values were not affected.
+
 ## Relevant commits
 
 | Commit | Description |
@@ -401,7 +411,7 @@ Reflow training reached epoch 100 with loss `0.006143` and wrote
 `ReflowAlgorithm_epoch100.pt`. The session nevertheless recorded
 `exit_status=1`: creation of the epoch-100 ZIP archive failed with `ENOSPC`
 (`No space left on device`). The checkpoint itself remained valid and was
-evaluated explicitly after storage was recovered. Epoch-100 results are:
+evaluated explicitly after storage was recovered. Epoch-100 results (**invalid latent FID, see erratum; corrected FID 23.3–25.7**) are:
 
 | NFE | FID | IS mean | IS std |
 |---:|---:|---:|---:|
@@ -425,7 +435,7 @@ evidence. The checkpoint contains the historical `REmbed` conditioner
 uses a shape-detected compatibility path that reproduces the original
 r-dependent image bias; it does not reinterpret the weights as `RCond`.
 
-Canonical epoch-80 results are:
+Canonical epoch-80 results (**invalid latent FID, see erratum; corrected FID 28.1–30.0**) are:
 
 | NFE | FID | IS mean | IS std |
 |---:|---:|---:|---:|

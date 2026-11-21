@@ -40,12 +40,17 @@ The study contains three sequential experiment families:
 > reconstruction ceiling; the override does not turn the failed gate into a
 > pass.
 >
-> Channel count verified post-training: `in_conv` weight shape
-> `[128, 3, 3, 3]` confirms the backbone received 3-channel VQ-f4 output
-> correctly. The flat FID (297–305 across all NFE and all six algorithms) is
-> attributed to continuous flow matching on a discrete VQ manifold, not to an
-> architectural mismatch. See [docs/IMPLEMENTATION_CHANGES.md](docs/IMPLEMENTATION_CHANGES.md)
-> for the full codec investigation record.
+> **Correction (21 Nov 2026) — latent FID values before this date were invalid.**
+> The original evaluator scored every latent run against a FID reference made of
+> normalized *latent tensors* (`3×16×16`) instead of raw `64×64` RGB faces, which
+> produced the flat FID of 297–305 across all NFE and all six algorithms. That
+> flat value was **not** evidence of a discrete-VQ-manifold failure: sample grids
+> show coherent faces, and the decoder reproduces the recorded codec rFID
+> (`10.06`) against the correct reference. The evaluator is fixed and all latent
+> checkpoints were re-scored; see
+> [Latent results after the evaluator correction](#latent-results-after-the-evaluator-correction).
+> The invalid reference caches are preserved in
+> `results/metrics/invalid_latent_reference/`.
 
 ## Thesis focus and contributions
 
@@ -85,6 +90,7 @@ the retained run evidence, not to publication milestones.
 | 21–22 Sep 2026 — first latent generative runs | Does the smaller spatial state reduce resource use while preserving algorithm trends? | Completed latent FM and FM-LN through epoch 100 using the frozen VQ-f4 cache. Added bounded decoding, separate decoder timing, unbounded latent sampling, and isolated latent result directories. | Both populated latent checkpoint series are complete and provenance-compatible. MF, MF-Hutchinson, MF-Distill, Consistency, and Reflow remain outside the completed comparison until final compatible evaluations exist; no partial latent metric is treated as final. |
 | 22 Sep 2026 — post-training isolation hardening | Can the remaining unattended suite run without overlapping GPU work or losing source identity? | Added one ownership-checked, nestable GPU lock; froze training-relevant source/config inputs at suite startup; added source verification between jobs; made completed-run skipping provenance-aware; and separated explicit evaluation from continuation. | CPU/static validation passed. The remaining latent jobs can continue serially without rerunning completed FM/FM-LN or implicitly reevaluating them. |
 | 22 Sep 2026 — evidence normalization and audit | Can historical logs and checkpoints be identified consistently without modifying measured output? | Migrated central transcripts into `pixel/`, `latent/`, and `codec/`; normalized all 48 sidecars to schema 2; recorded RTX 3090 24 GB identity and transcript digests; rebuilt the catalog; and audited numbered checkpoint series and ZIP archives. | All migrated transcript digests remained unchanged. Fourteen populated diffusion checkpoint series passed filename/archive/payload/provenance checks; historical exceptions are documented rather than silently rewritten. |
+| 21 Nov 2026 — latent evaluation audit | Why was every latent FID about 300? | Inspected decoded samples, found the latent FID reference cache held latent tensors instead of raw pixels, fixed `ensure_fid_reference`, and re-scored every retained latent checkpoint with `scripts/rescore_latent_fid.py`. | Corrected latent FID is 19–30 depending on method and NFE. The earlier "discrete-VQ-manifold failure" conclusion is withdrawn. |
 
 ### Quantitative gains already supported by completed runs
 
@@ -101,6 +107,46 @@ not be generalized beyond the recorded configurations, and the latent study is
 deliberately excluded from the completed-results table until all six methods
 have compatible final evaluations. MF-Hutchinson is an additional diagnostic
 and is not silently folded into that canonical six-method comparison.
+
+### Latent results after the evaluator correction
+
+Final-checkpoint FID (5,000 samples, decoded `64×64` RGB, raw CelebA validation
+reference, seed 0) from `results/aggregate/latent_rescored/rescored_latent_fid.csv`.
+Lower is better. Latent FID includes the codec reconstruction ceiling (rFID
+`10.06`).
+
+| Method | Epoch | NFE 1 | NFE 2 | NFE 5 | NFE 10 | NFE 20 | NFE 50 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| FM | 100 | 280.0 | — | 27.4 | 21.3 | 19.7 | 19.3 |
+| FM-LN | 100 | 269.8 | — | 27.2 | 21.4 | 20.0 | 19.6 |
+| MF-Distill | 100 | 43.1 | 27.8 | 23.4 | 22.6 | 22.5 | — |
+| Consistency | 90 | 26.7 | 24.4 | 23.3 | 23.8 | 27.1 | — |
+| Reflow | 100 | 25.7 | 24.9 | 24.1 | 23.6 | 23.3 | — |
+| MF | 100 | 34.5 | 30.0 | 29.5 | 29.7 | 29.1 | — |
+| MF | 80 | 29.5 | 28.1 | 30.0 | 29.8 | 30.0 | — |
+| MF-Hutchinson-CV (diagnostic) | 90 | 29.6 | 28.8 | 27.6 | 27.4 | 27.4 | — |
+
+What these numbers support:
+
+- Multi-step Euler sampling (FM, FM-LN) is best at NFE ≥ 10 (FID ≈ 19–20) but
+  unusable at NFE 1 (FID ≈ 270–280).
+- Reflow, Consistency, and MF-Distill give usable one- and few-step samples
+  (FID 23–43); Reflow is the most stable across NFE, while Consistency degrades
+  slightly at NFE 20.
+- Ordinary Mean Flow works but trails the other few-step methods (FID 29–35).
+  Its late-training loss rise did not change image quality: epoch 80 and
+  epoch 100 score about the same. The control-variate Hutchinson variant is
+  slightly better (FID 27–30).
+- Latent FM at NFE 20 (19.7) matches pixel FM (19.8) and is better at NFE 5
+  (27.4 vs 44.4), but pixel FM-LN is better at NFE 20 (16.6 vs 20.0). The latent
+  backbone is also about 2.7× larger, so this is not a controlled comparison.
+
+Caveats: the Consistency and Hutchinson-CV rows are epoch-90 checkpoints (the
+originally evaluated epoch-75 files are no longer on disk); the older invalid
+values are kept only as `fid_original_invalid` in the combined metrics. The
+original per-run latent evaluation logs under `results/*_celeba_latent/metrics/`
+and the latent FID tables in `docs/IMPLEMENTATION_CHANGES.md` still contain the
+invalid values by design (evidence); use the rescored file.
 
 ## Research questions
 
