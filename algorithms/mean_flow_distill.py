@@ -40,7 +40,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from algorithms.base import BaseAlgorithm, backbone_forward_with_embedding
-from algorithms.r_embed import RCond
+from algorithms.r_embed import LegacyREmbed, RCond
 from models.backbone import build_backbone
 from utils.checkpoints import extract_model_state, resolve_checkpoint_reference
 
@@ -52,6 +52,9 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
 
         # --- student r-conditioning (same as MeanFlowAlgorithm) ---
         self.r_cond = RCond(model.cfg.time_embed_dim)
+        # Selected only by prepare_checkpoint_load() for early latent
+        # checkpoints trained with the image-space conditioner.
+        self._legacy_r_embed = None
 
         # --- hyper-parameters ---
         self.p_same:      float = float(self.algorithm_kwargs.get("p_same", 0.25))
@@ -73,7 +76,31 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
 
     def trainable_modules(self) -> List[nn.Module]:
         # teacher is deliberately omitted — frozen, never optimized
-        return [self.model, self.r_cond]
+        return [self.model, self._legacy_r_embed or self.r_cond]
+
+    def prepare_checkpoint_load(self, checkpoint: Dict[str, Any]) -> None:
+        """Select the historical conditioner when checkpoint shapes require it.
+
+        Mirrors MeanFlowAlgorithm: the first latent MF-Distill run stored a
+        ``LegacyREmbed`` (Linear(1,64) -> Linear(64,C)) rather than ``RCond``.
+        """
+        state = checkpoint.get("extra_module_0_state")
+        if state is None and checkpoint.get("module_state_dicts"):
+            states = checkpoint["module_state_dicts"]
+            state = states[1] if len(states) > 1 else None
+        if not isinstance(state, dict):
+            return
+        weight = state.get("net.0.weight", state.get("0.weight"))
+        output = state.get("net.2.weight", state.get("2.weight"))
+        channels = self.model.cfg.in_channels
+        is_legacy = (
+            isinstance(weight, torch.Tensor)
+            and tuple(weight.shape) == (64, 1)
+            and isinstance(output, torch.Tensor)
+            and tuple(output.shape) == (channels, 64)
+        )
+        if is_legacy and self._legacy_r_embed is None:
+            self._legacy_r_embed = LegacyREmbed(channels)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -88,6 +115,8 @@ class MeanFlowDistillAlgorithm(BaseAlgorithm):
     def _student_forward(
         self, z: torch.Tensor, r: torch.Tensor, t: torch.Tensor
     ) -> torch.Tensor:
+        if self._legacy_r_embed is not None:
+            return self.model(self._legacy_r_embed(z, r), t)
         t_emb = self.model.time_embed(t)
         r_emb = self.r_cond(r)
         return self._backbone_forward(z, t_emb + r_emb)
