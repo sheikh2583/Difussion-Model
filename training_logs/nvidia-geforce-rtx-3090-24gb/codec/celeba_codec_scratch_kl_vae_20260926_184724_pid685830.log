@@ -1,0 +1,14 @@
+[run] training_type=scratch_codec
+[run] representation_space=codec
+[run] dataset=celeba
+[run] algorithm=scratch_kl_vae
+[run] started_utc=2026-09-26T12:47:24Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209\ Thesis/Difussion-Model/venv/bin/python -m codec.train_scratch_vae --data-root data/raw --work-dir results/codecs/scratch_kl_vae_linux_fresh --output results/codecs/scratch_kl_vae_linux_fresh/accepted_codec.pt --device cuda --batch-size 64 --epochs 5 --learning-rate 1e-4 --weight-decay 1e-4 --kl-start 1e-5 --kl-end 1e-4 --kl-warmup-epochs 20 --gradient-clip-norm 1.0 --validate-every 9999 --validation-samples 5000 --num-workers 3 --seed 0 --amp --lambda-kl 1e-6 --lambda-perc 0.0 --lambda-adv 0.0 --adv-start-epoch 5 --disc-lr 4e-4 --sweep-mode --sweep-epochs 5 
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/codec/train_scratch_vae.py", line 31, in <module>
+    import lpips
+ModuleNotFoundError: No module named 'lpips'
+[run] finished_utc=2026-09-26T12:47:25Z
+[run] exit_status=1

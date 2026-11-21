@@ -1,0 +1,25 @@
+[run] training_type=scratch_codec
+[run] representation_space=codec
+[run] dataset=celeba
+[run] algorithm=scratch_kl_vae
+[run] started_utc=2026-11-21T08:28:50Z
+[run] command=/home/ndag/Desktop/SSD_137_207_209\ Thesis/Difussion-Model/venv/bin/python -m codec.train_scratch_vae --data-root data/raw --work-dir results/codecs/scratch_kl_vae_stage_A_kl1e-6 --output results/codecs/scratch_kl_vae_stage_A_kl1e-6/accepted_codec.pt --device cuda --batch-size 64 --epochs 5 --learning-rate 1e-4 --weight-decay 1e-4 --kl-start 1e-5 --kl-end 1e-4 --kl-warmup-epochs 20 --gradient-clip-norm 1.0 --validate-every 9999 --validation-samples 5000 --num-workers 3 --seed 0 --amp --lambda-kl 1e-6 --lambda-perc 0.0 --lambda-adv 0.0 --adv-start-epoch 5 --disc-lr 4e-4 --sweep-mode --sweep-epochs 5 
+/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+/home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/lpips/lpips.py:107: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  self.load_state_dict(torch.load(model_path, map_location='cpu'), strict=False)
+Files already downloaded and verified
+Files already downloaded and verified
+Setting up [LPIPS] perceptual loss: trunk [vgg], v[0.1], spatial [off]
+Loading model from: /home/ndag/Desktop/SSD_137_207_209 Thesis/Difussion-Model/venv/lib/python3.12/site-packages/lpips/weights/v0.1/vgg.pth
+Scratch KL-VAE settings: batch=64, epochs=5, lr=0.0001, weight_decay=0.0001, lambda_kl=1e-06, lambda_perc=0, lambda_adv=0, adv_start_epoch=5, disc_lr=0.0004, grad_clip=1, amp=True
+epoch=1/5 beta=0.00001000 L_total=0.062611 L_recon=0.062606 L_kl=5.135732 L_perc=0.183285 L_adv=0.000000 L_disc=0.000000 kl_per_dim=0.005015
+epoch=2/5 beta=0.00001450 L_total=0.041648 L_recon=0.041640 L_kl=7.702995 L_perc=0.099467 L_adv=0.000000 L_disc=0.000000 kl_per_dim=0.007522
+epoch=3/5 beta=0.00001900 L_total=0.037993 L_recon=0.037985 L_kl=8.615138 L_perc=0.084169 L_adv=0.000000 L_disc=0.000000 kl_per_dim=0.008413
+epoch=4/5 beta=0.00002350 L_total=0.035901 L_recon=0.035892 L_kl=8.984590 L_perc=0.077078 L_adv=0.000000 L_disc=0.000000 kl_per_dim=0.008774
+epoch=5/5 beta=0.00002800 L_total=0.034367 L_recon=0.034358 L_kl=8.796360 L_perc=0.072776 L_adv=3.404283 L_disc=0.104131 kl_per_dim=0.008590
+[SWEEP] lambda_kl=1e-06 status=COLLAPSE kl_per_dim=0.0086 L_recon=0.0344 L_perc=0.0728 L_adv=3.4043
+[run] finished_utc=2026-11-21T08:45:28Z
+[run] exit_status=0
