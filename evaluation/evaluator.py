@@ -78,6 +78,15 @@ def ensure_fid_reference(cfg: ExperimentConfig, real_loader: DataLoader,
     point at the same cache path, this raises explicitly rather than
     silently comparing FID against a mismatched reference distribution.
     """
+    if cfg.dataset.name == _LATENT_DATASET_NAME:
+        # Latent configs describe 3x16x16 codec states, but FID is always
+        # computed on decoded 64x64 RGB images. The reference must therefore be
+        # raw CelebA validation pixels, never the latent validation loader that
+        # `real_loader` yields here (that produced a meaningless ~300 FID).
+        return ensure_fid_reference_latent(
+            cfg, device, n_images=cfg.evaluation.num_generated_samples
+        )
+
     cache_path = cfg.evaluation.fid_reference_cache
     meta_path = _fid_reference_meta_path(cache_path)
 
@@ -190,8 +199,11 @@ def ensure_fid_reference_latent(
             raise RuntimeError(
                 f"FID reference cache '{cache_path}' was built with "
                 f"{cached_meta} but the current run expects {expected_meta}. "
-                f"Use a different fid_reference_cache path for latent experiments "
-                f"or delete the stale cache."
+                f"A cache without source='raw_celeba_validation_pixels' was built "
+                f"from latent tensors by an older evaluator and gives invalid "
+                f"(~300) FID. Point evaluation.fid_reference_cache at a new path "
+                f"or move the stale cache aside; it will be rebuilt from raw "
+                f"CelebA validation pixels."
             )
         return cache_path
 

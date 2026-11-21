@@ -189,6 +189,50 @@ class TestEnsureFIDReferenceLatent:
                 "ensure_fid_reference_latent must not import data.celeba_latent"
 
 
+class TestEnsureFIDReferenceDispatch:
+    """The generic entry point must never build a latent-tensor reference."""
+
+    def test_latent_dataset_uses_raw_pixel_reference(self):
+        from config.config import ExperimentConfig, DatasetConfig, EvalConfig
+        from evaluation.evaluator import ensure_fid_reference
+
+        latent_loader = DataLoader(
+            TensorDataset(torch.randn(20, 3, 16, 16), torch.zeros(20)), batch_size=8)
+        pixels = DataLoader(
+            TensorDataset(torch.rand(20, 3, 64, 64) * 2 - 1, torch.zeros(20)), batch_size=8)
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = ExperimentConfig(
+                dataset=DatasetConfig(name="celeba_latent", image_size=16),
+                evaluation=EvalConfig(
+                    fid_reference_cache=os.path.join(tmp, "ref.pt"),
+                    num_generated_samples=16),
+            )
+            with mock.patch("evaluation.evaluator._celeba_get_dataloaders",
+                            return_value=(pixels, pixels)):
+                path = ensure_fid_reference(cfg, latent_loader, torch.device("cpu"))
+            ref = torch.load(path, weights_only=False)
+            assert tuple(ref.shape) == (16, 3, 64, 64)
+            with open(path + ".meta.json") as f:
+                assert json.load(f)["source"] == "raw_celeba_validation_pixels"
+
+    def test_stale_latent_tensor_cache_is_rejected(self):
+        from config.config import ExperimentConfig, DatasetConfig, EvalConfig
+        from evaluation.evaluator import ensure_fid_reference
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = os.path.join(tmp, "ref.pt")
+            torch.save(torch.randn(16, 3, 16, 16), cache)
+            with open(cache + ".meta.json", "w") as f:
+                json.dump({"num_images": 16, "image_size": 16, "channels": 3}, f)
+            cfg = ExperimentConfig(
+                dataset=DatasetConfig(name="celeba_latent", image_size=16),
+                evaluation=EvalConfig(fid_reference_cache=cache, num_generated_samples=16),
+            )
+            import pytest
+            with pytest.raises(RuntimeError, match="latent tensors"):
+                ensure_fid_reference(cfg, None, torch.device("cpu"))
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Evaluator timing records
 # ══════════════════════════════════════════════════════════════════════════════
