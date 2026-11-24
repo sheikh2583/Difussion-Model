@@ -1,9 +1,33 @@
 # Publication roadmap
 
-Track: **steady** by default (see [FEASIBILITY.md](FEASIBILITY.md)); switch to
-fast (IJCNN 2027) only if Gate G0 passes by about 3 Dec 2026.
-Specification: [PROTOCOL_V2.md](PROTOCOL_V2.md). Tick boxes as work lands;
-record dates and run IDs next to them.
+Start: **Monday 30 Nov 2026.** Target: **IJCNN 2027**, with an internal
+submission date of **15 Jan 2027** (31 Jan is the outer limit; confirm on
+ijcnn.org). Rationale: [FEASIBILITY.md](FEASIBILITY.md). Specification:
+[PROTOCOL_V2.md](PROTOCOL_V2.md). Tick boxes as work lands, and record dates
+and run IDs next to them.
+
+## Week-by-week schedule
+
+| Week | Dates | Engineering / writing | 3090 GPU | 4070 laptop | Gate |
+|---|---|---|---|---|---|
+| 1 | 30 Nov – 6 Dec | Phase 1: `mf_targets.py`, `estimator_study.py`, tests | G0 study (≈2 h) | G0 on the CIFAR MF checkpoint | **G0 on Fri 4 Dec** |
+| 2 | 7 – 13 Dec | Phase 2: EMA, time-embedding scale, LR warmup, `mf_est`, launcher, v2 configs, 50k CIFAR FID reference | idle (or the G1 pilot over the weekend) | — | — |
+| 3 | 14 – 20 Dec | SplitMeanFlow baseline; DiT-S profiling code | G1 pilot Mon–Tue (≈6 h), then P1-L seed 0 (≈28 h), then seeds 1–2 | P1-C block (≈30 h) | **G1 on Tue 15 Dec; G2 on Thu 17 Dec** |
+| 4 | 21 – 27 Dec | Write the introduction, related work and method | P1-L seeds 1–2 finish; SplitMeanFlow (≈22 h) | CIFAR SplitMeanFlow, then profiling | arXiv re-check |
+| 5 | 28 Dec – 3 Jan | v2 aggregation, figures, tables; write the experiments section | ablations (≈30 h) and evaluations; contingency | evaluations | Results frozen on Sun 3 Jan |
+| 6 | 4 – 10 Jan | Full draft to the supervisor by Fri 8 Jan | Paper 2 runs begin (≈4 GPU-days) | Paper 2 CIFAR runs | — |
+| 7 | 11 – 15 Jan | Revisions; **submit Paper 1 on Fri 15 Jan** | Paper 2 runs continue | — | — |
+| 8+ | after 15 Jan | Paper 2 analysis and writing toward its Bangladeshi IEEE target | — | — | — |
+
+**Fallback.** If G0 fails on 4 Dec, Paper 1 becomes Paper 2 with an
+estimator-choice section. It keeps the IJCNN date, and its Paper 2 runs move
+into weeks 3–5.
+
+**Slip rule.** If seed-0 results (G2) are not in by 20 Dec, cut the
+ablations to 3 runs and drop DiT profiling. Do not drop seeds.
+
+**Phase 0** (thesis hygiene) is not on the IJCNN critical path. Do it in
+spare hours, or after 15 Jan.
 
 ## Phase 0: thesis hygiene (parallel, no GPU)
 
@@ -58,3 +82,4 @@ record dates and run IDs next to them.
 | Date | Decision | By |
 |---|---|---|
 | 2026-11-25 | Pivot from the v1 thesis comparison to the two-paper plan; Protocol v2 drafted | team |
+| 2026-11-25 | Pace: start 30 Nov 2026, target IJCNN 2027 (internal deadline 15 Jan) | team |

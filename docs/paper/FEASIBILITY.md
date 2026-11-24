@@ -15,7 +15,7 @@ Status date: 2026-11-25. Owner: research lead. Companion files:
 | Top-tier venue (CVPR, NeurIPS, ICLR) | **Not feasible.** These venues expect ImageNet-scale experiments, a DiT backbone and near-state-of-the-art FID. |
 | Compute needed | Paper 1 ≈ 250 GPU-hours (about 10.4 days on one 3090). Paper 2 adds about 96 GPU-hours (about 4 days); FM and MF runs are shared between the two papers. |
 | Engineering needed | About 20–26 working days for one person, before any writing. |
-| Is "build slowly" compatible with IJCNN 2027? | **No.** IJCNN needs a full-time pace starting now. A steady pace fits ICIP or ICONIP 2027 (Paper 1) and a Bangladeshi conference in late 2027 (Paper 2). |
+| Target | **IJCNN 2027 for Paper 1.** Work starts Monday 30 Nov 2026; internal deadline 15 Jan 2027, with 31 Jan as the outer limit. This needs a near-full-time pace: about 26 working days of the 33 available. |
 
 ## Why the current results are not publishable
 
@@ -115,14 +115,17 @@ Leave CelebA 64×64 **pixel** out of both papers. FM alone took 16 h per run the
 
 Deadlines below come from web listings and **must be re-checked on the official sites**.
 
-| Track | Paper 1 target | Paper 2 target | Pace needed |
-|---|---|---|---|
-| **Fast** | IJCNN 2027 (plan for 15 Jan 2027; some sources say 31 Jan). Conference 14–18 June 2027, Cape Town, 6 pages. | Bangladeshi IEEE, late-2027 cycle | Full-time from now. G0 must pass by about 3 Dec. |
-| **Steady** (fits "build slowly") | ICIP 2027 (Singapore, 29 Nov–3 Dec 2027; deadline not yet announced) or ICONIP 2027 (deadline not checked) | Bangladeshi IEEE, late-2027 cycle (ICCIT, STI, ICEEICT 2028; deadlines usually around Aug–Oct, not checked) | 2–3 days a week |
+**Chosen plan (decided 2026-11-25): start Monday 30 Nov 2026 and target IJCNN 2027.**
+
+| Paper | Primary target | Fallback |
+|---|---|---|
+| Paper 1 (if G0 passes) | IJCNN 2027: internal deadline 15 Jan 2027 (some sources say 31 Jan). Conference 14–18 June 2027, Cape Town, 6 pages. | ICIP 2027 (Singapore, 29 Nov–3 Dec 2027; deadline not yet announced) or ICONIP 2027 |
+| Paper 2 | The first Bangladeshi IEEE conference whose deadline falls after mid-February 2027 (deadlines not yet checked) | Late-2027 Bangladeshi cycle (ICCIT, STI, ICEEICT 2028) |
+| If G0 fails | Paper 2 plus an estimator-choice section goes to IJCNN 2027 instead (odds ~20–30%) | Bangladeshi IEEE |
 
 The ICEEICT 2027 and ECCE 2027 deadlines have already passed.
 
-**Recommendation: the steady track,** with an option to switch to fast. Make that call at Gate G0. If G0 passes cleanly and early, IJCNN is still possible.
+**Why it fits.** From 30 Nov to 15 Jan there are 33 working days for about 26 days of engineering and writing. The GPU work (≈10.4 days of 3090 time) overlaps with coding and writing. The 3090 queue runs from 14 Dec to about 3 Jan (21 days), which leaves about 10 days of slack. Allow for holidays (16 Dec and 25 Dec) and avoid scope creep. The dated plan is in [ROADMAP.md](ROADMAP.md).
 
 ## Gates
 
@@ -155,7 +158,7 @@ These are rough judgments, not data.
 
 ## Decisions the team must make
 
-1. Fast track or steady track (decide at G0 at the latest).
-2. Dedicated 3090 time: about 13–14 GPU-days in total across both papers.
+1. ~~Pace~~: decided. Start 30 Nov 2026, target IJCNN 2027.
+2. Dedicated 3090 time: reserved from 14 Dec 2026 to about 3 Jan 2027 for Paper 1, then about 4 more days for Paper 2.
 3. Author list and supervisor sign-off for both papers.
 4. Whether to add the attention backbone. Recommended: profiling only.
