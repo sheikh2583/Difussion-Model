@@ -1364,7 +1364,6 @@ entrypoints, aggregation, latent contracts, and web discovery.
 | Document | Purpose |
 |---|---|
 | [RUNBOOK.md](RUNBOOK.md) | Exact CelebA latent codec, cache, smoke, and training gates |
-| [BLOCKER_DECISIONS.md](BLOCKER_DECISIONS.md) | Resolved latent architecture decision and measured parameter counts |
 | [scripts/README.md](scripts/README.md) | Linux/Windows command index |
 | [docs/THEORY_NOTES.md](docs/THEORY_NOTES.md) | Algorithm derivations and references |
 | [docs/IMPLEMENTATION_CHANGES.md](docs/IMPLEMENTATION_CHANGES.md) | Chronological engineering and validation history |
